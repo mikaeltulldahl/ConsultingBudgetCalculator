@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consultant Budget Calculator</title>
+</head>
+<body>
+  <h1>Consultant Budget Calculator</h1>
+  <p>Please enter your data:</p>
+  <label for="year">Fiscal Year:</label>
+  <input type="number" id="year" min="2000" value="2024"><br><br>
+  <label for="hourlyRate">Hourly Rate (SEK) excluding VAT:</label>
+  <input type="number" id="hourlyRate" min="0"><br><br>
+
+  <label for="startDate">Start Date:</label>
+  <input type="date" id="startDate"><br><br>
+
+  <label for="endDate">End Date:</label>
+  <input type="date" id="endDate"><br><br>
+
+  <label for="vacationDays">Vacation days:</label>
+  <input type="number" id="vacationDays" min="0" value="25"><br><br>
+
+  <label for="billableHours"> Billable hours:</label>
+  <input type="number" id="billableHours" min="0"><br><br>
+
+  <p id="invoicedAmount">invoicedAmount:</p>
+  <p id="arbetsgivarAvgift">arbetsgivarAvgift:</p>
+  <p id="inkomstskatt">inkomstskatt:</p>
+  <p id="utdelning">utdelning:</p>
+  <p id="utdelningskatt">utdelningskatt:</p>
+
+  <script>
+    var yearField = document.getElementById("year");
+    var hourlyRateField = document.getElementById("hourlyRate");
+    var startField = document.getElementById("startDate");
+    var endField = document.getElementById("endDate");
+    var vacationDaysField = document.getElementById("vacationDays");
+    var billableHoursField = document.getElementById("billableHours");
+    var invoicedAmountField = document.getElementById("invoicedAmount");
+    var arbetsgivarAvgiftField = document.getElementById("arbetsgivarAvgift");
+    var inkomstskattField = document.getElementById("inkomstskatt");
+
+    startField.addEventListener("input", updateBillableHours);
+    endField.addEventListener("input", updateBillableHours);
+    vacationDaysField.addEventListener("input", updateBillableHours);
+    function updateBillableHours() {
+      var hours = 0;
+      if (startField.value && endField.value && vacationDaysField.value){
+        var startDate = new Date(startField.value);
+        var endDate = new Date(endField.value);
+        var vacationDays = parseInt(vacationDaysField.value);
+        var businessDays = Math.max(0, getBusinessDays(startDate, endDate) - vacationDays);
+        hours = businessDays * 8;
+      }
+      billableHoursField.value = hours;
+      billableHoursField.dispatchEvent(new Event('input'));
+    }
+    
+    hourlyRateField.addEventListener("input", updateInvoicedAmount)
+    billableHoursField.addEventListener("input", updateInvoicedAmount)
+    function updateInvoicedAmount(){
+      var amount = 0;
+      if (hourlyRateField.value && billableHoursField.value){
+        var hourlyRate = parseInt(hourlyRateField.value);
+        var billableHours = parseInt(billableHoursField.value);
+        amount = hourlyRate * billableHours;
+      }
+      invoicedAmountField.textContent = "Invoiced Amount: " + amount + " SEK (excluding VAT)";
+      invoicedAmountField.dispatchEvent(new Event('change'));
+    }
+
+    var publicHolidaysUTC = []; // all UTC timestamps for holidays this year
+    yearField.addEventListener("input", updatePublicHolidays) // runs when changing the year
+    function updatePublicHolidays() {
+      const countryCode = 'SE'; // Country code for Sweden
+      var year = parseInt(yearField.value);
+      var apiUrl = `https://date.nager.at/Api/v3/publicholidays/${year}/${countryCode}`;
+
+      // Make the HTTP request to the API
+      fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+          // Parse the response data
+          publicHolidaysUTC = data.map(holiday => {
+            const holidayDate = new Date(holiday.date);
+            return Date.UTC(holidayDate.getFullYear(), holidayDate.getMonth(), holidayDate.getDate());
+        });
+
+        })
+        .catch(error => {
+          console.error('Error fetching public holidays:', error);
+          //TODO show error
+        });
+    }
+
+    function isPublicHoliday(dateUTC){
+      if(dateUTC.getFullYear() != parseInt(yearField.value)) throw "wrong year";
+      const timestamp = dateUTC.getTime();
+      // Check if the selected date is a public holiday
+      const isHoliday = publicHolidaysUTC.some(holiday => timestamp == holiday);
+      return isHoliday;
+    }
+
+    function getBusinessDays(startDate, endDate) {
+      const startUTC = Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+      const endUTC = Date.UTC(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+      var currentDate = new Date(startDate);
+      var businessDaysCount = 0;
+      const millisPerDay = 24 * 60 * 60 * 1000;
+      const saturday = 6;
+      const sunday = 0;
+      for (var dateUTC = startUTC; dateUTC <= endUTC; dateUTC += millisPerDay) {
+        var currentDate = new Date(dateUTC);
+        var day = currentDate.getUTCDay();
+        if (day !== saturday && day !== sunday && !isPublicHoliday(currentDate)) {
+            businessDaysCount++;
+        }
+      }
+      return businessDaysCount;
+    }
+
+    updatePublicHolidays();
+  </script>
+</body>
+</html>
