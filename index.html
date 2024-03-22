@@ -7,52 +7,274 @@
 </head>
 <body>
   <h1>Consultant Budget Calculator</h1>
-  <p>Please enter your data:</p>
-  <label for="year">Fiscal Year:</label>
+
+  <label for="year">Räkenskapsår:</label>
   <input type="number" id="year" min="2000" value="2024"><br><br>
-  <label for="hourlyRate">Hourly Rate (SEK) excluding VAT:</label>
-  <input type="number" id="hourlyRate" min="0"><br><br>
 
-  <label for="startDate">Start Date:</label>
-  <input type="date" id="startDate"><br><br>
+  <p> Kommun & församling:</p>
+  <select id="kommunSelector">
+    <!-- Options will be populated dynamically -->
+  </select>
+  
+  <select id="forsamlingSelector" disabled>
+    <!-- Options will be populated dynamically -->
+  </select>
 
-  <label for="endDate">End Date:</label>
-  <input type="date" id="endDate"><br><br>
+  
+  <hr>
 
-  <label for="vacationDays">Vacation days:</label>
+  <h2>Intäkter</h2>
+  <label for="hourlyRate">Timpris exkl. moms:</label>
+  <input type="number" step="10" id="hourlyRate" min="0" value="700"><br><br>
+
+  <label for="billingStartDate">Uppdrag start:</label>
+  <input type="date" id="billingStartDate" value="2024-01-01"><br><br>
+
+  <label for="billingEndDate">Uppdrag end:</label>
+  <input type="date" id="billingEndDate" value="2024-12-31"><br><br>
+
+  <label for="workingRate">Arbetstakt (%):</label>
+  <input type="number" step="25" id="workingRate" min="0" max="100" value="100"><br><br>
+
+  <label for="vacationDays">Semesterdagar:</label>
   <input type="number" id="vacationDays" min="0" value="25"><br><br>
 
-  <label for="billableHours"> Billable hours:</label>
+  <label for="billableHours"> Fakturerbara timmar:</label>
   <input type="number" id="billableHours" min="0"><br><br>
 
-  <p id="invoicedAmount">invoicedAmount:</p>
-  <p id="arbetsgivarAvgift">arbetsgivarAvgift:</p>
-  <p id="inkomstskatt">inkomstskatt:</p>
-  <p id="utdelning">utdelning:</p>
-  <p id="utdelningskatt">utdelningskatt:</p>
+  <label for="invoicedAmount"> Fakturerat belopp exkl. moms:</label>
+  <input type="number" id="invoicedAmount" disabled><br><br>
+  <hr>
+
+  <h2>Lön</h2>
+  <label for="kommunalSkattPercent">Kommunal skatt (%):</label>
+  <input type="number" id="kommunalSkattPercent" disabled><br><br>
+
+  <label for="churchMember">Medlem i kyrkan:</label>
+  <input type="checkbox" id="churchMember" checked><br><br>
+
+  <label for="churchSkattPercent"> Kyrkoavgift (%):</label>
+  <input type="number" id="churchSkattPercent" disabled><br><br>
+
+  <label for="burialSkattPercent"> Begravningsavgift (%):</label>
+  <input type="number" id="burialSkattPercent" disabled><br><br>
+
+  <label for="grossSalaryMonth">Månadslön brutto:</label>
+  <input type="number" step="1000" id="grossSalaryMonth" min="0" value="51275"><br><br>
+  
+  <label for="grossSalaryYear"> Årslön brutto:</label>
+  <input type="number" id="grossSalaryYear" disabled><br><br>
+
+  <label for="grundavdrag"> Grundavdrag:</label>
+  <input type="number" id="grundavdrag" disabled><br><br>
+
+  <label for="kommunalSkatt"> Kommunal inkomstskatt:</label>
+  <input type="number" id="kommunalSkatt" disabled><br><br>
+
+  <label for="statligSkatt"> Statlig inkomstskatt:</label>
+  <input type="number" id="statligSkatt" disabled><br><br>
+
+  <label for="churchSkatt"> Kyrkoavgift:</label>
+  <input type="number" id="churchSkatt" disabled><br><br>
+
+  <label for="burialSkatt"> Begravningsavgift:</label>
+  <input type="number" id="burialSkatt" disabled><br><br>
+
+  <label for="publicServiceSkatt"> Public service-avgift:</label>
+  <input type="number" id="publicServiceSkatt" disabled><br><br>
+
+  <label for="jobbskatteavdrag"> Jobbskatteavdrag:</label>
+  <input type="number" id="jobbskatteavdrag" disabled><br><br>
+
+  <label for="SkattereduktionForvarvsinkomst"> Skattereduktion för förvärvsinkomst:</label>
+  <input type="number" id="SkattereduktionForvarvsinkomst" disabled><br><br>
+
+  <label for="netSalaryMonth"> Månadslön netto:</label>
+  <input type="number" id="netSalaryMonth" disabled><br><br>
+
+  <label for="netSalaryYear"> Årslön netto:</label>
+  <input type="number" id="netSalaryYear" disabled><br><br>
+
+  <hr>
+  <h2>Resultat</h2>
+
+  <label for="slp"> Särskild löneskatt SLP:</label>
+  <input type="number" id="slp" disabled><br><br>
+
+  <label for="arbetsgivaravgift"> Arbetsgivaravgift:</label>
+  <input type="number" id="arbetsgivaravgift" disabled><br><br>
+
+  <label for="profitBeforeTax"> Resultat före skatt:</label>
+  <input type="number" id="profitBeforeTax" disabled><br><br>
+
+  <label for="profitAfterTax"> Årets resultat:</label>
+  <input type="number" id="profitAfterTax" disabled><br><br>
+  
+  <hr>
+  <h2>Utdelning</h2>
+  <label for="maxDividend">Maximal utdelning enligt 3:12 regeln:</label>
+  <input type="checkbox" id="maxDividend" checked="true"><br><br>
+
+  <label for="grossDividends">Årsutdelning brutto:</label>
+  <input type="number" id="grossDividends" min="0" disabled><br><br>
+
+  <label for="netDividends"> Årsutdelning netto:</label>
+  <input type="number" id="netDividends" disabled><br><br>
+
+  <label for="profitAfterDividends"> Årets Resultat efter skatt och utdelning:</label>
+  <input type="number" id="profitAfterDividends" disabled><br><br>
+  
 
   <script>
-    var yearField = document.getElementById("year");
-    var hourlyRateField = document.getElementById("hourlyRate");
-    var startField = document.getElementById("startDate");
-    var endField = document.getElementById("endDate");
-    var vacationDaysField = document.getElementById("vacationDays");
-    var billableHoursField = document.getElementById("billableHours");
-    var invoicedAmountField = document.getElementById("invoicedAmount");
-    var arbetsgivarAvgiftField = document.getElementById("arbetsgivarAvgift");
-    var inkomstskattField = document.getElementById("inkomstskatt");
+    // TODO tooltip: https://www.w3schools.com/css/tryit.asp?filename=trycss_tooltip_arrow_left
+    const yearField = document.getElementById("year");
+    
+    // Intäkter
+    const hourlyRateField = document.getElementById("hourlyRate");
+    const billingStartField = document.getElementById("billingStartDate");
+    const billingEndField = document.getElementById("billingEndDate");
+    const workingRateField = document.getElementById("workingRate");
+    const vacationDaysField = document.getElementById("vacationDays");
+    const billableHoursField = document.getElementById("billableHours");
+    const invoicedAmountField = document.getElementById("invoicedAmount");
 
-    startField.addEventListener("input", updateBillableHours);
-    endField.addEventListener("input", updateBillableHours);
+    // Lön
+    const kommunalSkattPercentField = document.getElementById("kommunalSkattPercent");
+    const churchMemberField = document.getElementById("churchMember");
+    const churchSkattPercentField = document.getElementById("churchSkattPercent");
+    const burialSkattPercentField = document.getElementById("burialSkattPercent");
+    const grossSalaryMonthField = document.getElementById("grossSalaryMonth");
+    const grossSalaryYearField = document.getElementById("grossSalaryYear");
+    const grundavdragField = document.getElementById("grundavdrag");
+    const kommunalSkattField = document.getElementById("kommunalSkatt");
+    const statligSkattField = document.getElementById("statligSkatt");
+    const churchSkattField = document.getElementById("churchSkatt");
+    const burialSkattField = document.getElementById("burialSkatt");
+    const publicServiceSkattField = document.getElementById("publicServiceSkatt");
+    const jobbskatteavdragField = document.getElementById("jobbskatteavdrag");
+    const SkattereduktionForvarvsinkomstField = document.getElementById("SkattereduktionForvarvsinkomst");
+    const netSalaryMonthField = document.getElementById("netSalaryMonth");
+    const netSalaryYearField = document.getElementById("netSalaryYear");
+    
+    // Resultat
+    const slpField = document.getElementById("slp");
+    const arbetsgivaravgiftField = document.getElementById("arbetsgivaravgift");
+    const profitBeforeTaxField = document.getElementById("profitBeforeTax");
+    const profitAfterTaxField = document.getElementById("profitAfterTax");
+
+    // Utdelning
+    const maxDividendCheckbox = document.getElementById('maxDividend');
+    const grossDividendsField = document.getElementById('grossDividends');
+    const netDividendsField = document.getElementById('netDividends');
+    const profitAfterDividendsField = document.getElementById('profitAfterDividends');
+
+    var kommun = "";
+    var forsamling = "";
+
+    // Function to populate kommunSelector with options
+    function populateKommunDropdown() {
+      const kommunSelector = document.getElementById('kommunSelector');
+      kommunSelector.innerHTML = '';
+
+      const optionElement = document.createElement('option');
+      optionElement.textContent = "--- VÄLJ KOMUN---";
+      optionElement.selected = true;
+      optionElement.disabled = true;
+      kommunSelector.appendChild(optionElement);
+
+      kommuner.forEach(kommunElement => {
+        const optionElement = document.createElement('option');
+        optionElement.textContent = kommunElement.toUpperCase();
+        kommunSelector.appendChild(optionElement);
+      });
+
+      // Add event listener for kommunSelector change
+      kommunSelector.addEventListener('change', function(event) {
+        kommun = event.target.value;
+        console.log('Selected kommun:', encodeURIComponent(kommun));
+        populateForsamling();
+        updateKommunTax();
+      });
+    }
+    window.onload = populateKommunDropdown;
+
+    function populateForsamling() {
+      forsamling = "";
+      const forsamlingSelector = document.getElementById('forsamlingSelector');
+      forsamlingSelector.innerHTML = '';
+
+      const optionElement = document.createElement('option');
+      optionElement.textContent = "--- VÄLJ FÖRSAMLING---";
+      optionElement.selected = true;
+      optionElement.disabled = true;
+      forsamlingSelector.appendChild(optionElement);
+  
+      var year = parseInt(yearField.value);
+      const url = `https://skatteverket.entryscape.net/rowstore/dataset/c67b320b-ffee-4876-b073-dd9236cd2a99?kommun=${kommun}&%C3%A5r=${year}`;
+
+      fetch(url, { headers: {'Accept': 'application/json'}})
+            .then(response => response.json())
+            .then(data => {
+                data.results.forEach(forsamlingElement => {
+                  const optionElement = document.createElement('option');
+                  optionElement.textContent = forsamlingElement['församling'];
+                  forsamlingSelector.appendChild(optionElement);
+                });
+
+                // Add event listener for forsamlingSelector change
+                forsamlingSelector.addEventListener('change', function(event) {
+                  forsamling = event.target.value;
+                  console.log('Selected forsamlingElement:', forsamling);
+                  updateKommunTax();
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+        });
+        forsamlingSelector.disabled = false;
+    }
+
+    function updateKommunTax() {
+      var year = parseInt(yearField.value);
+      if(forsamling.length === 0 || kommun.length === 0 || !year){
+        kommunalSkattPercentField.value = "0";
+        churchSkattPercentField.value = "0";
+        burialSkattPercentField.value = "0";
+        kommunalSkattPercentField.dispatchEvent(new Event('change'));
+        return;
+      }
+      
+      const url = `https://skatteverket.entryscape.net/rowstore/dataset/c67b320b-ffee-4876-b073-dd9236cd2a99?f%C3%B6rsamling=${forsamling}&kommun=${kommun}&%C3%A5r=${year}`;
+
+      fetch(url, { headers: {'Accept': 'application/json'}})
+            .then(response => response.json())
+            .then(data => {
+                console.log(data.results[0])
+                kommunalSkattPercentField.value = parseFloat(data.results[0]['kommunal-skatt']) + parseFloat(data.results[0]['landstings-skatt']);
+                churchSkattPercentField.value = data.results[0]['kyrkoavgift'];
+                burialSkattPercentField.value = data.results[0]['begravnings-avgift'];
+                kommunalSkattPercentField.dispatchEvent(new Event('change'));
+            })
+            .catch(error => {
+                console.error('Error:', error);
+        });
+    }
+
+
+
+    billingStartField.addEventListener("input", updateBillableHours);
+    billingEndField.addEventListener("input", updateBillableHours);
+    workingRateField.addEventListener("input", updateBillableHours);
     vacationDaysField.addEventListener("input", updateBillableHours);
-    function updateBillableHours() {
+    async function updateBillableHours() {
       var hours = 0;
-      if (startField.value && endField.value && vacationDaysField.value){
-        var startDate = new Date(startField.value);
-        var endDate = new Date(endField.value);
+      if (billingStartField.value && billingEndField.value && workingRateField.value && vacationDaysField.value){
+        var billingStartDate = new Date(billingStartField.value);
+        var billingEndDate = new Date(billingEndField.value);
+        var workingRate = parseInt(workingRateField.value)*0.01;
         var vacationDays = parseInt(vacationDaysField.value);
-        var businessDays = Math.max(0, getBusinessDays(startDate, endDate) - vacationDays);
-        hours = businessDays * 8;
+        var businessDays = Math.max(0, await getBusinessDays(billingStartDate, billingEndDate) - vacationDays);
+        hours = Math.round(businessDays * 8 * workingRate);
       }
       billableHoursField.value = hours;
       billableHoursField.dispatchEvent(new Event('input'));
@@ -67,26 +289,24 @@
         var billableHours = parseInt(billableHoursField.value);
         amount = hourlyRate * billableHours;
       }
-      invoicedAmountField.textContent = "Invoiced Amount: " + amount + " SEK (excluding VAT)";
+      invoicedAmountField.value = amount;
       invoicedAmountField.dispatchEvent(new Event('change'));
     }
 
-    var publicHolidaysUTC = []; // all UTC timestamps for holidays this year
-    yearField.addEventListener("input", updatePublicHolidays) // runs when changing the year
-    function updatePublicHolidays() {
+    var publicHolidaysUTC = {}; // cache holidays for each year
+    function updatePublicHolidays(year) {
       const countryCode = 'SE'; // Country code for Sweden
-      var year = parseInt(yearField.value);
       var apiUrl = `https://date.nager.at/Api/v3/publicholidays/${year}/${countryCode}`;
 
       // Make the HTTP request to the API
-      fetch(apiUrl)
+      return fetch(apiUrl)
         .then(response => response.json())
         .then(data => {
           // Parse the response data
-          publicHolidaysUTC = data.map(holiday => {
-            const holidayDate = new Date(holiday.date);
-            return Date.UTC(holidayDate.getFullYear(), holidayDate.getMonth(), holidayDate.getDate());
-        });
+        publicHolidaysUTC[year] = new Set(data.map(holiday => {
+          const holidayDate = new Date(holiday.date);
+          return Date.UTC(holidayDate.getFullYear(), holidayDate.getMonth(), holidayDate.getDate());
+        }));
 
         })
         .catch(error => {
@@ -95,15 +315,17 @@
         });
     }
 
-    function isPublicHoliday(dateUTC){
-      if(dateUTC.getFullYear() != parseInt(yearField.value)) throw "wrong year";
+    async function isPublicHoliday(dateUTC){
+      var year = dateUTC.getFullYear();
+      if (!publicHolidaysUTC.hasOwnProperty(year)) {
+        await updatePublicHolidays(year);
+      }
       const timestamp = dateUTC.getTime();
-      // Check if the selected date is a public holiday
-      const isHoliday = publicHolidaysUTC.some(holiday => timestamp == holiday);
+      const isHoliday = publicHolidaysUTC[year].has(timestamp);
       return isHoliday;
     }
 
-    function getBusinessDays(startDate, endDate) {
+    async function getBusinessDays(startDate, endDate) {
       const startUTC = Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
       const endUTC = Date.UTC(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
       var currentDate = new Date(startDate);
@@ -114,14 +336,438 @@
       for (var dateUTC = startUTC; dateUTC <= endUTC; dateUTC += millisPerDay) {
         var currentDate = new Date(dateUTC);
         var day = currentDate.getUTCDay();
-        if (day !== saturday && day !== sunday && !isPublicHoliday(currentDate)) {
+        var isHoliday = await isPublicHoliday(currentDate);
+        if (day !== saturday && day !== sunday && !isHoliday) {
             businessDaysCount++;
         }
       }
       return businessDaysCount;
     }
 
-    updatePublicHolidays();
+    //when making year-specific, also listen to yearField.addEventListener("input", updateSalary);
+    vacationDaysField.addEventListener("input", updateSalary);
+    kommunalSkattPercentField.addEventListener("change", updateSalary);
+    churchMemberField.addEventListener("input", updateSalary);
+    grossSalaryMonthField.addEventListener("input", updateSalary);
+    async function updateSalary(){
+      var year = parseInt(yearField.value);
+      var kommunalSkattPercent = 0.01*parseFloat(kommunalSkattPercentField.value);
+      var churchSkattPercent = 0.01*parseFloat(churchSkattPercentField.value);
+      var burialSkattPercent = 0.01*parseFloat(burialSkattPercentField.value);
+      var grossSalaryMonth = parseInt(grossSalaryMonthField.value);
+      var vacationDays = parseInt(vacationDaysField.value);
+      const salaryMonths = 12;
+
+      grossSalaryYearField.value = Math.floor(0.0043*vacationDays*grossSalaryMonth + salaryMonths*grossSalaryMonth);
+
+      await updateGrundavdrag();
+      var taxableIncome = grossSalaryYearField.value - grundavdragField.value;
+      kommunalSkattField.value = Math.floor(kommunalSkattPercent*taxableIncome);
+      statligSkattField.value = Math.floor(0.2*Math.max(0, taxableIncome - getSkiktgrans()));
+      burialSkattField.value = Math.floor(burialSkattPercent*taxableIncome);
+      churchSkattField.value = churchMemberField.checked? Math.floor(churchSkattPercent*taxableIncome) : 0;
+      publicServiceSkattField.value = Math.min(1219, Math.floor(0.01*taxableIncome));
+      jobbskatteavdragField.value = getJobbskatteavdrag();
+      SkattereduktionForvarvsinkomst.value = Math.floor(getSkattereduktionForvarvsinkomst());
+      netSalaryYearField.value = grossSalaryYearField.value - kommunalSkattField.value - statligSkattField.value - burialSkattField.value - churchSkattField.value - publicServiceSkattField.value + parseInt(jobbskatteavdragField.value) + parseInt(SkattereduktionForvarvsinkomst.value);
+      netSalaryMonthField.value = Math.floor(netSalaryYearField.value/salaryMonths);
+      netSalaryYearField.dispatchEvent(new Event('change'));
+    }
+
+    function getSkattereduktionForvarvsinkomst(){
+      var taxableIncome = grossSalaryYearField.value - grundavdragField.value;
+      if(taxableIncome <= 40000){
+        return 0;
+      }
+      return Math.min(1500, 0.0075 * (taxableIncome - 40000));
+    }
+
+    async function updateGrundavdrag(){
+      var year = parseInt(yearField.value);
+      // https://www7.skatteverket.se/portal/apier-och-oppna-data/utvecklarportalen/oppetdata/Grundavdrag%20f%C3%B6r%20personer%20under%2066%20%C3%A5r
+      await fetch(`https://skatteverket.entryscape.net/rowstore/dataset/ebbd8d70-9b9c-4327-b2ce-a371ee66744c?%C3%A5r=${year}&_limit=500`, { headers: {'Accept': 'application/json'}})
+        .then(response => response.json())
+        .then(data => {
+          var income = Math.round(grossSalaryYearField.value/100)*100;
+          let foundEntry = false;
+          for (let i = 0; i < data.results.length; i++) {
+            const entry = data.results[i];
+            if ( income >= parseInt(entry['ink from']) && income <= parseInt(entry['ink tom'])){
+              var grundavdrag = entry['gr avdrag'];
+              if(grundavdrag =="FastInk"){
+                grundavdrag = 0;
+              }
+              grundavdragField.value = grundavdrag;
+              foundEntry = true;
+              break;
+            }
+          }
+          if (!foundEntry){
+            grundavdragField.value = data.results[data.results.length-1]['gr avdrag'];
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching grundavdrag:', error);
+          grundavdragField.value = "Error";
+      });
+    }
+
+    function getJobbskatteavdrag(){
+      var kommunalSkattPercent = 0.01*parseFloat(kommunalSkattPercentField.value);
+      var pbb = getPrisbasbelopp();
+      var ratio = grossSalaryYearField.value/pbb;
+      var year = parseInt(yearField.value);
+      var params =  { 2019:[0.3405, 1.703, 0.1280, 2.323],
+                      2020:[0.3405, 1.703, 0.1280, 2.323],
+                      2021:[0.3405, 1.703, 0.1280, 2.323],
+                      2022:[0.3874, 1,812, 0.1280, 2,432],
+                      2023:[0.3874, 1,812, 0.1280, 2,432],
+                      2024:[0.3874, 1.813, 0.1643, 2.608]};
+
+      if(ratio < 0.91){
+        var temp = (grossSalaryYearField.value - grundavdragField.value)*kommunalSkattPercent;
+        return Math.round(temp);
+      }
+      if(ratio < 3.24){
+        var temp = ((0.91*pbb + params[year][0]*(grossSalaryYearField.value - 0.91*pbb)) - grundavdragField.value) * kommunalSkattPercent;
+        return Math.round(temp);
+      }
+      if(ratio < 8.08){
+        var temp = ((params[year][1]*pbb + params[year][2]*(grossSalaryYearField.value - 3.24*pbb)) - grundavdragField.value) * kommunalSkattPercent;
+        return Math.round(temp);
+      }
+      if(ratio < 13.54){
+        var temp = (params[year][3]*pbb - grundavdragField.value) * kommunalSkattPercent;
+        return Math.round(temp);
+      }
+      var temp = (params[year][3]*pbb - grundavdragField.value)*kommunalSkattPercent - 0.03*(grossSalaryYearField.value - 13.54*pbb);
+      return Math.round(temp);
+    }
+
+    function getPrisbasbelopp(){
+      var year = parseInt(yearField.value);
+      var values = {2020:47300,
+                    2021:47600,
+                    2022:48300,
+                    2023:52500,
+                    2024:57300};
+      return values[year];
+    }
+
+    function getSkiktgrans(){
+      var year = parseInt(yearField.value);
+      var values = {2020:523200,
+                    2021:537200,
+                    2022:554900,
+                    2023:613900,
+                    2024:598500};
+      return values[year];
+    }
+    
+    function updateDividends(){
+
+    }
+
+    maxDividendCheckbox.addEventListener('change', function() {
+      grossDividendsField.disabled = this.checked;
+    });
+
+    updateBillableHours();
+
+
+    const kommuner = [
+    "Ale",
+    "Alingsås",
+    "Alvesta",
+    "Aneby",
+    "Arboga",
+    "Arjeplog",
+    "Arvidsjaur",
+    "Arvika",
+    "Askersund",
+    "Avesta",
+    "Bengtsfors",
+    "Berg",
+    "Bjurholm",
+    "Bjuv",
+    "Boden",
+    "Bollebygd",
+    "Bollnäs",
+    "Borgholm",
+    "Borlänge",
+    "Borå",
+    "Botkyrka",
+    "Boxholm",
+    "Bromölla",
+    "Bräcke",
+    "Burlöv",
+    "Båstad",
+    "Dals-Ed",
+    "Danderyd",
+    "Degerfors",
+    "Dorotea",
+    "Eda",
+    "Ekerö",
+    "Eksjö",
+    "Emmaboda",
+    "Enköping",
+    "Eskilstuna",
+    "Eslöv",
+    "Essunga",
+    "Fagersta",
+    "Falkenberg",
+    "Falköping",
+    "Falu",
+    "Filipstad",
+    "Finspång",
+    "Flen",
+    "Forshaga",
+    "Färgelanda",
+    "Gagnef",
+    "Gislaved",
+    "Gnesta",
+    "Gnosjö",
+    "Gotland",
+    "Grums",
+    "Grästorp",
+    "Gullspång",
+    "Gällivare",
+    "Gävle",
+    "Göteborg",
+    "Götene",
+    "Habo",
+    "Hagfors",
+    "Hallsberg",
+    "Hallstahammar",
+    "Halmstad",
+    "Hammarö",
+    "Haninge",
+    "Haparanda",
+    "Heby",
+    "Hedemora",
+    "Helsingborg",
+    "Herrljunga",
+    "Hjo",
+    "Hofors",
+    "Huddinge",
+    "Hudiksvall",
+    "Hultsfred",
+    "Hylte",
+    "Håbo",
+    "Hällefor",
+    "Härjedalen",
+    "Härnösand",
+    "Härryda",
+    "Hässleholm",
+    "Höganä",
+    "Högsby",
+    "Hörby",
+    "Höör",
+    "Jokkmokk",
+    "Järfälla",
+    "Jönköping",
+    "Kalix",
+    "Kalmar",
+    "Karlsborg",
+    "Karlshamn",
+    "Karlskoga",
+    "Karlskrona",
+    "Karlstad",
+    "Katrineholm",
+    "Kil",
+    "Kinda",
+    "Kiruna",
+    "Klippan",
+    "Knivsta",
+    "Kramfors",
+    "Kristianstad",
+    "Kristinehamn",
+    "Krokom",
+    "Kumla",
+    "Kungsbacka",
+    "Kungsör",
+    "Kungälv",
+    "Kävlinge",
+    "Köping",
+    "Laholm",
+    "Landskrona",
+    "Laxå",
+    "Lekeberg",
+    "Leksand",
+    "Lerum",
+    "Lessebo",
+    "Lidingö",
+    "Lidköping",
+    "Lilla",
+    "Lindesberg",
+    "Linköping",
+    "Ljungby",
+    "Ljusdal",
+    "Ljusnarsberg",
+    "Lomma",
+    "Ludvika",
+    "Luleå",
+    "Lund",
+    "Lycksele",
+    "Lysekil",
+    "Malmö",
+    "Malung-Sälen",
+    "Malå",
+    "Mariestad",
+    "Mark",
+    "Markaryd",
+    "Mellerud",
+    "Mjölby",
+    "Mora",
+    "Motala",
+    "Mullsjö",
+    "Munkedal",
+    "Munkfors",
+    "Mölndal",
+    "Mönsterå",
+    "Mörbylånga",
+    "Nacka",
+    "Nora",
+    "Norberg",
+    "Nordanstig",
+    "Nordmaling",
+    "Norrköping",
+    "Norrtälje",
+    "Norsjö",
+    "Nybro",
+    "Nykvarn",
+    "Nyköping",
+    "Nynäshamn",
+    "Nässjö",
+    "Ockelbo",
+    "Olofström",
+    "Orsa",
+    "Orust",
+    "Osby",
+    "Oskarshamn",
+    "Ovanåker",
+    "Oxelösund",
+    "Pajala",
+    "Partille",
+    "Perstorp",
+    "Piteå",
+    "Ragunda",
+    "Robertsfors",
+    "Ronneby",
+    "Rättvik",
+    "Sala",
+    "Salem",
+    "Sandviken",
+    "Sigtuna",
+    "Simrishamn",
+    "Sjöbo",
+    "Skara",
+    "Skellefteå",
+    "Skinnskatteberg",
+    "Skurup",
+    "Skövde",
+    "Smedjebacken",
+    "Sollefteå",
+    "Sollentuna",
+    "Solna",
+    "Sorsele",
+    "Sotenä",
+    "Staffanstorp",
+    "Stenungsund",
+    "Stockholm",
+    "Storfors",
+    "Storuman",
+    "Strängnä",
+    "Strömstad",
+    "Strömsund",
+    "Sundbyberg",
+    "Sundsvall",
+    "Sunne",
+    "Surahammar",
+    "Svalöv",
+    "Svedala",
+    "Svenljunga",
+    "Säffle",
+    "Säter",
+    "Sävsjö",
+    "Söderhamn",
+    "Söderköping",
+    "Södertälje",
+    "Sölvesborg",
+    "Tanum",
+    "Tibro",
+    "Tidaholm",
+    "Tierp",
+    "Timrå",
+    "Tingsryd",
+    "Tjörn",
+    "Tomelilla",
+    "Torsby",
+    "Torså",
+    "Tranemo",
+    "Tranå",
+    "Trelleborg",
+    "Trollhättan",
+    "Trosa",
+    "Tyresö",
+    "Täby",
+    "Töreboda",
+    "Uddevalla",
+    "Ulricehamn",
+    "Umeå",
+    "Uppland",
+    "Upplands-Bro",
+    "Uppsala",
+    "Uppvidinge",
+    "Vadstena",
+    "Vaggeryd",
+    "Valdemarsvik",
+    "Vallentuna",
+    "Vansbro",
+    "Vara",
+    "Varberg",
+    "Vaxholm",
+    "Vellinge",
+    "Vetlanda",
+    "Vilhelmina",
+    "Vimmerby",
+    "Vindeln",
+    "Vingåker",
+    "Vårgårda",
+    "Vänersborg",
+    "Vännä",
+    "Värmdö",
+    "Värnamo",
+    "Västervik",
+    "Västerås",
+    "Växjö",
+    "Ydre",
+    "Ystad",
+    "Åmål",
+    "Ånge",
+    "Åre",
+    "Årjäng",
+    "Åsele",
+    "Åstorp",
+    "Åtvidaberg",
+    "Älmhult",
+    "Älvdalen",
+    "Älvkarleby",
+    "Älvsbyn",
+    "Ängelholm",
+    "Öckerö",
+    "Ödeshög",
+    "Örebro",
+    "Örkelljunga",
+    "Örnsköldsvik",
+    "Östersund",
+    "Österåker",
+    "Östhammar",
+    "Östra",
+    "Överkalix",
+    "Övertorneå"
+    ];
+
   </script>
 </body>
 </html>
