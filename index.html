@@ -3,150 +3,240 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Consultant Budget Calculator</title>
+  <title>Budgetkalkylator för konsulter</title>
+  <style>
+    header {
+      margin: 0;
+      background-color: #333;
+      color: #fff;
+      padding: 10px;
+      text-align: center;
+    }
+
+    body {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh; /* Ensure the body takes up at least the full height of the viewport */
+      font-family: Arial, sans-serif;
+      background-color: #f2f2f2; /* Example background color */
+    }
+
+    .wrapper {
+      flex: auto; /* Make the wrapper grow to fill available space */
+      padding-left: 30%;
+    }
+
+    .required:after { content:" *"; color: red;} 
+
+    input, select {
+      padding-left: 8px;
+      padding-right: 8px;
+      margin: 1px;
+      border: 2px solid #bbb;
+      border-radius: 4px;
+      background-color: #fff;
+      color: #333;
+    }
+    
+    input[disabled], select[disabled] {
+      border: 2px solid #ccc;
+      opacity: 0.6;
+    }
+    
+    footer {
+      background-color: #333;
+      color: #fff;
+      padding: 10px;
+      text-align: center;
+    }
+
+</style>
 </head>
 <body>
-  <h1>Consultant Budget Calculator</h1>
+  <header>
+    <h1>Budgetkalkylator för konsulter</h1>
+  </header>
+  <br>
+  <div class="wrapper">
+    <div class="required">
+      <label for="year">Räkenskapsår:</label>
+      <input type="number" id="year" value="2024" min="2020" max="2024">
+    </div>
+    
+    <h2>Intäkter</h2>
+    <div>
+      <label for="hourlyRate">Timpris exkl. moms:</label>
+      <input type="number" step="10" id="hourlyRate" min="0" value="700"><br>
 
-  <label for="year">Räkenskapsår:</label>
-  <input type="number" id="year" value="2024" min="2020" max="2024"><br><br>
+      <label for="billingStartDate">Uppdrag start:</label>
+      <input type="date" id="billingStartDate" value="2024-01-01"><br>
 
-  <p> Kommun & församling:</p>
-  <select id="kommunSelector">
-    <!-- Options will be populated dynamically -->
-  </select>
-  
-  <select id="forsamlingSelector" disabled>
-    <!-- Options will be populated dynamically -->
-  </select>
+      <label for="billingEndDate">Uppdrag end:</label>
+      <input type="date" id="billingEndDate" value="2024-12-31"><br>
 
-  
-  <hr>
+      <details>
+        <summary><strong>Detaljer</strong></summary>
+        <hr>
+        <label for="workingRate">Arbetstakt (%):</label>
+        <input type="number" step="25" id="workingRate" min="0" max="100" value="100"><br>
 
-  <h2>Intäkter</h2>
-  <label for="hourlyRate">Timpris exkl. moms:</label>
-  <input type="number" step="10" id="hourlyRate" min="0" value="700"><br><br>
+        <label for="vacationDays">Semesterdagar:</label>
+        <input type="number" id="vacationDays" min="0" value="25"><br>
 
-  <label for="billingStartDate">Uppdrag start:</label>
-  <input type="date" id="billingStartDate" value="2024-01-01"><br><br>
+        <label for="billableHours"> Fakturerbara timmar:</label>
+        <input type="number" id="billableHours" min="0">
+        <hr>
+      </details>
 
-  <label for="billingEndDate">Uppdrag end:</label>
-  <input type="date" id="billingEndDate" value="2024-12-31"><br><br>
+      <label for="invoicedAmount"> Fakturerat belopp exkl. moms:</label>
+      <input type="number" id="invoicedAmount" disabled><br>
+    </div>
+    <h2>Lön</h2>
+    <div>
+      <div class="required">
+        <label>Kommun:</label>
+        <select id="kommunSelector">
+          <!-- Options will be populated dynamically -->
+        </select>
+      </div>
+    
+      <div class="required">
+        <label>Församling:</label>
+        <select id="forsamlingSelector" disabled>
+          <!-- Options will be populated dynamically -->
+        </select>
+      </div>
+      <label for="grossSalaryMonth">Månadslön brutto:</label>
+      <input type="number" step="1000" id="grossSalaryMonth" min="0" value="51275"><br>
 
-  <label for="workingRate">Arbetstakt (%):</label>
-  <input type="number" step="25" id="workingRate" min="0" max="100" value="100"><br><br>
+      <label for="churchMember">Medlem i kyrkan:</label>
+      <input type="checkbox" id="churchMember" checked><br>
 
-  <label for="vacationDays">Semesterdagar:</label>
-  <input type="number" id="vacationDays" min="0" value="25"><br><br>
+      <details>
+        <summary><strong>Detaljer</strong></summary>
+        <hr>
+        <label for="salaryMonths"> Månader med lön:</label>
+        <input type="number" id="salaryMonths" min="0" max="12" value="12"><br>
 
-  <label for="billableHours"> Fakturerbara timmar:</label>
-  <input type="number" id="billableHours" min="0"><br><br>
+        <label for="semesterersattning"> Semesterersattning summa:</label>
+        <input type="number" id="semesterersattning" disabled><br>
 
-  <label for="invoicedAmount"> Fakturerat belopp exkl. moms:</label>
-  <input type="number" id="invoicedAmount" disabled><br><br>
-  <hr>
+        <label for="kommunalSkattPercent">Kommunal skatt (%):</label>
+        <input type="number" id="kommunalSkattPercent" disabled><br>
+      
+        <label for="churchSkattPercent"> Kyrkoavgift (%):</label>
+        <input type="number" id="churchSkattPercent" disabled><br>
+      
+        <label for="burialSkattPercent"> Begravningsavgift (%):</label>
+        <input type="number" id="burialSkattPercent" disabled><br>
 
-  <h2>Lön</h2>
-  <label for="kommunalSkattPercent">Kommunal skatt (%):</label>
-  <input type="number" id="kommunalSkattPercent" disabled><br><br>
+        <label for="grossSalaryYear"> Årslön brutto:</label>
+        <input type="number" id="grossSalaryYear" disabled><br>
+      
+        <label for="grundavdrag"> Grundavdrag:</label>
+        <input type="number" id="grundavdrag" disabled><br>
+      
+        <label for="kommunalSkatt"> Kommunal inkomstskatt:</label>
+        <input type="number" id="kommunalSkatt" disabled><br>
+      
+        <label for="statligSkatt"> Statlig inkomstskatt:</label>
+        <input type="number" id="statligSkatt" disabled><br>
+      
+        <label for="churchSkatt"> Kyrkoavgift:</label>
+        <input type="number" id="churchSkatt" disabled><br>
+      
+        <label for="burialSkatt"> Begravningsavgift:</label>
+        <input type="number" id="burialSkatt" disabled><br>
+      
+        <label for="publicServiceSkatt"> Public service-avgift:</label>
+        <input type="number" id="publicServiceSkatt" disabled><br>
+      
+        <label for="jobbskatteavdrag"> Jobbskatteavdrag:</label>
+        <input type="number" id="jobbskatteavdrag" disabled><br>
+      
+        <label for="SkattereduktionForvarvsinkomst"> Skattereduktion för förvärvsinkomst:</label>
+        <input type="number" id="SkattereduktionForvarvsinkomst" disabled><br>
 
-  <label for="churchMember">Medlem i kyrkan:</label>
-  <input type="checkbox" id="churchMember" checked><br><br>
+        <label for="netSalaryYear"> Årslön netto:</label>
+        <input type="number" id="netSalaryYear" disabled><br>
+        <hr>
+      </details>
 
-  <label for="churchSkattPercent"> Kyrkoavgift (%):</label>
-  <input type="number" id="churchSkattPercent" disabled><br><br>
+      <label for="netSalaryMonth"> Månadslön netto:</label>
+      <input type="number" id="netSalaryMonth" disabled><br>
 
-  <label for="burialSkattPercent"> Begravningsavgift (%):</label>
-  <input type="number" id="burialSkattPercent" disabled><br><br>
+      <label for="incomeTaxPercentage"> Total inkomstskatt (%):</label>
+      <input type="number" id="incomeTaxPercentage" disabled><br>
 
-  <label for="grossSalaryMonth">Månadslön brutto:</label>
-  <input type="number" step="1000" id="grossSalaryMonth" min="0" value="51275"><br><br>
+    </div>
 
-  <label for="salaryMonths"> Månader med lön:</label>
-  <input type="number" id="salaryMonths" min="0" max="12" value="12"><br><br>
+    <h2>Resultat</h2>
+    <div>
+      <label for="usePension">Ta ut tjänstepension:</label>
+      <input type="checkbox" id="usePension" checked="true"><br>
 
-  <label for="semesterersattning"> Semesterersattning summa:</label>
-  <input type="number" id="semesterersattning" disabled><br><br>
-  
-  <label for="grossSalaryYear"> Årslön brutto:</label>
-  <input type="number" id="grossSalaryYear" disabled><br><br>
+      <label for="expenses"> Övriga utgifter exkl. moms:</label>
+      <input type="number" id="expenses" value="20000"><br>
 
-  <label for="grundavdrag"> Grundavdrag:</label>
-  <input type="number" id="grundavdrag" disabled><br><br>
+      <details>
+        <summary><strong>Detaljer</strong></summary>
+        <hr>
+        <label for="pension"> Tjänstepension:</label>
+        <input type="number" id="pension" disabled><br>
+      
+        <label for="insurance"> Trygghetsförsäkring vid arbetsskada:</label>
+        <input type="number" id="insurance" disabled><br>
+      
+        <label for="slp"> Särskild löneskatt SLP:</label>
+        <input type="number" id="slp" disabled><br>
+      
+        <label for="arbetsgivaravgift"> Arbetsgivaravgift:</label>
+        <input type="number" id="arbetsgivaravgift" disabled>
+        <hr>
+      </details>
 
-  <label for="kommunalSkatt"> Kommunal inkomstskatt:</label>
-  <input type="number" id="kommunalSkatt" disabled><br><br>
+      <label for="profitBeforeTax"> Resultat före skatt:</label>
+      <input type="number" id="profitBeforeTax" disabled><br>
 
-  <label for="statligSkatt"> Statlig inkomstskatt:</label>
-  <input type="number" id="statligSkatt" disabled><br><br>
+      <label for="profitAfterTax"> Årets resultat:</label>
+      <input type="number" id="profitAfterTax" disabled><br>
+    
+    </div>
 
-  <label for="churchSkatt"> Kyrkoavgift:</label>
-  <input type="number" id="churchSkatt" disabled><br><br>
+    <h2>Utdelning</h2>
+    <div>
+      <details>
+        <summary><strong>Detaljer</strong></summary>
+        <hr>
+        <label for="dividendsLimit"> Utdelningsgräns enligt 3:12 regeln:</label>
+        <input type="number" id="dividendsLimit" disabled><br>
 
-  <label for="burialSkatt"> Begravningsavgift:</label>
-  <input type="number" id="burialSkatt" disabled><br><br>
+        <label for="maxDividend">Välj maximal utdelning:</label>
+        <input type="checkbox" id="maxDividend" checked="true"><br>
 
-  <label for="publicServiceSkatt"> Public service-avgift:</label>
-  <input type="number" id="publicServiceSkatt" disabled><br><br>
+        <label for="grossDividends">Årsutdelning brutto:</label>
+        <input type="number" id="grossDividends" step="10000" value="0" min="0" disabled>
+        <hr>
+      </details>
+      
+      <label for="netDividends"> Årsutdelning netto (Utdelas nästa år):</label>
+      <input type="number" id="netDividends" disabled><br>
 
-  <label for="jobbskatteavdrag"> Jobbskatteavdrag:</label>
-  <input type="number" id="jobbskatteavdrag" disabled><br><br>
+      <label for="profitAfterDividends"> Årets Resultat efter utdelning:</label>
+      <input type="number" id="profitAfterDividends" disabled><br>
+    </div>
+  </div><br>
 
-  <label for="SkattereduktionForvarvsinkomst"> Skattereduktion för förvärvsinkomst:</label>
-  <input type="number" id="SkattereduktionForvarvsinkomst" disabled><br><br>
+  <footer>
+    <small>
+      <div class="disclaimer">
+        <p>Om du hittar några fel, vänligen <a href="https://github.com/mikaeltulldahl/ConsultingBudgetCalculator/issues" target="_blank" rel="noopener noreferrer" style="color: #fff;">skapa ett ärende på Github</a></p>
+        <p>Observera: Vi tar inte ansvar för några misstag eller fel.</p>
 
-  <label for="netSalaryMonth"> Månadslön netto:</label>
-  <input type="number" id="netSalaryMonth" disabled><br><br>
-
-  <label for="netSalaryYear"> Årslön netto:</label>
-  <input type="number" id="netSalaryYear" disabled><br><br>
-
-  <label for="incomeTaxPercentage"> Total inkomstskatt (%):</label>
-  <input type="number" id="incomeTaxPercentage" disabled><br><br>
-
-  <hr>
-  <h2>Resultat</h2>
-
-  <label for="usePension">Ta ut tjänstepension:</label>
-  <input type="checkbox" id="usePension" checked="true"><br><br>
-
-  <label for="pension"> Tjänstepension:</label>
-  <input type="number" id="pension" disabled><br><br>
-
-  <label for="insurance"> Trygghetsförsäkring vid arbetsskada:</label>
-  <input type="number" id="insurance" disabled><br><br>
-
-  <label for="slp"> Särskild löneskatt SLP:</label>
-  <input type="number" id="slp" disabled><br><br>
-
-  <label for="expenses"> Övriga utgifter exkl. moms:</label>
-  <input type="number" id="expenses" value="20000"><br><br>
-
-  <label for="arbetsgivaravgift"> Arbetsgivaravgift:</label>
-  <input type="number" id="arbetsgivaravgift" disabled><br><br>
-
-  <label for="profitBeforeTax"> Resultat före skatt:</label>
-  <input type="number" id="profitBeforeTax" disabled><br><br>
-
-  <label for="profitAfterTax"> Årets resultat:</label>
-  <input type="number" id="profitAfterTax" disabled><br><br>
-  
-  <hr>
-  <h2>Utdelning</h2>
-  <label for="dividendsLimit"> Utdelningsgräns enligt 3:12 regeln:</label>
-  <input type="number" id="dividendsLimit" disabled><br><br>
-
-  <label for="maxDividend">Välj maximal utdelning:</label>
-  <input type="checkbox" id="maxDividend" checked="true"><br><br>
-
-  <label for="grossDividends">Årsutdelning brutto (Utdelas nästa år):</label>
-  <input type="number" id="grossDividends" step="10000" value="0" min="0" disabled><br><br>
-
-  <label for="netDividends"> Årsutdelning netto (Utdelas nästa år):</label>
-  <input type="number" id="netDividends" disabled><br><br>
-
-  <label for="profitAfterDividends"> Årets Resultat efter utdelning:</label>
-  <input type="number" id="profitAfterDividends" disabled><br><br>
+    </div>
+    </small>
+  </footer>
 
   <script>
     // TODO tooltip: https://www.w3schools.com/css/tryit.asp?filename=trycss_tooltip_arrow_left
