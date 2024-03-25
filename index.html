@@ -76,7 +76,10 @@
       <input type="date" id="billingEndDate" value="2024-12-31"><br>
 
       <details>
-        <summary><strong>Detaljer</strong></summary>
+        <summary style="cursor: pointer;">
+          <span style="font-weight: bold;">Detaljer</span>
+          <span style="margin-left: 5px; font-size: 0.8em;">(klicka för att expandera)</span>
+        </summary>
         <hr>
         <label for="workingRate">Arbetstakt (%):</label>
         <input type="number" step="25" id="workingRate" min="0" max="100" value="100"><br>
@@ -116,11 +119,14 @@
       <label for="grossSalaryMonth">Månadslön brutto:</label>
       <input type="number" step="1000" id="grossSalaryMonth" min="0" value="51275"><br>
 
-        <label for="salaryMonths"> Månader med lön:</label>
-        <input type="number" id="salaryMonths" min="0" max="12" value="12"><br>
+      <label for="salaryMonths"> Månader med lön:</label>
+      <input type="number" id="salaryMonths" min="0" max="12" value="12"><br>
 
       <details>
-        <summary><strong>Detaljer</strong></summary>
+        <summary style="cursor: pointer;">
+          <span style="font-weight: bold;">Detaljer</span>
+          <span style="margin-left: 5px; font-size: 0.8em;">(klicka för att expandera)</span>
+        </summary>
         <hr>
         <label for="semesterersattning"> Semesterersattning summa:</label>
         <input type="number" id="semesterersattning" disabled><br>
@@ -183,7 +189,10 @@
       <input type="number" step="10000" min="0" id="otherCosts" value="20000"><br>
 
       <details>
-        <summary><strong>Detaljer</strong></summary>
+        <summary style="cursor: pointer;">
+          <span style="font-weight: bold;">Detaljer</span>
+          <span style="margin-left: 5px; font-size: 0.8em;">(klicka för att expandera)</span>
+        </summary>
         <hr>
         <label for="pension"> Tjänstepension:</label>
         <input type="number" id="pension" disabled><br>
@@ -213,7 +222,10 @@
     <h2>Utdelning</h2>
     <div>
       <details>
-        <summary><strong>Detaljer</strong></summary>
+        <summary style="cursor: pointer;">
+          <span style="font-weight: bold;">Detaljer</span>
+          <span style="margin-left: 5px; font-size: 0.8em;">(klicka för att expandera)</span>
+        </summary>
         <hr>
         <label for="dividendsLimit"> Utdelningsgräns enligt 3:12 regeln:</label>
         <input type="number" id="dividendsLimit" disabled><br>
@@ -569,11 +581,11 @@
     var grundavdragCache = null;
     async function updateGrundavdrag(){
       if(!grundavdragCache){
-      // TODO för personer över 66 år
-      // https://www7.skatteverket.se/portal/apier-och-oppna-data/utvecklarportalen/oppetdata/Grundavdrag%20f%C3%B6r%20personer%20under%2066%20%C3%A5r
-      await fetch(`https://skatteverket.entryscape.net/rowstore/dataset/ebbd8d70-9b9c-4327-b2ce-a371ee66744c?%C3%A5r=${yearField.value}&_limit=500`, { headers: {'Accept': 'application/json'}})
-        .then(response => response.json())
-        .then(data => {
+        // TODO för personer över 66 år
+        // https://www7.skatteverket.se/portal/apier-och-oppna-data/utvecklarportalen/oppetdata/Grundavdrag%20f%C3%B6r%20personer%20under%2066%20%C3%A5r
+        await fetch(`https://skatteverket.entryscape.net/rowstore/dataset/ebbd8d70-9b9c-4327-b2ce-a371ee66744c?%C3%A5r=${yearField.value}&_limit=500`, { headers: {'Accept': 'application/json'}})
+          .then(response => response.json())
+          .then(data => {
             grundavdragCache = data.results;
           })
           .catch(error => {
@@ -584,24 +596,24 @@
       update();
 
       function update(){
-          let income = Math.round(grossSalaryYearField.value/100)*100;
-          let foundEntry = false;
+        let income = Math.round(grossSalaryYearField.value/100)*100;
+        let foundEntry = false;
         for (let i = 0; i < grundavdragCache.length; i++) {
           const entry = grundavdragCache[i];
-            if ( income >= parseInt(entry['ink from']) && income <= parseInt(entry['ink tom'])){
-              let grundavdrag = entry['gr avdrag'];
-              if(grundavdrag =="FastInk"){
-                grundavdrag = 0;
-              }
-              grundavdragField.value = grundavdrag;
-              foundEntry = true;
-              break;
+          if ( income >= parseInt(entry['ink from']) && income <= parseInt(entry['ink tom'])){
+            let grundavdrag = entry['gr avdrag'];
+            if(grundavdrag =="FastInk"){
+              grundavdrag = 0;
             }
+            grundavdragField.value = grundavdrag;
+            foundEntry = true;
+            break;
           }
-          if (!foundEntry){
+        }
+        if (!foundEntry){
           grundavdragField.value = grundavdragCache[grundavdragCache.length-1]['gr avdrag'];
         }
-          }
+      }
     }
 
     function getJobbskatteavdrag(){
