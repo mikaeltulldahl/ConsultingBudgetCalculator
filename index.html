@@ -520,6 +520,8 @@
 
       let semesterersattning = Math.floor(0.0043*vacationDays*grossSalaryMonth);
       let grossSalaryYear  = Math.floor(semesterersattning + salaryMonths*grossSalaryMonth);
+      grossSalaryYearField.value = grossSalaryYear;
+      grossSalaryYearField.dispatchEvent(new Event('change'));
       
       await updateGrundavdrag();
       let taxableIncome = grossSalaryYear - grundavdragField.value;
@@ -536,8 +538,6 @@
       let incomeTaxPercentage = (100*(grossSalaryYear - netSalaryYear) / grossSalaryYear).toFixed(1);
 
       semesterersattningField.value = semesterersattning;
-      grossSalaryYearField.value = grossSalaryYear;
-      grossSalaryYearField.dispatchEvent(new Event('change'));
       kommunalSkattField.value = kommunalSkatt;
       statligSkattField.value = statligSkatt;
       burialSkattField.value = burialSkatt;
