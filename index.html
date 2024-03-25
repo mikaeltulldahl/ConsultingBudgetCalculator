@@ -91,6 +91,9 @@
 
       <label for="invoicedAmount"> Fakturerat belopp exkl. moms:</label>
       <input type="number" id="invoicedAmount" disabled><br>
+
+      <label for="otherRevenue"> Övriga intäkter exkl. moms:</label>
+      <input type="number" step="10000" id="otherRevenue" value="0" min="0"><br>
     </div>
     <h2>Lön</h2>
     <div>
@@ -113,12 +116,12 @@
       <label for="grossSalaryMonth">Månadslön brutto:</label>
       <input type="number" step="1000" id="grossSalaryMonth" min="0" value="51275"><br>
 
-      <details>
-        <summary><strong>Detaljer</strong></summary>
-        <hr>
         <label for="salaryMonths"> Månader med lön:</label>
         <input type="number" id="salaryMonths" min="0" max="12" value="12"><br>
 
+      <details>
+        <summary><strong>Detaljer</strong></summary>
+        <hr>
         <label for="semesterersattning"> Semesterersattning summa:</label>
         <input type="number" id="semesterersattning" disabled><br>
 
@@ -177,7 +180,7 @@
       <input type="checkbox" id="usePension" checked="true"><br>
 
       <label for="otherCosts"> Övriga kostnader exkl. moms:</label>
-      <input type="number" id="otherCosts" value="20000"><br>
+      <input type="number" step="10000" min="0" id="otherCosts" value="20000"><br>
 
       <details>
         <summary><strong>Detaljer</strong></summary>
@@ -195,6 +198,9 @@
         <input type="number" id="arbetsgivaravgift" disabled>
         <hr>
       </details>
+
+      <label for="totalCost"> Total kostnad:</label>
+      <input type="number" id="totalCost" disabled><br>
 
       <label for="profitBeforeTax"> Resultat före skatt:</label>
       <input type="number" id="profitBeforeTax" disabled><br>
@@ -250,6 +256,7 @@
     const vacationDaysField = document.getElementById("vacationDays");
     const billableHoursField = document.getElementById("billableHours");
     const invoicedAmountField = document.getElementById("invoicedAmount");
+    const otherRevenueField = document.getElementById("otherRevenue");
 
     // Lön
     const kommunSelector = document.getElementById('kommunSelector');
@@ -282,6 +289,7 @@
     const slpField = document.getElementById("slp");
     const otherCostsField = document.getElementById("otherCosts");
     const arbetsgivaravgiftField = document.getElementById("arbetsgivaravgift");
+    const totalCostField = document.getElementById("totalCost");
     const profitBeforeTaxField = document.getElementById("profitBeforeTax");
     const profitAfterTaxField = document.getElementById("profitAfterTax");
 
@@ -647,6 +655,7 @@
       return values[year];
     }
 
+    otherRevenueField.addEventListener("input", updateResultat);
     invoicedAmountField.addEventListener("input", updateResultat);
     invoicedAmountField.addEventListener("change", updateResultat);
     grossSalaryYearField.addEventListener("change", updateResultat);
@@ -656,13 +665,15 @@
       const usePension = usePensionField.checked;
       const otherCosts = parseInt(otherCostsField.value);
       const grossSalaryYear = parseInt(grossSalaryYearField.value);
+      const otherRevenue = parseInt(otherRevenueField.value);
       const invoicedAmount = parseInt(invoicedAmountField.value);
 
-      if(isNaN(otherCosts) || isNaN(grossSalaryYear) || isNaN(invoicedAmount)){
+      if(isNaN(otherCosts) || isNaN(grossSalaryYear) || isNaN(otherRevenue) || isNaN(invoicedAmount)){
         pensionField.value = "";
         insuranceField.value = "";
         slpField.value = "";
         arbetsgivaravgiftField.value = "";
+        totalCostField.value = "";
         profitBeforeTaxField.value = "";
         profitAfterTaxField.value = "";
         profitAfterTaxField.dispatchEvent(new Event('change'));
@@ -676,13 +687,15 @@
       let insurance = 200;// verksamt.se räknar med 0.003*grossSalaryYear men fora tar fast 200 kr avgift
       let slp = 0.2426*(pension + insurance);
       let arbetsgivaravgift = 0.3142*grossSalaryYear;
-      let profitBeforeTax = invoicedAmount - otherCosts - (grossSalaryYear + pension + insurance + slp + arbetsgivaravgift);
+      let totalCost = otherCosts + grossSalaryYear + pension + insurance + slp + arbetsgivaravgift;
+      let profitBeforeTax = invoicedAmount + otherRevenue - totalCost;
       let profitAfterTax = profitBeforeTax*(1-0.206);
 
       pensionField.value = Math.round(pension);
       insuranceField.value = Math.round(insurance);
       slpField.value = Math.round(slp);
       arbetsgivaravgiftField.value = Math.round(arbetsgivaravgift);
+      totalCostField.value = Math.round(totalCost);
       profitBeforeTaxField.value = Math.round(profitBeforeTax);
       profitAfterTaxField.value = Math.round(profitAfterTax);
       profitAfterTaxField.dispatchEvent(new Event('change'));
