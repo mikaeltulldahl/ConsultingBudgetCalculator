@@ -72,7 +72,7 @@
       <label for="billingStartDate">Uppdrag start:</label>
       <input type="date" id="billingStartDate" value="2024-01-01"><br>
 
-      <label for="billingEndDate">Uppdrag end:</label>
+      <label for="billingEndDate">Uppdrag slut:</label>
       <input type="date" id="billingEndDate" value="2024-12-31"><br>
 
       <details>
@@ -101,7 +101,10 @@
         </select>
       </div>
     
-      <div class="required">
+      <label for="churchMember">Medlem i kyrkan:</label>
+      <input type="checkbox" id="churchMember"><br>
+
+      <div id="forsamling" class="required" hidden>
         <label>Församling:</label>
         <select id="forsamlingSelector" disabled>
           <!-- Options will be populated dynamically -->
@@ -109,9 +112,6 @@
       </div>
       <label for="grossSalaryMonth">Månadslön brutto:</label>
       <input type="number" step="1000" id="grossSalaryMonth" min="0" value="51275"><br>
-
-      <label for="churchMember">Medlem i kyrkan:</label>
-      <input type="checkbox" id="churchMember" checked><br>
 
       <details>
         <summary><strong>Detaljer</strong></summary>
@@ -155,8 +155,8 @@
         <label for="jobbskatteavdrag"> Jobbskatteavdrag:</label>
         <input type="number" id="jobbskatteavdrag" disabled><br>
       
-        <label for="SkattereduktionForvarvsinkomst"> Skattereduktion för förvärvsinkomst:</label>
-        <input type="number" id="SkattereduktionForvarvsinkomst" disabled><br>
+        <label for="skattereduktionForvarvsinkomst"> Skattereduktion för förvärvsinkomst:</label>
+        <input type="number" id="skattereduktionForvarvsinkomst" disabled><br>
 
         <label for="netSalaryYear"> Årslön netto:</label>
         <input type="number" id="netSalaryYear" disabled><br>
@@ -252,8 +252,11 @@
     const invoicedAmountField = document.getElementById("invoicedAmount");
 
     // Lön
+    const kommunSelector = document.getElementById('kommunSelector');
     const kommunalSkattPercentField = document.getElementById("kommunalSkattPercent");
     const churchMemberField = document.getElementById("churchMember");
+    const forsamlingSelector = document.getElementById('forsamlingSelector');
+    const forsamlingField = document.getElementById("forsamling");
     const churchSkattPercentField = document.getElementById("churchSkattPercent");
     const burialSkattPercentField = document.getElementById("burialSkattPercent");
     const grossSalaryMonthField = document.getElementById("grossSalaryMonth");
@@ -267,7 +270,7 @@
     const burialSkattField = document.getElementById("burialSkatt");
     const publicServiceSkattField = document.getElementById("publicServiceSkatt");
     const jobbskatteavdragField = document.getElementById("jobbskatteavdrag");
-    const SkattereduktionForvarvsinkomstField = document.getElementById("SkattereduktionForvarvsinkomst");
+    const skattereduktionForvarvsinkomstField = document.getElementById("skattereduktionForvarvsinkomst");
     const netSalaryMonthField = document.getElementById("netSalaryMonth");
     const netSalaryYearField = document.getElementById("netSalaryYear");
     const incomeTaxPercentageField = document.getElementById("incomeTaxPercentage");
@@ -289,16 +292,14 @@
     const netDividendsField = document.getElementById('netDividends');
     const profitAfterDividendsField = document.getElementById('profitAfterDividends');
 
-    var kommun = "";
-    var forsamling = "";
-
     // Function to populate kommunSelector with options
     function populateKommunDropdown() {
-      const kommunSelector = document.getElementById('kommunSelector');
+      
+      //TODO need to remove old listeners?
       kommunSelector.innerHTML = '';
 
       const optionElement = document.createElement('option');
-      optionElement.textContent = "--- VÄLJ KOMUN---";
+      optionElement.textContent = "--- VÄLJ KOMMUN---";
       optionElement.selected = true;
       optionElement.disabled = true;
       kommunSelector.appendChild(optionElement);
@@ -311,16 +312,22 @@
 
       // Add event listener for kommunSelector change
       kommunSelector.addEventListener('change', function(event) {
-        kommun = event.target.value;
         populateForsamling();
         updateKommunTax();
       });
     }
     window.onload = populateKommunDropdown;
 
+    function validKommun(){
+      return !kommunSelector.options[0].selected; // any other than the first option
+    }
+
     function populateForsamling() {
-      forsamling = "";
-      const forsamlingSelector = document.getElementById('forsamlingSelector');
+      if(!churchMemberField.checked){
+        return;
+      }
+      forsamlingSelector.selectedIndex = 0;
+      
       forsamlingSelector.innerHTML = '';
 
       const optionElement = document.createElement('option');
@@ -329,8 +336,7 @@
       optionElement.disabled = true;
       forsamlingSelector.appendChild(optionElement);
   
-      let year = parseInt(yearField.value);
-      const url = `https://skatteverket.entryscape.net/rowstore/dataset/c67b320b-ffee-4876-b073-dd9236cd2a99?kommun=${kommun}&%C3%A5r=${year}`;
+      const url = `https://skatteverket.entryscape.net/rowstore/dataset/c67b320b-ffee-4876-b073-dd9236cd2a99?kommun=${kommunSelector.value}&%C3%A5r=${yearField.value}`;
 
       fetch(url, { headers: {'Accept': 'application/json'}})
             .then(response => response.json())
@@ -343,7 +349,6 @@
 
                 // Add event listener for forsamlingSelector change
                 forsamlingSelector.addEventListener('change', function(event) {
-                  forsamling = event.target.value;
                   updateKommunTax();
                 });
             })
@@ -353,23 +358,30 @@
         forsamlingSelector.disabled = false;
     }
 
+    function validForsamling(){
+      return forsamlingSelector.options.length > 0 && !forsamlingSelector.options[0].selected; // any other than the first option
+    }
+
     yearField.addEventListener("input", updateKommunTax);
     function updateKommunTax() {
-      let year = parseInt(yearField.value);
-      if(forsamling.length === 0 || kommun.length === 0 || !year){
-        kommunalSkattPercentField.value = "0";
-        churchSkattPercentField.value = "0";
-        burialSkattPercentField.value = "0";
+      if((churchMemberField.checked && !validForsamling()) || !validKommun()){
+        kommunalSkattPercentField.value = "";
+        churchSkattPercentField.value = "";
+        burialSkattPercentField.value = "";
         kommunalSkattPercentField.dispatchEvent(new Event('change'));
         return;
       }
-      
-      const url = `https://skatteverket.entryscape.net/rowstore/dataset/c67b320b-ffee-4876-b073-dd9236cd2a99?f%C3%B6rsamling=${forsamling}&kommun=${kommun}&%C3%A5r=${year}`;
+      let url = "";
+      if(churchMemberField.checked){
+        url = `https://skatteverket.entryscape.net/rowstore/dataset/c67b320b-ffee-4876-b073-dd9236cd2a99?_limit=1&f%C3%B6rsamling=${forsamlingSelector.value}&kommun=${kommunSelector.value}&%C3%A5r=${yearField.value}`;
+      }else{
+        url = `https://skatteverket.entryscape.net/rowstore/dataset/c67b320b-ffee-4876-b073-dd9236cd2a99?_limit=1&kommun=${kommunSelector.value}&%C3%A5r=${yearField.value}`
+      }
       fetch(url, { headers: {'Accept': 'application/json'}})
             .then(response => response.json())
             .then(data => {
                 kommunalSkattPercentField.value = parseFloat(data.results[0]['kommunal-skatt']) + parseFloat(data.results[0]['landstings-skatt']);
-                churchSkattPercentField.value = data.results[0]['kyrkoavgift'];
+                churchSkattPercentField.value = churchMemberField.checked? data.results[0]['kyrkoavgift'] : "";
                 burialSkattPercentField.value = data.results[0]['begravnings-avgift'];
                 kommunalSkattPercentField.dispatchEvent(new Event('change'));
             })
@@ -459,36 +471,83 @@
       return businessDaysCount;
     }
 
+    churchMemberField.addEventListener('change', function() {
+      forsamlingField.hidden = !this.checked;
+      if(!this.checked){
+        forsamlingSelector.selectedIndex = 0;
+        churchSkattPercentField.value = "";
+      }else if(validKommun()){
+        populateForsamling();
+      }
+    });
+    
     yearField.addEventListener("input", updateSalary);
     vacationDaysField.addEventListener("input", updateSalary);
     kommunalSkattPercentField.addEventListener("change", updateSalary);
-    churchMemberField.addEventListener("input", updateSalary);
+    churchMemberField.addEventListener("change", updateSalary);
     grossSalaryMonthField.addEventListener("input", updateSalary);
     salaryMonthsField.addEventListener("input", updateSalary);
     async function updateSalary(){
       let kommunalSkattPercent = 0.01*parseFloat(kommunalSkattPercentField.value);
-      let churchSkattPercent = 0.01*parseFloat(churchSkattPercentField.value);
+      let churchSkattPercent = 0;
+      if(churchMemberField.checked){
+        churchSkattPercent = 0.01*parseFloat(churchSkattPercentField.value);
+      }
       let burialSkattPercent = 0.01*parseFloat(burialSkattPercentField.value);
+    
+
+      if(isNaN(kommunalSkattPercent) || isNaN(churchSkattPercent) || isNaN(burialSkattPercent)){
+        semesterersattningField.value = "";
+        grossSalaryYearField.value = "";
+        grossSalaryYearField.dispatchEvent(new Event('change'));
+        kommunalSkattField.value = "";
+        statligSkattField.value = "";
+        burialSkattField.value = "";
+        churchSkattField.value = "";
+        publicServiceSkattField.value = "";
+        jobbskatteavdragField.value = "";
+        skattereduktionForvarvsinkomstField.value = "";
+        netSalaryYearField.value = "";
+        netSalaryMonthField.value = "";
+        incomeTaxPercentageField.value = "";
+        return;
+      }
+      
       let grossSalaryMonth = parseInt(grossSalaryMonthField.value);
       let salaryMonths = parseInt(salaryMonthsField.value);
       let vacationDays = parseInt(vacationDaysField.value);
 
-      semesterersattningField.value = Math.floor(0.0043*vacationDays*grossSalaryMonth);
-      grossSalaryYearField.value = Math.floor(parseInt(semesterersattningField.value) + salaryMonths*grossSalaryMonth);
-      grossSalaryYearField.dispatchEvent(new Event('change'));
 
+      let semesterersattning = Math.floor(0.0043*vacationDays*grossSalaryMonth);
+      let grossSalaryYear  = Math.floor(semesterersattning + salaryMonths*grossSalaryMonth);
+      
       await updateGrundavdrag();
-      let taxableIncome = grossSalaryYearField.value - grundavdragField.value;
-      kommunalSkattField.value = Math.floor(kommunalSkattPercent*taxableIncome);
-      statligSkattField.value = Math.floor(0.2*Math.max(0, taxableIncome - getSkiktgrans()));
-      burialSkattField.value = Math.floor(burialSkattPercent*taxableIncome);
-      churchSkattField.value = churchMemberField.checked? Math.floor(churchSkattPercent*taxableIncome) : 0;
-      publicServiceSkattField.value = Math.min(1219, Math.floor(0.01*taxableIncome));
-      jobbskatteavdragField.value = getJobbskatteavdrag();
-      SkattereduktionForvarvsinkomst.value = getSkattereduktionForvarvsinkomst();
-      netSalaryYearField.value = grossSalaryYearField.value - kommunalSkattField.value - statligSkattField.value - burialSkattField.value - churchSkattField.value - publicServiceSkattField.value + parseInt(jobbskatteavdragField.value) + parseInt(SkattereduktionForvarvsinkomst.value);
-      netSalaryMonthField.value = Math.round(netSalaryYearField.value/salaryMonths);
-      incomeTaxPercentageField.value = (100*(grossSalaryYearField.value - netSalaryYearField.value) / grossSalaryYearField.value).toFixed(1);
+      let taxableIncome = grossSalaryYear - grundavdragField.value;
+      let kommunalSkatt = Math.floor(kommunalSkattPercent*taxableIncome);
+      let statligSkatt = Math.floor(0.2*Math.max(0, taxableIncome - getSkiktgrans()));
+      let burialSkatt = Math.floor(burialSkattPercent*taxableIncome);
+      let churchSkatt = churchMemberField.checked? Math.floor(churchSkattPercent*taxableIncome) : 0;
+      let publicServiceSkatt = Math.min(1219, Math.floor(0.01*taxableIncome));
+      
+      let jobbskatteavdrag = getJobbskatteavdrag();
+      let skattereduktionForvarvsinkomst = getSkattereduktionForvarvsinkomst();
+      let netSalaryYear = grossSalaryYear - kommunalSkatt - statligSkatt - burialSkatt - churchSkatt - publicServiceSkatt + jobbskatteavdrag + skattereduktionForvarvsinkomst;
+      let netSalaryMonth = Math.round(netSalaryYear/salaryMonths);
+      let incomeTaxPercentage = (100*(grossSalaryYear - netSalaryYear) / grossSalaryYear).toFixed(1);
+
+      semesterersattningField.value = semesterersattning;
+      grossSalaryYearField.value = grossSalaryYear;
+      grossSalaryYearField.dispatchEvent(new Event('change'));
+      kommunalSkattField.value = kommunalSkatt;
+      statligSkattField.value = statligSkatt;
+      burialSkattField.value = burialSkatt;
+      churchSkattField.value = churchMemberField.checked? churchSkatt : "";
+      publicServiceSkattField.value = publicServiceSkatt;
+      jobbskatteavdragField.value = jobbskatteavdrag;
+      skattereduktionForvarvsinkomstField.value = skattereduktionForvarvsinkomst;
+      netSalaryYearField.value = netSalaryYear;
+      netSalaryMonthField.value = netSalaryMonth;
+      incomeTaxPercentageField.value = incomeTaxPercentage;
     }
 
     function getSkattereduktionForvarvsinkomst(){
@@ -500,9 +559,9 @@
     }
 
     async function updateGrundavdrag(){
-      let year = parseInt(yearField.value);
+      // TODO för personer över 66 år
       // https://www7.skatteverket.se/portal/apier-och-oppna-data/utvecklarportalen/oppetdata/Grundavdrag%20f%C3%B6r%20personer%20under%2066%20%C3%A5r
-      await fetch(`https://skatteverket.entryscape.net/rowstore/dataset/ebbd8d70-9b9c-4327-b2ce-a371ee66744c?%C3%A5r=${year}&_limit=500`, { headers: {'Accept': 'application/json'}})
+      await fetch(`https://skatteverket.entryscape.net/rowstore/dataset/ebbd8d70-9b9c-4327-b2ce-a371ee66744c?%C3%A5r=${yearField.value}&_limit=500`, { headers: {'Accept': 'application/json'}})
         .then(response => response.json())
         .then(data => {
           let income = Math.round(grossSalaryYearField.value/100)*100;
@@ -589,6 +648,7 @@
     }
 
     invoicedAmountField.addEventListener("input", updateResultat);
+    invoicedAmountField.addEventListener("change", updateResultat);
     grossSalaryYearField.addEventListener("change", updateResultat);
     expensesField.addEventListener("input", updateResultat);
     usePensionField.addEventListener("change", updateResultat);
@@ -597,6 +657,17 @@
       const expenses = parseInt(expensesField.value);
       const grossSalaryYear = parseInt(grossSalaryYearField.value);
       const invoicedAmount = parseInt(invoicedAmountField.value);
+
+      if(isNaN(expenses) || isNaN(grossSalaryYear) || isNaN(invoicedAmount)){
+        pensionField.value = "";
+        insuranceField.value = "";
+        slpField.value = "";
+        arbetsgivaravgiftField.value = "";
+        profitBeforeTaxField.value = "";
+        profitAfterTaxField.value = "";
+        profitAfterTaxField.dispatchEvent(new Event('change'));
+        return;
+      }
 
       let pension = 0;
       if(usePension){
@@ -630,6 +701,13 @@
       let salary = parseInt(grossSalaryYearField.value);
       let profitAfterTax = parseInt(profitAfterTaxField.value);
       let grossDividends = parseInt(grossDividendsField.value);
+      if(isNaN(salary) || isNaN(profitAfterTax)){
+        dividendsLimitField.value = "";
+        netDividendsField.value = "";
+        profitAfterDividendsField.value = "";
+        return;
+      }
+
       let omkostnadsbelopp = 25000; //TODO enter value
       let inkomstbasbelopp = getInkomstbasbelopp();
       let dividendsLimitForenklingsregeln = 2.75*inkomstbasbelopp;
