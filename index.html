@@ -176,8 +176,8 @@
       <label for="usePension">Ta ut tjänstepension:</label>
       <input type="checkbox" id="usePension" checked="true"><br>
 
-      <label for="expenses"> Övriga utgifter exkl. moms:</label>
-      <input type="number" id="expenses" value="20000"><br>
+      <label for="otherCosts"> Övriga kostnader exkl. moms:</label>
+      <input type="number" id="otherCosts" value="20000"><br>
 
       <details>
         <summary><strong>Detaljer</strong></summary>
@@ -223,7 +223,7 @@
       <label for="netDividends"> Årsutdelning netto (Utdelas nästa år):</label>
       <input type="number" id="netDividends" disabled><br>
 
-      <label for="profitAfterDividends"> Årets Resultat efter utdelning:</label>
+      <label for="profitAfterDividends"> Årets resultat efter utdelning:</label>
       <input type="number" id="profitAfterDividends" disabled><br>
     </div>
   </div><br>
@@ -231,7 +231,7 @@
   <footer>
     <small>
       <div class="disclaimer">
-        <p>Om du hittar några fel, vänligen <a href="https://github.com/mikaeltulldahl/ConsultingBudgetCalculator/issues" target="_blank" rel="noopener noreferrer" style="color: #fff;">skapa ett ärende på Github</a></p>
+        <p>Om du hittar något fel, vänligen <a href="https://github.com/mikaeltulldahl/ConsultingBudgetCalculator/issues" target="_blank" rel="noopener noreferrer" style="color: #fff;">skapa ett ärende på Github</a></p>
         <p>Observera: Vi tar inte ansvar för några misstag eller fel.</p>
 
     </div>
@@ -280,7 +280,7 @@
     const pensionField = document.getElementById("pension");
     const insuranceField = document.getElementById("insurance");
     const slpField = document.getElementById("slp");
-    const expensesField = document.getElementById("expenses");
+    const otherCostsField = document.getElementById("otherCosts");
     const arbetsgivaravgiftField = document.getElementById("arbetsgivaravgift");
     const profitBeforeTaxField = document.getElementById("profitBeforeTax");
     const profitAfterTaxField = document.getElementById("profitAfterTax");
@@ -650,15 +650,15 @@
     invoicedAmountField.addEventListener("input", updateResultat);
     invoicedAmountField.addEventListener("change", updateResultat);
     grossSalaryYearField.addEventListener("change", updateResultat);
-    expensesField.addEventListener("input", updateResultat);
+    otherCostsField.addEventListener("input", updateResultat);
     usePensionField.addEventListener("change", updateResultat);
     function updateResultat(){
       const usePension = usePensionField.checked;
-      const expenses = parseInt(expensesField.value);
+      const otherCosts = parseInt(otherCostsField.value);
       const grossSalaryYear = parseInt(grossSalaryYearField.value);
       const invoicedAmount = parseInt(invoicedAmountField.value);
 
-      if(isNaN(expenses) || isNaN(grossSalaryYear) || isNaN(invoicedAmount)){
+      if(isNaN(otherCosts) || isNaN(grossSalaryYear) || isNaN(invoicedAmount)){
         pensionField.value = "";
         insuranceField.value = "";
         slpField.value = "";
@@ -676,7 +676,7 @@
       let insurance = 200;// verksamt.se räknar med 0.003*grossSalaryYear men fora tar fast 200 kr avgift
       let slp = 0.2426*(pension + insurance);
       let arbetsgivaravgift = 0.3142*grossSalaryYear;
-      let profitBeforeTax = invoicedAmount - expenses - (grossSalaryYear + pension + insurance + slp + arbetsgivaravgift);
+      let profitBeforeTax = invoicedAmount - otherCosts - (grossSalaryYear + pension + insurance + slp + arbetsgivaravgift);
       let profitAfterTax = profitBeforeTax*(1-0.206);
 
       pensionField.value = Math.round(pension);
