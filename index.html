@@ -43,6 +43,11 @@
       border: 2px solid #ccc;
       opacity: 0.6;
     }
+
+    h2 {
+      margin-top: 0.5em;
+      margin-bottom: 0;
+    }
     
     footer {
       background-color: #333;
@@ -128,8 +133,8 @@
           <span style="margin-left: 5px; font-size: 0.8em;">(klicka för att expandera)</span>
         </summary>
         <hr>
-        <label for="semesterersattning"> Semesterersattning summa:</label>
-        <input type="number" id="semesterersattning" disabled><br>
+        <label for="grossSemesterersattning"> Semesterersättning brutto:</label>
+        <input type="number" id="grossSemesterersattning" disabled><br>
 
         <label for="kommunalSkattPercent">Kommunal skatt (%):</label>
         <input type="number" id="kommunalSkattPercent" disabled><br>
@@ -167,8 +172,14 @@
         <label for="skattereduktionForvarvsinkomst"> Skattereduktion för förvärvsinkomst:</label>
         <input type="number" id="skattereduktionForvarvsinkomst" disabled><br>
 
+        <label for="incomeTax"> Total inkomstskatt:</label>
+        <input type="number" id="incomeTax" disabled><br>
+
         <label for="netSalaryYear"> Årslön netto:</label>
         <input type="number" id="netSalaryYear" disabled><br>
+
+        <label for="netSemesterersattning"> Semesterersättning netto:</label>
+        <input type="number" id="netSemesterersattning" disabled><br>
         <hr>
       </details>
 
@@ -280,7 +291,7 @@
     const burialSkattPercentField = document.getElementById("burialSkattPercent");
     const grossSalaryMonthField = document.getElementById("grossSalaryMonth");
     const salaryMonthsField = document.getElementById("salaryMonths");
-    const semesterersattningField = document.getElementById("semesterersattning");
+    const grossSemesterersattningField = document.getElementById("grossSemesterersattning");
     const grossSalaryYearField = document.getElementById("grossSalaryYear");
     const grundavdragField = document.getElementById("grundavdrag");
     const kommunalSkattField = document.getElementById("kommunalSkatt");
@@ -290,8 +301,10 @@
     const publicServiceSkattField = document.getElementById("publicServiceSkatt");
     const jobbskatteavdragField = document.getElementById("jobbskatteavdrag");
     const skattereduktionForvarvsinkomstField = document.getElementById("skattereduktionForvarvsinkomst");
+    const incomeTaxField = document.getElementById("incomeTax");
     const netSalaryMonthField = document.getElementById("netSalaryMonth");
     const netSalaryYearField = document.getElementById("netSalaryYear");
+    const netSemesterersattningField = document.getElementById("netSemesterersattning");
     const incomeTaxPercentageField = document.getElementById("incomeTaxPercentage");
     
     // Resultat
@@ -517,7 +530,7 @@
     
 
       if(isNaN(kommunalSkattPercent) || isNaN(churchSkattPercent) || isNaN(burialSkattPercent)){
-        semesterersattningField.value = "";
+        grossSemesterersattningField.value = "";
         grossSalaryYearField.value = "";
         grossSalaryYearField.dispatchEvent(new Event('change'));
         kommunalSkattField.value = "";
@@ -527,7 +540,9 @@
         publicServiceSkattField.value = "";
         jobbskatteavdragField.value = "";
         skattereduktionForvarvsinkomstField.value = "";
+        incomeTaxField.value = "";
         netSalaryYearField.value = "";
+        netSemesterersattningField.value = "";
         netSalaryMonthField.value = "";
         incomeTaxPercentageField.value = "";
         return;
@@ -538,8 +553,10 @@
       let vacationDays = parseInt(vacationDaysField.value);
 
 
-      let semesterersattning = Math.floor(0.0043*vacationDays*grossSalaryMonth);
-      let grossSalaryYear  = Math.floor(semesterersattning + salaryMonths*grossSalaryMonth);
+      let vacationMonths = 0.0043*vacationDays;
+      let grossSemesterersattning = Math.floor(vacationMonths*grossSalaryMonth);
+      let monthMultiplier = vacationMonths + salaryMonths;
+      let grossSalaryYear  = Math.floor(monthMultiplier*grossSalaryMonth);
       grossSalaryYearField.value = grossSalaryYear;
       grossSalaryYearField.dispatchEvent(new Event('change'));
       
@@ -553,11 +570,13 @@
       
       let jobbskatteavdrag = getJobbskatteavdrag();
       let skattereduktionForvarvsinkomst = getSkattereduktionForvarvsinkomst();
-      let netSalaryYear = grossSalaryYear - kommunalSkatt - statligSkatt - burialSkatt - churchSkatt - publicServiceSkatt + jobbskatteavdrag + skattereduktionForvarvsinkomst;
-      let netSalaryMonth = Math.round(netSalaryYear/salaryMonths);
+      let incomeTax = kommunalSkatt + statligSkatt + burialSkatt + churchSkatt + publicServiceSkatt - jobbskatteavdrag - skattereduktionForvarvsinkomst;
+      let netSalaryYear = grossSalaryYear - incomeTax;
+      let netSalaryMonth = salaryMonths? Math.round(netSalaryYear/monthMultiplier) : "0";
+      let netSemesterersattning = Math.round(vacationMonths*netSalaryMonth);
       let incomeTaxPercentage = (100*(grossSalaryYear - netSalaryYear) / grossSalaryYear).toFixed(1);
 
-      semesterersattningField.value = semesterersattning;
+      grossSemesterersattningField.value = grossSemesterersattning;
       kommunalSkattField.value = kommunalSkatt;
       statligSkattField.value = statligSkatt;
       burialSkattField.value = burialSkatt;
@@ -565,7 +584,9 @@
       publicServiceSkattField.value = publicServiceSkatt;
       jobbskatteavdragField.value = jobbskatteavdrag;
       skattereduktionForvarvsinkomstField.value = skattereduktionForvarvsinkomst;
+      incomeTaxField.value = incomeTax;
       netSalaryYearField.value = netSalaryYear;
+      netSemesterersattningField.value = netSemesterersattning
       netSalaryMonthField.value = netSalaryMonth;
       incomeTaxPercentageField.value = incomeTaxPercentage;
     }
