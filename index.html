@@ -773,6 +773,7 @@
     profitAfterTaxField.addEventListener("change", updateDividends);
     maxDividendCheckbox.addEventListener("change", updateDividends);
     grossDividendsField.addEventListener("input", updateDividends);
+    omkostnadsbeloppField.addEventListener("input", updateDividends);
     function updateDividends(){
       let year = parseInt(yearField.value);
       let salary = parseInt(grossSalaryYearField.value);
