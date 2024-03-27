@@ -648,9 +648,10 @@
       return Math.floor(Math.min(1500, 0.0075 * (taxableIncome - 40000)));
     }
 
+    var grundavdragCache = [null, null];
     async function updateGrundavdrag(){
       let age = parseInt(yearField.value) - parseInt(yearBornField.value) - 1;
-      let salary = parseInt(grossSalaryYearField.value);
+      let salary = Math.floor(parseInt(grossSalaryYearField.value)/100)*100;
       let idx = age < 66 ? 0 : 1;
       let url = "";
       if(idx){
@@ -658,52 +659,56 @@
       }else{
         url = `https://skatteverket.entryscape.net/rowstore/dataset/ebbd8d70-9b9c-4327-b2ce-a371ee66744c?%C3%A5r=${yearField.value}`;
       }
-      const [minSalaryGrundavdrag, minSalary] = await getMinSalary(url);
+      if(!grundavdragCache[idx]){
+        await updateCache(url);
+      }
+
+      async function updateCache(){
+        grundavdragCache[idx] = [];
+        let offset = 0;
+        let done = false;
+        while(!done){
+          await fetch(`${url}&_limit=500&_offset=${offset}`, { headers: {'Accept': 'application/json'}})
+            .then(response => response.json())
+            .then(data => {
+              grundavdragCache[idx].push(...data.results)
+            });
+            offset+=500;
+            if(grundavdragCache[idx].length < offset){
+              done = true;
+            }
+        }
+      }
+
+      const [minSalaryGrundavdrag, minSalary] = getMinSalary();
       if(salary <= minSalary){
         grundavdragField.value = minSalaryGrundavdrag;
         return;
       }
-      const [maxSalaryGrundavdrag, maxSalary] = await getMaxSalary(url);
+      const [maxSalaryGrundavdrag, maxSalary] = getMaxSalary();
       if(salary >= maxSalary){
         grundavdragField.value = maxSalaryGrundavdrag;
         return;
       }
-      grundavdragField.value = await getMiddleSalary(url);
+      grundavdragField.value = getMiddleSalary();
       
-      async function getMinSalary(url){
-        return await fetch(`${url}&ink%20from=0`, { headers: {'Accept': 'application/json'}})
-          .then(response => response.json())
-          .then(data => {
-            return [0, data.results[0]['ink tom']];
-          });
+      function getMinSalary(){
+        return [0, grundavdragCache[idx][0]['ink tom']];
       }
 
-      async function getMaxSalary(url){
-        return await fetch(`${url}&ink%20tom=^$`, { headers: {'Accept': 'application/json'}})
-          .then(response => response.json())
-          .then(data => {
-            return [data.results[0]['gr avdrag'], data.results[0]['ink from']]
-          });
+      function getMaxSalary(){
+        let lastElement = grundavdragCache[idx][grundavdragCache[idx].length-1];
+        return [lastElement['gr avdrag'], lastElement['ink from']]
       }
       
-      async function getMiddleSalary(url){
-        let incomeThousands = Math.floor(salary/1000);
-        // regexp to match salary i.e. 12345 -> 10000 to 12999 12000 - 12999
-        let incomeFrom = `^${incomeThousands-2}\\d{3}$|^${incomeThousands-1}\\d{3}$|^${incomeThousands}\\d{3}$` 
-        return await fetch(`${url}&ink%20from=${incomeFrom}`, { headers: {'Accept': 'application/json'}})
-          .then(response => response.json())
-          .then(data => {
-            for (let i = 0; i < data.results.length; i++) {
-              const entry = data.results[i];
-              if ( salary >= parseInt(entry['ink from']) && salary <= parseInt(entry['ink tom'])){
-                return entry['gr avdrag'];
-              }
-            }
-            grundavdragField.value = "Error";
-          })
-          .catch(error => {
-            grundavdragField.value = "Error";
-        });
+      function getMiddleSalary(){
+        for (let i = 1; i < grundavdragCache[idx].length-1; i++) {
+          const entry = grundavdragCache[idx][i];
+          if ( salary >= parseInt(entry['ink from']) && salary <= parseInt(entry['ink tom'])){
+            return entry['gr avdrag'];
+          }
+        }
+        grundavdragField.value = "Error";
       }
     }
 
