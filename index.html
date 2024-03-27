@@ -276,6 +276,9 @@
       <label for="netSumMonth"> Månadssumma (lön + utdelning) netto:</label>
       <input type="number" id="netSumMonth" disabled><br>
   
+      <label for="totalTax"> Total skatt:</label>
+      <input type="number" id="totalTax" disabled><br>
+
       <label for="totalTaxPercentage"> Total skatt (%):</label>
       <input type="number" id="totalTaxPercentage" disabled><br>
     </div>
@@ -355,6 +358,7 @@
 
     // Slutsatser
     const netSumMonthField = document.getElementById('netSumMonth');
+    const totalTaxField = document.getElementById('totalTax');
     const totalTaxPercentageField = document.getElementById('totalTaxPercentage');
 
     // Function to populate kommunSelector with options
@@ -902,6 +906,7 @@
 
       if(isNaN(incomeTax) || isNaN(slp) || isNaN(arbetsgivaravgift) || isNaN(grossDividends) || isNaN(netSalaryMonth) || isNaN(netDividends) || isNaN(salaryMonths) || isNaN(profitBeforeTax) || isNaN(otherRevenue) || isNaN(invoicedAmount)){
         netSumMonthField.value = "";
+        totalTaxField.value = "";
         totalTaxPercentageField.value = "";
         return;
       }
@@ -912,6 +917,7 @@
 
       // I decided dividends should not be distributed over Semesterersättning, only on regular salary
       netSumMonthField.value = Math.round(netSalaryMonth + netDividends/salaryMonths);
+      totalTaxField.value = Math.round(totalTax);
       totalTaxPercentageField.value = (100*totalTax/(invoicedAmount + otherRevenue)).toFixed(1);
     }
 
