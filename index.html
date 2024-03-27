@@ -255,6 +255,15 @@
       <label for="profitAfterDividends"> Årets resultat efter utdelning:</label>
       <input type="number" id="profitAfterDividends" disabled><br>
     </div>
+
+    <h2>Slutsatser</h2>
+    <div>
+      <label for="netSumMonth"> Månadssumma (lön + utdelning) netto:</label>
+      <input type="number" id="netSumMonth" disabled><br>
+  
+      <label for="totalTaxPercentage"> Total skatt (%):</label>
+      <input type="number" id="totalTaxPercentage" disabled><br>
+    </div>
   </div><br>
 
   <footer>
@@ -324,6 +333,10 @@
     const grossDividendsField = document.getElementById('grossDividends');
     const netDividendsField = document.getElementById('netDividends');
     const profitAfterDividendsField = document.getElementById('profitAfterDividends');
+
+    // Slutsatser
+    const netSumMonthField = document.getElementById('netSumMonth');
+    const totalTaxPercentageField = document.getElementById('totalTaxPercentage');
 
     // Function to populate kommunSelector with options
     function populateKommunDropdown() {
@@ -532,7 +545,6 @@
       if(isNaN(kommunalSkattPercent) || isNaN(churchSkattPercent) || isNaN(burialSkattPercent)){
         grossSemesterersattningField.value = "";
         grossSalaryYearField.value = "";
-        grossSalaryYearField.dispatchEvent(new Event('change'));
         kommunalSkattField.value = "";
         statligSkattField.value = "";
         burialSkattField.value = "";
@@ -545,6 +557,7 @@
         netSemesterersattningField.value = "";
         netSalaryMonthField.value = "";
         incomeTaxPercentageField.value = "";
+        grossSalaryYearField.dispatchEvent(new Event('change'));
         return;
       }
       
@@ -557,8 +570,7 @@
       let grossSemesterersattning = Math.floor(vacationMonths*grossSalaryMonth);
       let monthMultiplier = vacationMonths + salaryMonths;
       let grossSalaryYear  = Math.floor(monthMultiplier*grossSalaryMonth);
-      grossSalaryYearField.value = grossSalaryYear;
-      grossSalaryYearField.dispatchEvent(new Event('change'));
+      grossSalaryYearField.value = grossSalaryYear; // update here to take effect in subsequent calculations
       
       await updateGrundavdrag();
       let taxableIncome = grossSalaryYear - grundavdragField.value;
@@ -589,6 +601,7 @@
       netSemesterersattningField.value = netSemesterersattning
       netSalaryMonthField.value = netSalaryMonth;
       incomeTaxPercentageField.value = incomeTaxPercentage;
+      grossSalaryYearField.dispatchEvent(new Event('change'));
     }
 
     function getSkattereduktionForvarvsinkomst(){
@@ -697,7 +710,6 @@
     }
 
     otherRevenueField.addEventListener("input", updateResultat);
-    invoicedAmountField.addEventListener("input", updateResultat);
     invoicedAmountField.addEventListener("change", updateResultat);
     grossSalaryYearField.addEventListener("change", updateResultat);
     otherCostsField.addEventListener("input", updateResultat);
@@ -746,7 +758,6 @@
       grossDividendsField.disabled = this.checked;
     });
 
-    grossSalaryYearField.addEventListener("change", updateDividends);
     profitAfterTaxField.addEventListener("change", updateDividends);
     maxDividendCheckbox.addEventListener("change", updateDividends);
     grossDividendsField.addEventListener("input", updateDividends);
@@ -759,6 +770,8 @@
         dividendsLimitField.value = "";
         netDividendsField.value = "";
         profitAfterDividendsField.value = "";
+
+        updateConclusion();
         return;
       }
 
@@ -790,6 +803,35 @@
       grossDividendsField.max = Math.round(dividendsLimit);
       netDividendsField.value = Math.round(netDividends);
       profitAfterDividendsField.value = Math.round(profitAfterDividends);
+
+      updateConclusion();
+    }
+
+    function updateConclusion(){
+      const incomeTax = parseInt(incomeTaxField.value);
+      const slp = parseInt(slpField.value);
+      const arbetsgivaravgift = parseInt(arbetsgivaravgiftField.value);
+      const grossDividends = parseInt(grossDividendsField.value);
+      const netSalaryMonth = parseInt(netSalaryMonthField.value);
+      const netDividends = parseInt(netDividendsField.value);
+      const salaryMonths = parseInt(salaryMonthsField.value);
+      const profitBeforeTax = parseInt(profitBeforeTaxField.value);
+      const otherRevenue = parseInt(otherRevenueField.value);
+      const invoicedAmount = parseInt(invoicedAmountField.value);
+
+      if(isNaN(incomeTax) || isNaN(slp) || isNaN(arbetsgivaravgift) || isNaN(grossDividends) || isNaN(netSalaryMonth) || isNaN(netDividends) || isNaN(salaryMonths) || isNaN(profitBeforeTax) || isNaN(otherRevenue) || isNaN(invoicedAmount)){
+        netSumMonthField.value = "";
+        totalTaxPercentageField.value = "";
+        return;
+      }
+
+      let bolagsTax = profitBeforeTax*0.206;
+      let dividendTax = 0.2*grossDividends;
+      let totalTax = incomeTax + slp + arbetsgivaravgift + bolagsTax + dividendTax;
+
+      // I decided dividends should not be distributed over Semesterersättning, only on regular salary
+      netSumMonthField.value = Math.round(netSalaryMonth + netDividends/salaryMonths);
+      totalTaxPercentageField.value = (100*totalTax/(invoicedAmount + otherRevenue)).toFixed(1);
     }
 
     updateBillableHours();
