@@ -238,7 +238,16 @@
           <span style="margin-left: 5px; font-size: 0.8em;">(klicka för att expandera)</span>
         </summary>
         <hr>
-        <label for="dividendsLimit"> Utdelningsgräns enligt 3:12 regeln:</label>
+        <label for="omkostnadsbelopp"> Omkostnadsbelopp:</label>
+        <input type="number" step="25000" id="omkostnadsbelopp" value="25000" min="0"><br>
+
+        <label for="dividendsLimitForenklingsregeln"> Utdelningsgräns förenklingsregeln:</label>
+        <input type="number" id="dividendsLimitForenklingsregeln" disabled><br>
+
+        <label for="dividendsLimitHuvudregeln"> Utdelningsgräns huvudregeln:</label>
+        <input type="number" id="dividendsLimitHuvudregeln" disabled><br>
+        
+        <label for="dividendsLimit"> Utdelningsgräns:</label>
         <input type="number" id="dividendsLimit" disabled><br>
 
         <label for="maxDividend">Välj maximal utdelning:</label>
@@ -328,6 +337,9 @@
     const profitAfterTaxField = document.getElementById("profitAfterTax");
 
     // Utdelning
+    const omkostnadsbeloppField = document.getElementById('omkostnadsbelopp');
+    const dividendsLimitForenklingsregelnField = document.getElementById('dividendsLimitForenklingsregeln');
+    const dividendsLimitHuvudregelnField = document.getElementById('dividendsLimitHuvudregeln');
     const dividendsLimitField = document.getElementById('dividendsLimit');
     const maxDividendCheckbox = document.getElementById('maxDividend');
     const grossDividendsField = document.getElementById('grossDividends');
@@ -766,7 +778,10 @@
       let salary = parseInt(grossSalaryYearField.value);
       let profitAfterTax = parseInt(profitAfterTaxField.value);
       let grossDividends = parseInt(grossDividendsField.value);
-      if(isNaN(salary) || isNaN(profitAfterTax)){
+      let omkostnadsbelopp = parseInt(omkostnadsbeloppField.value);
+      if(isNaN(salary) || isNaN(profitAfterTax) || isNaN(omkostnadsbelopp)){
+        dividendsLimitForenklingsregelnField.value = "";
+        dividendsLimitHuvudregelnField.value = "";
         dividendsLimitField.value = "";
         netDividendsField.value = "";
         profitAfterDividendsField.value = "";
@@ -775,7 +790,6 @@
         return;
       }
 
-      let omkostnadsbelopp = 25000; //TODO enter value
       let inkomstbasbelopp = getInkomstbasbelopp();
       let dividendsLimitForenklingsregeln = 2.75*inkomstbasbelopp;
       let klyvningsRanta =  { 2019:0.0951,
@@ -799,6 +813,8 @@
       }
       let netDividends = grossDividends*(1-0.2);
       let profitAfterDividends = profitAfterTax - grossDividends;
+      dividendsLimitForenklingsregelnField.value = Math.round(dividendsLimitForenklingsregeln);
+      dividendsLimitHuvudregelnField.value = Math.round(dividendsLimitHuvudregeln);
       dividendsLimitField.value = Math.round(dividendsLimit);
       grossDividendsField.max = Math.round(dividendsLimit);
       netDividendsField.value = Math.round(netDividends);
