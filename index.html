@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Budgetkalkylator för konsulter</title>
+  <title>Budgetkalkylator för konsulter</title> 
+  <link rel="apple-touch-icon" sizes="180x180" href="images/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png">
+  <link rel="manifest" href="images/site.webmanifest">
   <meta name="google-site-verification" content="cCk3brPzTIF9DnfQhu-h0uYZJVbmkwK2WBIPQh1oP9E" />
   <style>
     header {
@@ -57,10 +61,22 @@
       text-align: center;
     }
 
+    .inverted-image {
+      filter: grayscale(100%) invert(100%);
+      width: 50px;
+      height: auto; /* Maintain aspect ratio */
+    }
+
+    h1, .inverted-image {
+      display: inline;
+      vertical-align: middle; /* Aligns the image vertically with text */
+  }
+
 </style>
 </head>
 <body>
   <header>
+    <img class="inverted-image" src="images/icon_transparent.png">
     <h1>Budgetkalkylator för konsulter</h1>
   </header>
   <br>
