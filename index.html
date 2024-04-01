@@ -10,7 +10,7 @@
   <link rel="manifest" href="images/site.webmanifest">
   <meta name="google-site-verification" content="cCk3brPzTIF9DnfQhu-h0uYZJVbmkwK2WBIPQh1oP9E" />
   <style>
-    header {
+    header, footer {
       margin: 0;
       background-color: #333;
       color: #fff;
@@ -28,8 +28,18 @@
     }
 
     .wrapper {
-      flex: auto; /* Make the wrapper grow to fill available space */
-      padding-left: 30%;
+      flex: 1;
+      padding: 20px;
+      margin: 0 auto; /* Centering */
+    }
+
+    .chart-container {
+      flex: 1;
+      padding: 20px;
+      margin: 0 auto; /* Centering */
+      width: 60vw;
+      min-height: 40vw;
+      max-height: 60vh;
     }
 
     .required:after { content:" *"; color: red;} 
@@ -54,13 +64,6 @@
       margin-bottom: 0;
     }
     
-    footer {
-      background-color: #333;
-      color: #fff;
-      padding: 10px;
-      text-align: center;
-    }
-
     .inverted-image {
       filter: grayscale(100%) invert(100%);
       width: 50px;
@@ -301,7 +304,7 @@
 
   </div><br>
 
-  <div>
+  <div class="chart-container">
     <canvas id="myChart"></canvas>
   </div>
 
@@ -970,6 +973,7 @@
       data: data,
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         scales: {
           x: {
             title: {
