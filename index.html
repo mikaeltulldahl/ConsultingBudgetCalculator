@@ -35,11 +35,10 @@
 
     .chart-container {
       flex: 1;
-      padding: 20px;
       margin: 0 auto; /* Centering */
-      width: 60vw;
-      min-height: 40vw;
-      max-height: 60vh;
+      width: max(40vw, min(100vw, 400px));
+      min-height: max(min(40vw, 60vh), 400px);
+      max-height: max(60vh, 400px);
     }
 
     .required:after { content:" *"; color: red;} 
@@ -307,6 +306,7 @@
   <div class="chart-container">
     <canvas id="myChart"></canvas>
   </div>
+  <br>
 
   <div class="chart-container">
     <canvas id="percentageChart"></canvas>
