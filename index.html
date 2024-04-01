@@ -308,6 +308,10 @@
     <canvas id="myChart"></canvas>
   </div>
 
+  <div class="chart-container">
+    <canvas id="percentageChart"></canvas>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <footer>
@@ -998,6 +1002,45 @@
 
     const myChart = new Chart(document.getElementById('myChart'), chartConfig);
 
+    const percentageChartData = {
+      labels: [],
+      datasets: [
+        {
+          label: 'Total skatt / (Total skatt + lön netto + utdelning netto)',
+          data: [],
+          borderColor: 'rgba(255, 159, 64, 1)',
+          backgroundColor: 'rgba(255, 159, 64, 0.4)',
+        }
+      ]
+    };
+    const percentageChartConfig = {
+      type: 'line',
+      data: percentageChartData,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            ticks:{
+              maxTicksLimit: 10,
+            },
+            title: {
+              display: true,
+              text: 'Månadslön brutto'
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: '%'
+            }
+          },
+        },
+      }
+    };
+
+    const percentageChart = new Chart(document.getElementById('percentageChart'), percentageChartConfig);
+
     const arrayRange = (start, stop, step) =>
       Array.from(
       { length: (stop - start) / step + 1 },
@@ -1014,6 +1057,10 @@
         chartData.datasets[3].data = [];
         chartData.datasets[4].data = [];
         myChart.update();
+
+        percentageChartData.labels = [];
+        percentageChartData.datasets[0].data = [];
+        percentageChart.update();
         return;
       }
       fields = readFields();
@@ -1025,6 +1072,8 @@
       pensionRange = new Array(grossSalaryRange.length);
       profitAfterDividendsRange = new Array(grossSalaryRange.length);
       totalTaxRange = new Array(grossSalaryRange.length);
+
+      taxPercentageRange = new Array(grossSalaryRange.length);
       
       for (i in grossSalaryRange) {
         let fieldsClone = { ...fields }
@@ -1040,6 +1089,8 @@
           pensionRange.length = i;
           profitAfterDividendsRange.length = i;
           totalTaxRange.length = i;
+
+          taxPercentageRange.length = i;
           break;
         }
         netSalaryYearRange[i] = fieldsClone.netSalaryYear.toFixed();
@@ -1047,6 +1098,8 @@
         pensionRange[i] = fieldsClone.pension.toFixed();
         profitAfterDividendsRange[i] = fieldsClone.profitAfterDividends.toFixed();
         totalTaxRange[i] = fieldsClone.totalTax.toFixed();
+
+        taxPercentageRange[i] = (100*fieldsClone.totalTax/(fieldsClone.totalTax + fieldsClone.netSalaryYear + fieldsClone.netDividends)).toFixed(1);
       }
 
       // Update the chart
@@ -1057,6 +1110,10 @@
       chartData.datasets[3].data = profitAfterDividendsRange;
       chartData.datasets[4].data = totalTaxRange;
       myChart.update();
+
+      percentageChartData.labels = grossSalaryRange;
+      percentageChartData.datasets[0].data = taxPercentageRange;
+      percentageChart.update();
     }
 
     updateBillableHours();
