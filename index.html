@@ -932,8 +932,8 @@
       fields.totalTaxPercentage = 100*fields.totalTax/(fields.invoicedAmount + fields.otherRevenue);
     }
 
-    const data = {
-      labels: ['Dataset 1', 'Dataset 2'],
+    const chartData = {
+      labels: [],
       datasets: [
         {
           label: 'Årslön netto',
@@ -968,14 +968,17 @@
         }
       ]
     };
-    const config = {
+    const chartConfig = {
       type: 'line',
-      data: data,
+      data: chartData,
       options: {
         responsive: true,
         maintainAspectRatio: false,
         scales: {
           x: {
+            ticks:{
+              maxTicksLimit: 10,
+            },
             title: {
               display: true,
               text: 'Månadslön brutto'
@@ -993,7 +996,7 @@
       }
     };
 
-    const myChart = new Chart(document.getElementById('myChart'), config);
+    const myChart = new Chart(document.getElementById('myChart'), chartConfig);
 
     const arrayRange = (start, stop, step) =>
       Array.from(
@@ -1004,19 +1007,19 @@
     async function updateChart(){
       if(totalTaxPercentageField.value.length == 0){
         // reset chart
-        data.labels = [];
-        data.datasets[0].data = [];
-        data.datasets[1].data = [];
-        data.datasets[2].data = [];
-        data.datasets[3].data = [];
-        data.datasets[4].data = [];
+        chartData.labels = [];
+        chartData.datasets[0].data = [];
+        chartData.datasets[1].data = [];
+        chartData.datasets[2].data = [];
+        chartData.datasets[3].data = [];
+        chartData.datasets[4].data = [];
         myChart.update();
         return;
       }
       fields = readFields();
       let totalRevenue = fields.invoicedAmount + fields.otherRevenue - fields.otherCosts
       let probableMaxGrossSalary = 10000 + totalRevenue/(1 + 0.3142 + 0.047 * (1 + 0.2426));
-      grossSalaryRange = arrayRange(0, probableMaxGrossSalary, 1000);
+      grossSalaryRange = arrayRange(0, probableMaxGrossSalary, 500);
       netSalaryYearRange = new Array(grossSalaryRange.length);
       pensionRange = new Array(grossSalaryRange.length);
       netDividendsRange = new Array(grossSalaryRange.length);
@@ -1047,12 +1050,12 @@
       }
 
       // Update the chart
-      data.labels = grossSalaryRange;
-      data.datasets[0].data = netSalaryYearRange;
-      data.datasets[1].data = pensionRange;
-      data.datasets[2].data = netDividendsRange;
-      data.datasets[3].data = totalTaxRange;
-      data.datasets[4].data = profitAfterDividendsRange;
+      chartData.labels = grossSalaryRange;
+      chartData.datasets[0].data = netSalaryYearRange;
+      chartData.datasets[1].data = pensionRange;
+      chartData.datasets[2].data = netDividendsRange;
+      chartData.datasets[3].data = totalTaxRange;
+      chartData.datasets[4].data = profitAfterDividendsRange;
       myChart.update();
     }
 
