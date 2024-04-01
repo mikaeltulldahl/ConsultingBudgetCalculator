@@ -313,6 +313,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://imhvost.github.io/chart-utils.min.js"></script>
 
   <footer>
     <small>
@@ -892,14 +893,15 @@
       }
 
       let inkomstbasbelopp = getInkomstbasbelopp(fields.year);
-      fields.dividendsLimitForenklingsregeln = 2.75*inkomstbasbelopp;
+      let stockOwnerPercentage = 1;
+      fields.dividendsLimitForenklingsregeln = stockOwnerPercentage*2.75*inkomstbasbelopp;
       let klyvningsRanta =  { 2019:0.0951,
                               2020:0.0900,
                               2021:0.0900,
                               2022:0.0923,
                               2023:0.1094,
                               2024:0.1162};
-      let stockOwnerPercentage = 1;
+      
       let totalSalary = fields.grossSalaryYear; // TODO sum from all employees
       let canUseSalaryBase = fields.grossSalaryYear >= 9.60*inkomstbasbelopp || fields.grossSalaryYear >= (6*inkomstbasbelopp + 0.05*totalSalary);
       let salaryBasedLimit = stockOwnerPercentage*0.5*totalSalary;
@@ -936,39 +938,56 @@
       fields.totalTaxPercentage = 100*fields.totalTax/(fields.invoicedAmount + fields.otherRevenue);
     }
 
+    const Utils = ChartUtils.init()
     const chartData = {
       labels: [],
       datasets: [
         {
+          order: 1,
           label: 'Årslön netto',
           data: [],
-          borderColor: 'rgba(255, 99, 132, 1)',
-          backgroundColor: 'rgba(255, 99, 132, 0.4)',
+          borderColor: Utils.CHART_COLORS.red,
+          backgroundColor: Utils.transparentize(Utils.CHART_COLORS.red, 0.4), 
           fill: 'origin' // from: https://github.com/chartjs/Chart.js/issues/2380#issuecomment-287535063
         },
         {
+          order: 2,
           label: 'Årsutdelning netto',
           data: [],
-          borderColor: 'rgba(54, 162, 235, 1)',
-          backgroundColor: 'rgba(54, 162, 235, 0.4)',
+          borderColor: Utils.CHART_COLORS.blue,
+          backgroundColor: Utils.transparentize(Utils.CHART_COLORS.blue, 0.4),
         },
         {
+          order: 3,
           label: 'Tjänstepension brutto',
           data: [],
-          borderColor: 'rgba(153, 102, 255, 1)',
-          backgroundColor: 'rgba(153, 102, 255, 0.4)',
+          borderColor: Utils.CHART_COLORS.purple,
+          backgroundColor: Utils.transparentize(Utils.CHART_COLORS.purple, 0.4),
         },
         {
+          order: 4,
           label: 'Årets resultat efter utdelning',
           data: [],
-          borderColor: 'rgba(75, 192, 192, 1)',
-          backgroundColor: 'rgba(75, 192, 192, 0.4)',
+          borderColor: Utils.CHART_COLORS.green,
+          backgroundColor: Utils.transparentize(Utils.CHART_COLORS.green, 0.4),
         },
         {
+          order: 5,
           label: 'Total skatt',
           data: [],
-          borderColor: 'rgba(255, 159, 64, 1)',
-          backgroundColor: 'rgba(255, 159, 64, 0.4)',
+          borderColor: Utils.CHART_COLORS.orange,
+          backgroundColor: Utils.transparentize(Utils.CHART_COLORS.orange, 0.4),
+        },
+        {
+          order: 0,
+          label: 'Högst summa (lön + utdelning) netto',
+          type: 'scatter',
+          data: [{x: 50, y: 50}], // Specify the x and y position here
+          pointStyle: 'star',
+          borderWidth: 3, // Border width
+          pointRadius: 15, // Size of the star
+          borderColor: Utils.CHART_COLORS.yellow,
+          backgroundColor: Utils.transparentize(Utils.CHART_COLORS.yellow, 0.4), // Color of the star
         }
       ]
     };
@@ -1006,10 +1025,14 @@
       labels: [],
       datasets: [
         {
-          label: 'Total skatt / (Total skatt + lön netto + utdelning netto)',
+          label: 'Total skatt / (lön brutto + utdelning brutto)',
           data: [],
-          borderColor: 'rgba(255, 159, 64, 1)',
-          backgroundColor: 'rgba(255, 159, 64, 0.4)',
+          borderColor: Utils.CHART_COLORS.orange,
+        },
+        {
+          label: 'Marginalskatt = d(Total skatt) / d(lön brutto + utdelning brutto)',
+          data: [],
+          borderColor: Utils.CHART_COLORS.red,
         }
       ]
     };
@@ -1056,10 +1079,12 @@
         chartData.datasets[2].data = [];
         chartData.datasets[3].data = [];
         chartData.datasets[4].data = [];
+        chartData.datasets[5].data = [];
         myChart.update();
 
         percentageChartData.labels = [];
         percentageChartData.datasets[0].data = [];
+        percentageChartData.datasets[1].data = [];
         percentageChart.update();
         return;
       }
@@ -1072,8 +1097,13 @@
       pensionRange = new Array(grossSalaryRange.length);
       profitAfterDividendsRange = new Array(grossSalaryRange.length);
       totalTaxRange = new Array(grossSalaryRange.length);
+      maxSumXY = {x: 50, y: 50};
 
       taxPercentageRange = new Array(grossSalaryRange.length);
+      marginalTaxPercentageRange = new Array(grossSalaryRange.length);
+
+      let prevTotalTax = 0;
+      let prevGrossSumYear = 0;
       
       for (i in grossSalaryRange) {
         let fieldsClone = { ...fields }
@@ -1091,6 +1121,7 @@
           totalTaxRange.length = i;
 
           taxPercentageRange.length = i;
+          marginalTaxPercentageRange.length = Math.min(marginalTaxPercentageRange.length,i);
           break;
         }
         netSalaryYearRange[i] = fieldsClone.netSalaryYear.toFixed();
@@ -1098,8 +1129,29 @@
         pensionRange[i] = fieldsClone.pension.toFixed();
         profitAfterDividendsRange[i] = fieldsClone.profitAfterDividends.toFixed();
         totalTaxRange[i] = fieldsClone.totalTax.toFixed();
+        let netSumYear = fieldsClone.netSalaryYear + fieldsClone.netDividends;
+        if(netSumYear > maxSumXY.y){
+          maxSumXY.x = fieldsClone.grossSalaryMonth;
+          maxSumXY.y = netSumYear.toFixed();
+        }
 
-        taxPercentageRange[i] = (100*fieldsClone.totalTax/(fieldsClone.totalTax + fieldsClone.netSalaryYear + fieldsClone.netDividends)).toFixed(1);
+        let grossSumYear = fieldsClone.grossSalaryYear + fieldsClone.grossDividends;
+        taxPercentageRange[i] = (100*fieldsClone.totalTax/grossSumYear).toFixed(2);
+
+        
+        if (i == 0){
+          marginalTaxPercentageRange[0] = 0;
+        }else if(i < marginalTaxPercentageRange.length){
+          let taxDiff = fieldsClone.totalTax - prevTotalTax;
+          let totalDiff = grossSumYear-prevGrossSumYear;
+          if(totalDiff <= 0){
+            marginalTaxPercentageRange.length = i;
+          }else{
+            marginalTaxPercentageRange[i] = (100*taxDiff/totalDiff).toFixed(2);
+          }
+        }
+        prevTotalTax = fieldsClone.totalTax;
+        prevGrossSumYear = grossSumYear;
       }
 
       // Update the chart
@@ -1109,10 +1161,12 @@
       chartData.datasets[2].data = pensionRange;
       chartData.datasets[3].data = profitAfterDividendsRange;
       chartData.datasets[4].data = totalTaxRange;
+      chartData.datasets[5].data = [maxSumXY];
       myChart.update();
 
       percentageChartData.labels = grossSalaryRange;
       percentageChartData.datasets[0].data = taxPercentageRange;
+      percentageChartData.datasets[1].data = marginalTaxPercentageRange;
       percentageChart.update();
     }
 
