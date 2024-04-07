@@ -318,6 +318,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-crosshair"></script>
   <script src="https://imhvost.github.io/chart-utils.min.js"></script>
 
   <footer>
@@ -1036,10 +1037,24 @@
             fill: '-1' // by default, fill lines to the previous dataset
           }
         },
+        plugins: {
+          crosshair: {
+            line: {
+              color: '#F66',
+              width: 1
+            },
+            sync: {
+              enabled: false,
+            },
+            zoom: {
+              enabled: false,
+            },
+          }
+        }
       }
     };
 
-    const myChart = new Chart(document.getElementById('myChart'), chartConfig);
+    const myChart = new Chart(document.getElementById('myChart').getContext("2d"), chartConfig);
 
     const percentageChartData = {
       labels: [],
@@ -1094,10 +1109,24 @@
             }
           },
         },
+        plugins: {
+          crosshair: {
+            line: {
+              color: '#F66',
+              width: 1
+            },
+            sync: {
+              enabled: false,
+            },
+            zoom: {
+              enabled: false,
+            },
+          }
+        }
       }
     };
 
-    const percentageChart = new Chart(document.getElementById('percentageChart'), percentageChartConfig);
+    const percentageChart = new Chart(document.getElementById('percentageChart').getContext("2d"), percentageChartConfig);
 
     const arrayRange = (start, stop, step) =>
       Array.from(
