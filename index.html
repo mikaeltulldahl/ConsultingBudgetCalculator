@@ -294,12 +294,17 @@
       <label for="netSumMonth"> Månadssumma (lön + utdelning) netto:</label>
       <input type="number" id="netSumMonth" disabled><br>
   
-      <label for="totalTax"> Total skatt:</label>
+      <label for="totalTax"> Total skatt*:</label>
       <input type="number" id="totalTax" disabled><br>
 
-      <label for="totalTaxPercentage"> Total skatt (%):</label>
+      <label for="bolagsTaxExclDividends"> Bolagskatt på ej utdelad vinst:</label>
+      <input type="number" id="bolagsTaxExclDividends" disabled><br>
+
+      <label for="totalTaxPercentage"> Total skatt* (%):</label>
       <input type="number" id="totalTaxPercentage" disabled><br>
     </div>
+
+    <p>* exklusive bolagskatt på ej utdelad vinst.</p>
 
   </div><br>
 
@@ -390,6 +395,7 @@
     // Slutsatser
     const netSumMonthField = document.getElementById('netSumMonth');
     const totalTaxField = document.getElementById('totalTax');
+    const bolagsTaxExclDividendsField = document.getElementById('bolagsTaxExclDividends');
     const totalTaxPercentageField = document.getElementById('totalTaxPercentage');
 
     // Function to populate kommunSelector with options
@@ -650,6 +656,7 @@
         profitAfterDividends : NaN,
         netSumMonth : NaN,
         totalTax : NaN,
+        bolagsTaxExclDividends: NaN,
         totalTaxPercentage : NaN,
       };
     }
@@ -686,6 +693,7 @@
       profitAfterDividendsField.value = isNaN(fields.profitAfterDividends) ? '' : fields.profitAfterDividends.toFixed();
       netSumMonthField.value = isNaN(fields.netSumMonth) ? '' : fields.netSumMonth.toFixed();
       totalTaxField.value = isNaN(fields.totalTax) ? '' : fields.totalTax.toFixed();
+      bolagsTaxExclDividendsField.value = isNaN(fields.bolagsTaxExclDividends) ? '' : fields.bolagsTaxExclDividends.toFixed();
       totalTaxPercentageField.value = isNaN(fields.totalTaxPercentage) ? '' : fields.totalTaxPercentage.toFixed(1);
     }
     
@@ -930,9 +938,14 @@
         return;
       }
 
-      let bolagsTax = fields.profitBeforeTax*0.206;
+      // bolagsskatt on profit which was paid out as dividends
+      fields.bolagsTaxOnDividends = fields.grossDividends * 0.206 / (1- 0.206);
+      
+      // bolagsskatt on profit which was not paid out as dividends
+      fields.bolagsTaxExclDividends = fields.profitAfterDividends * 0.206 / (1- 0.206);
+
       let dividendTax = 0.2*fields.grossDividends;
-      fields.totalTax = fields.incomeTax + fields.slp + fields.arbetsgivaravgift + bolagsTax + dividendTax;
+      fields.totalTax = fields.incomeTax + fields.slp + fields.arbetsgivaravgift + fields.bolagsTaxOnDividends + dividendTax;
       // I decided dividends should not be distributed over Semesterersättning, only on regular salary
       fields.netSumMonth = fields.netSalaryMonth + fields.netDividends/fields.salaryMonths;
       fields.totalTaxPercentage = 100*fields.totalTax/(fields.invoicedAmount + fields.otherRevenue);
@@ -973,10 +986,17 @@
         },
         {
           order: 5,
-          label: 'Total skatt',
+          label: 'Total skatt*',
           data: [],
           borderColor: Utils.CHART_COLORS.orange,
           backgroundColor: Utils.transparentize(Utils.CHART_COLORS.orange, 0.4),
+        },
+        {
+          order: 6,
+          label: 'Bolagskatt på ej utdelad vinst',
+          data: [],
+          borderColor: 'rgb(235, 139, 34)',
+          backgroundColor: Utils.transparentize('rgb(235, 139, 34)', 0.4),
         },
         {
           order: 0,
@@ -1025,14 +1045,29 @@
       labels: [],
       datasets: [
         {
-          label: 'Total skatt / (lön brutto + utdelning brutto)',
+          order: 1,
+          label: 'Total skatt* / (lön brutto + utdelning brutto)',
           data: [],
           borderColor: Utils.CHART_COLORS.orange,
+          backgroundColor: Utils.CHART_COLORS.orange,
         },
         {
-          label: 'Marginalskatt = d(Total skatt) / d(lön brutto + utdelning brutto)',
+          order: 2,
+          label: 'Marginalskatt = d(Total skatt*) / d(lön brutto + utdelning brutto)',
           data: [],
           borderColor: Utils.CHART_COLORS.red,
+          backgroundColor: Utils.CHART_COLORS.red,
+        },
+        {
+          order: 0,
+          label: 'Lägst Total skatt* / (lön brutto + utdelning brutto)',
+          type: 'scatter',
+          data: [{x: 0, y: 0}],
+          pointStyle: 'star',
+          borderWidth: 3,
+          pointRadius: 15,
+          borderColor: 'rgb(0, 235, 235)',
+          backgroundColor: Utils.transparentize('rgb(0, 235, 235)', 0.4),
         }
       ]
     };
@@ -1080,11 +1115,13 @@
         chartData.datasets[3].data = [];
         chartData.datasets[4].data = [];
         chartData.datasets[5].data = [];
+        chartData.datasets[6].data = [];
         myChart.update();
 
         percentageChartData.labels = [];
         percentageChartData.datasets[0].data = [];
         percentageChartData.datasets[1].data = [];
+        percentageChartData.datasets[2].data = [];
         percentageChart.update();
         return;
       }
@@ -1097,7 +1134,9 @@
       pensionRange = new Array(grossSalaryRange.length);
       profitAfterDividendsRange = new Array(grossSalaryRange.length);
       totalTaxRange = new Array(grossSalaryRange.length);
-      maxSumXY = {x: 50, y: 50};
+      bolagsTaxExclDividendsRange = new Array(grossSalaryRange.length);
+      maxSumXY = {x: 0, y: 0};
+      minTaxXY = {x: 0, y: 10000};
 
       taxPercentageRange = new Array(grossSalaryRange.length);
       marginalTaxPercentageRange = new Array(grossSalaryRange.length);
@@ -1119,6 +1158,7 @@
           pensionRange.length = i;
           profitAfterDividendsRange.length = i;
           totalTaxRange.length = i;
+          bolagsTaxExclDividendsRange.length = i;
 
           taxPercentageRange.length = i;
           marginalTaxPercentageRange.length = Math.min(marginalTaxPercentageRange.length,i);
@@ -1129,6 +1169,7 @@
         pensionRange[i] = fieldsClone.pension.toFixed();
         profitAfterDividendsRange[i] = fieldsClone.profitAfterDividends.toFixed();
         totalTaxRange[i] = fieldsClone.totalTax.toFixed();
+        bolagsTaxExclDividendsRange[i] = fieldsClone.bolagsTaxExclDividends.toFixed();
         let netSumYear = fieldsClone.netSalaryYear + fieldsClone.netDividends;
         if(netSumYear > maxSumXY.y){
           maxSumXY.x = fieldsClone.grossSalaryMonth;
@@ -1136,8 +1177,13 @@
         }
 
         let grossSumYear = fieldsClone.grossSalaryYear + fieldsClone.grossDividends;
-        taxPercentageRange[i] = (100*fieldsClone.totalTax/grossSumYear).toFixed(2);
+        let taxPercentage = 100*fieldsClone.totalTax/grossSumYear;
+        taxPercentageRange[i] = taxPercentage.toFixed(2);
 
+        if(taxPercentage < minTaxXY.y){
+          minTaxXY.x = fieldsClone.grossSalaryMonth;
+          minTaxXY.y = taxPercentageRange[i];
+        }
         
         if (i == 0){
           marginalTaxPercentageRange[0] = 0;
@@ -1161,12 +1207,14 @@
       chartData.datasets[2].data = pensionRange;
       chartData.datasets[3].data = profitAfterDividendsRange;
       chartData.datasets[4].data = totalTaxRange;
-      chartData.datasets[5].data = [maxSumXY];
+      chartData.datasets[5].data = bolagsTaxExclDividendsRange;
+      chartData.datasets[6].data = [maxSumXY];
       myChart.update();
 
       percentageChartData.labels = grossSalaryRange;
       percentageChartData.datasets[0].data = taxPercentageRange;
       percentageChartData.datasets[1].data = marginalTaxPercentageRange;
+      percentageChartData.datasets[2].data = [minTaxXY];
       percentageChart.update();
     }
 
