@@ -308,6 +308,12 @@
 
   </div><br>
 
+  <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/flow.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+  <div id="sankeyDiagram" class="chart-container"></div>
+  <br>
+
   <div class="chart-container">
     <canvas id="myChart"></canvas>
   </div>
@@ -610,6 +616,7 @@
       updateConclusion(fields);
       writeFields(fields);
       updateChart(fields);
+      updateSankeyChart(fields);
     }
 
     function readFields(){
@@ -953,6 +960,68 @@
       fields.netSumMonth = fields.netSalaryMonth + fields.netDividends/fields.salaryMonths;
       fields.totalTaxPercentage = 100*fields.totalTax/(fields.invoicedAmount + fields.otherRevenue);
     }
+
+    // Create root and chart
+    var root = am5.Root.new("sankeyDiagram"); 
+
+    // Set themes
+    root.setThemes([
+      am5themes_Animated.new(root)
+    ]);
+
+    // Create series
+    const series = root.container.children.push(
+      am5flow.Sankey.new(root, {
+        sourceIdField: "from",
+        targetIdField: "to",
+        valueField: "value",
+        paddingRight: 150,
+      })
+    );
+
+    series.nodes.get("colors").set("step", 2);
+    series.nodes.nodes.template.setAll({
+      draggable: false, // disables dragging
+      toggleKey: "none" // disables toggling
+    });
+
+    function updateSankeyChart(fields) {
+      let tempData = [
+          { from: "Fakturerat belopp", to: "intäkter", value: Math.round(fields.invoicedAmount) },
+          { from: "Övriga intäkter", to: "intäkter", value: Math.round(fields.otherRevenue) },
+          { from: "Förlust", to: "intäkter", value: -Math.round(fields.profitBeforeTax) },
+          { from: "intäkter", to: "Övriga kostnader", value: Math.round(fields.otherCosts) },
+          { from: "intäkter", to: "Bruttolön", value: Math.round(fields.grossSalaryYear) },
+          { from: "intäkter", to: "Pension", value: Math.round(fields.pension) },
+          { from: "intäkter", to: "Trygghetsförsäkring", value: Math.round(fields.insurance) },
+          { from: "intäkter", to: "Total skatt", value: Math.round(fields.slp) },
+          { from: "intäkter", to: "Total skatt", value: Math.round(fields.arbetsgivaravgift) },
+          { from: "intäkter", to: "Vinst före skatt", value: Math.round(fields.profitBeforeTax) },
+          { from: "Vinst efter skatt", to: "Bruttoutdelning", value: Math.round(fields.grossDividends) },
+          { from: "Bruttolön", to: "Total skatt", value: Math.round(fields.incomeTax) },
+          { from: "Vinst före skatt", to: "Total skatt", value: Math.round(fields.bolagsTax) },
+          { from: "Vinst före skatt", to: "Vinst efter skatt", value: Math.round(fields.profitAfterTax) },
+          { from: "Vinst efter skatt", to: "Vinst efter utdelning", value: Math.round(fields.profitAfterDividends) },
+          { from: "Bruttoutdelning", to: "Total skatt", value: Math.round(fields.dividendTax) },
+          { from: "Bruttolön", to: "Nettolön", value: Math.round(fields.netSalaryYear) },
+          { from: "Bruttoutdelning", to: "Nettoutdelning", value: Math.round(fields.netDividends) }
+      ];
+
+      let anyNaN = tempData.some(entry => isNaN(entry.value));
+      if (anyNaN){
+        series.data.setAll([]);
+        return;
+      }
+
+      // Loop through the tempData array and remove entries with non-positive values
+      for (let i = tempData.length - 1; i >= 0; i--) {
+        if (tempData[i].value <= 0) {
+            tempData.splice(i, 1);
+        }
+      }
+
+      series.data.setAll(tempData);
+    }    
 
     const Utils = ChartUtils.init()
     const chartData = {
