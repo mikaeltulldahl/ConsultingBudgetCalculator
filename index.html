@@ -609,7 +609,7 @@
       updateDividends(fields);
       updateConclusion(fields);
       writeFields(fields);
-      updateChart();
+      updateChart(fields);
     }
 
     function readFields(){
@@ -939,14 +939,16 @@
         return;
       }
 
+      fields.bolagsTax = fields.profitBeforeTax*0.206;
+
       // bolagsskatt on profit which was paid out as dividends
       fields.bolagsTaxOnDividends = fields.grossDividends * 0.206 / (1- 0.206);
       
       // bolagsskatt on profit which was not paid out as dividends
       fields.bolagsTaxExclDividends = fields.profitAfterDividends * 0.206 / (1- 0.206);
 
-      let dividendTax = 0.2*fields.grossDividends;
-      fields.totalTax = fields.incomeTax + fields.slp + fields.arbetsgivaravgift + fields.bolagsTaxOnDividends + dividendTax;
+      fields.dividendTax = 0.2*fields.grossDividends;
+      fields.totalTax = fields.incomeTax + fields.slp + fields.arbetsgivaravgift + fields.bolagsTaxOnDividends + fields.dividendTax;
       // I decided dividends should not be distributed over Semesterersättning, only on regular salary
       fields.netSumMonth = fields.netSalaryMonth + fields.netDividends/fields.salaryMonths;
       fields.totalTaxPercentage = 100*fields.totalTax/(fields.invoicedAmount + fields.otherRevenue);
@@ -1134,7 +1136,7 @@
       (value, index) => start + index * step
       );
 
-    async function updateChart(){
+    async function updateChart(fields){
       if(totalTaxPercentageField.value.length == 0){
         // reset chart
         chartData.labels = [];
@@ -1154,7 +1156,6 @@
         percentageChart.update();
         return;
       }
-      fields = readFields();
       let totalRevenue = fields.invoicedAmount + fields.otherRevenue - fields.otherCosts
       let probableMaxGrossSalary = 10000 + totalRevenue/(1 + 0.3142 + 0.047 * (1 + 0.2426));
       grossSalaryRange = arrayRange(0, probableMaxGrossSalary, 500);
