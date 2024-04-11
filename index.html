@@ -989,25 +989,43 @@
     });
 
     function updateSankeyChart(fields) {
+      // nodes
+      let totalTaxStr = `[bold]Total skatt:[/]\n${Math.round(fields.totalTax + fields.bolagsTaxExclDividends).toLocaleString()}`;
+      let invoicedAmountStr = `[bold]Fakturerat belopp:[/]\n${Math.round(fields.invoicedAmount).toLocaleString()}`;
+      let otherRevenueStr = `[bold]Övriga intäkter:[/]\n${Math.round(fields.otherRevenue).toLocaleString()}`;
+      let lossStr = `[bold]Förlust:[/]\n${-Math.round(fields.profitBeforeTax).toLocaleString()}`;
+      let revenueStr = `[bold]Intäkter:[/]\n${Math.round(fields.invoicedAmount + fields.otherRevenue).toLocaleString()}`;
+      let otherCostsStr = `[bold]Övriga kostnader:[/]\n${Math.round(fields.otherCosts).toLocaleString()}`;
+      let grossSalaryYearStr = `[bold]Bruttolön:[/]\n${Math.round(fields.grossSalaryYear).toLocaleString()}`;
+      let pensionStr = `[bold]Pension:[/]\n${Math.round(fields.pension).toLocaleString()}`;
+      let insuranceStr = `[bold]Trygghetsförsäkring:[/]\n${Math.round(fields.insurance).toLocaleString()}`;
+      let profitBeforeTaxStr = `[bold]Vinst före skatt:[/]\n${Math.round(fields.profitBeforeTax).toLocaleString()}`;
+      let profitAfterTaxStr = `[bold]Vinst efter skatt:[/]\n${Math.round(fields.profitAfterTax).toLocaleString()}`;
+      let grossDividendsStr = `[bold]Bruttoutdelning:[/]\n${Math.round(fields.grossDividends).toLocaleString()}`;
+      let profitAfterDividendsStr = `[bold]Vinst efter utdelning:[/]\n${Math.round(fields.profitAfterDividends).toLocaleString()}`;
+      let netSalaryYearStr = `[bold]Nettolön:[/]\n${Math.round(fields.netSalaryYear).toLocaleString()}`;
+      let netDividendsStr = `[bold]Nettoutdelning:[/]\n${Math.round(fields.netDividends).toLocaleString()}`;
+
+      // links
       let tempData = [
-          { from: "Fakturerat belopp", to: "intäkter", value: Math.round(fields.invoicedAmount), label: 'Fakturerat belopp' },
-          { from: "Övriga intäkter", to: "intäkter", value: Math.round(fields.otherRevenue), label: 'Övriga intäkter' },
-          { from: "Förlust", to: "intäkter", value: -Math.round(fields.profitBeforeTax), label: 'Förlust' },
-          { from: "intäkter", to: "Övriga kostnader", value: Math.round(fields.otherCosts), label: 'Övriga kostnader' },
-          { from: "intäkter", to: "Bruttolön", value: Math.round(fields.grossSalaryYear), label: 'Bruttolön' },
-          { from: "intäkter", to: "Pension", value: Math.round(fields.pension), label: 'Pension' },
-          { from: "intäkter", to: "Trygghetsförsäkring", value: Math.round(fields.insurance), label: 'Trygghetsförsäkring' },
-          { from: "intäkter", to: "Total skatt", value: Math.round(fields.slp), label: 'SLP' },
-          { from: "intäkter", to: "Total skatt", value: Math.round(fields.arbetsgivaravgift), label: 'Arbetsgivaravgift' },
-          { from: "intäkter", to: "Vinst före skatt", value: Math.round(fields.profitBeforeTax), label: 'Vinst före skatt' },
-          { from: "Vinst efter skatt", to: "Bruttoutdelning", value: Math.round(fields.grossDividends), label: 'Bruttoutdelning' },
-          { from: "Bruttolön", to: "Total skatt", value: Math.round(fields.incomeTax), label: 'Inkomstskatt' },
-          { from: "Vinst före skatt", to: "Total skatt", value: Math.round(fields.bolagsTax), label: 'Bolagsskatt' },
-          { from: "Vinst före skatt", to: "Vinst efter skatt", value: Math.round(fields.profitAfterTax), label: 'Vinst efter skatt' },
-          { from: "Vinst efter skatt", to: "Vinst efter utdelning", value: Math.round(fields.profitAfterDividends), label: 'Vinst efter utdelning' },
-          { from: "Bruttoutdelning", to: "Total skatt", value: Math.round(fields.dividendTax), label: 'Utdelningsskatt' },
-          { from: "Bruttolön", to: "Nettolön", value: Math.round(fields.netSalaryYear), label: 'Nettolön' },
-          { from: "Bruttoutdelning", to: "Nettoutdelning", value: Math.round(fields.netDividends), label: 'Nettoutdelning' }
+          { from: invoicedAmountStr, to: revenueStr, value: Math.round(fields.invoicedAmount), label: 'Fakturerat belopp' },
+          { from: otherRevenueStr, to: revenueStr, value: Math.round(fields.otherRevenue), label: 'Övriga intäkter' },
+          { from: lossStr, to: revenueStr, value: -Math.round(fields.profitBeforeTax), label: 'Förlust' },
+          { from: revenueStr, to: otherCostsStr, value: Math.round(fields.otherCosts), label: 'Övriga kostnader' },
+          { from: revenueStr, to: grossSalaryYearStr, value: Math.round(fields.grossSalaryYear), label: 'Bruttolön' },
+          { from: revenueStr, to: pensionStr, value: Math.round(fields.pension), label: 'Pension' },
+          { from: revenueStr, to: insuranceStr, value: Math.round(fields.insurance), label: 'Trygghetsförsäkring' },
+          { from: revenueStr, to: totalTaxStr, value: Math.round(fields.slp), label: 'SLP' },
+          { from: revenueStr, to: totalTaxStr, value: Math.round(fields.arbetsgivaravgift), label: 'Arbetsgivaravgift' },
+          { from: revenueStr, to: profitBeforeTaxStr, value: Math.round(fields.profitBeforeTax), label: 'Vinst före skatt' },
+          { from: profitAfterTaxStr, to: grossDividendsStr, value: Math.round(fields.grossDividends), label: 'Bruttoutdelning' },
+          { from: grossSalaryYearStr, to: totalTaxStr, value: Math.round(fields.incomeTax), label: 'Inkomstskatt' },
+          { from: profitBeforeTaxStr, to: totalTaxStr, value: Math.round(fields.bolagsTax), label: 'Bolagsskatt' },
+          { from: profitBeforeTaxStr, to: profitAfterTaxStr, value: Math.round(fields.profitAfterTax), label: 'Vinst efter skatt' },
+          { from: profitAfterTaxStr, to: profitAfterDividendsStr, value: Math.round(fields.profitAfterDividends), label: 'Vinst efter utdelning' },
+          { from: grossDividendsStr, to: totalTaxStr, value: Math.round(fields.dividendTax), label: 'Utdelningsskatt' },
+          { from: grossSalaryYearStr, to: netSalaryYearStr, value: Math.round(fields.netSalaryYear), label: 'Nettolön' },
+          { from: grossDividendsStr, to: netDividendsStr, value: Math.round(fields.netDividends), label: 'Nettoutdelning' }
       ];
 
       let anyNaN = tempData.some(entry => isNaN(entry.value));
