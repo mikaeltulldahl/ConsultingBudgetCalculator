@@ -946,13 +946,19 @@
         return;
       }
 
-      fields.bolagsTax = fields.profitBeforeTax*0.206;
+      if(fields.profitBeforeTax > 0){
+        fields.bolagsTax = fields.profitBeforeTax*0.206;
 
-      // bolagsskatt on profit which was paid out as dividends
-      fields.bolagsTaxOnDividends = fields.grossDividends * 0.206 / (1- 0.206);
-      
-      // bolagsskatt on profit which was not paid out as dividends
-      fields.bolagsTaxExclDividends = fields.profitAfterDividends * 0.206 / (1- 0.206);
+        // bolagsskatt on profit which was paid out as dividends
+        fields.bolagsTaxOnDividends = fields.grossDividends * 0.206 / (1- 0.206);
+        
+        // bolagsskatt on profit which was not paid out as dividends
+        fields.bolagsTaxExclDividends = fields.profitAfterDividends * 0.206 / (1- 0.206);
+      }else{
+        fields.bolagsTax = 0;
+        fields.bolagsTaxOnDividends = 0;
+        fields.bolagsTaxExclDividends = 0;
+      }
 
       fields.dividendTax = 0.2*fields.grossDividends;
       fields.totalTax = fields.incomeTax + fields.slp + fields.arbetsgivaravgift + fields.bolagsTaxOnDividends + fields.dividendTax;
@@ -975,7 +981,11 @@
         sourceIdField: "from",
         targetIdField: "to",
         valueField: "value",
+        paddingTop: 20,
+        paddingBottom: 20,
         paddingRight: 150,
+        linkSort: null,
+        nodePadding: 20,
         tooltip: am5.Tooltip.new(root, {
           labelText: "[bold]{label}:[/]\n{value}",
         })
@@ -993,7 +1003,10 @@
       let totalTaxStr = `[bold]Total skatt:[/]\n${Math.round(fields.totalTax + fields.bolagsTaxExclDividends).toLocaleString()}`;
       let invoicedAmountStr = `[bold]Fakturerat belopp:[/]\n${Math.round(fields.invoicedAmount).toLocaleString()}`;
       let otherRevenueStr = `[bold]Övriga intäkter:[/]\n${Math.round(fields.otherRevenue).toLocaleString()}`;
-      let lossStr = `[bold]Förlust:[/]\n${-Math.round(fields.profitBeforeTax).toLocaleString()}`;
+      let loss = Math.max(0, Math.round(-fields.profitBeforeTax));
+      let savings2dividends = Math.max(0, Math.round(fields.grossDividends - Math.max(0, fields.profitAfterTax)));
+      let totLoss = loss + savings2dividends;
+      let savingsStr = `[bold]Från besparingar:[/]\n${totLoss.toLocaleString()}`;
       let revenueStr = `[bold]Intäkter:[/]\n${Math.round(fields.invoicedAmount + fields.otherRevenue).toLocaleString()}`;
       let otherCostsStr = `[bold]Övriga kostnader:[/]\n${Math.round(fields.otherCosts).toLocaleString()}`;
       let grossSalaryYearStr = `[bold]Bruttolön:[/]\n${Math.round(fields.grossSalaryYear).toLocaleString()}`;
@@ -1007,25 +1020,28 @@
       let netDividendsStr = `[bold]Nettoutdelning:[/]\n${Math.round(fields.netDividends).toLocaleString()}`;
 
       // links
+      let isProfitable = Math.sign(fields.profitAfterTax);
       let tempData = [
+          { from: otherRevenueStr, to: revenueStr, value: Math.round(fields.otherRevenue), label: 'Övriga intäkter' },    
           { from: invoicedAmountStr, to: revenueStr, value: Math.round(fields.invoicedAmount), label: 'Fakturerat belopp' },
-          { from: otherRevenueStr, to: revenueStr, value: Math.round(fields.otherRevenue), label: 'Övriga intäkter' },
-          { from: lossStr, to: revenueStr, value: -Math.round(fields.profitBeforeTax), label: 'Förlust' },
+          { from: savingsStr, to: revenueStr, value: loss, label: 'Förlust' },
           { from: revenueStr, to: otherCostsStr, value: Math.round(fields.otherCosts), label: 'Övriga kostnader' },
-          { from: revenueStr, to: grossSalaryYearStr, value: Math.round(fields.grossSalaryYear), label: 'Bruttolön' },
-          { from: revenueStr, to: pensionStr, value: Math.round(fields.pension), label: 'Pension' },
           { from: revenueStr, to: insuranceStr, value: Math.round(fields.insurance), label: 'Trygghetsförsäkring' },
+          { from: revenueStr, to: pensionStr, value: Math.round(fields.pension), label: 'Pension' },
+          { from: revenueStr, to: grossSalaryYearStr, value: Math.round(fields.grossSalaryYear), label: 'Bruttolön' },
+          { from: grossSalaryYearStr, to: netSalaryYearStr, value: Math.round(fields.netSalaryYear), label: 'Nettolön' },
+          { from: grossSalaryYearStr, to: totalTaxStr, value: Math.round(fields.incomeTax), label: 'Inkomstskatt' },
           { from: revenueStr, to: totalTaxStr, value: Math.round(fields.slp), label: 'SLP' },
           { from: revenueStr, to: totalTaxStr, value: Math.round(fields.arbetsgivaravgift), label: 'Arbetsgivaravgift' },
           { from: revenueStr, to: profitBeforeTaxStr, value: Math.round(fields.profitBeforeTax), label: 'Vinst före skatt' },
-          { from: profitAfterTaxStr, to: grossDividendsStr, value: Math.round(fields.grossDividends), label: 'Bruttoutdelning' },
-          { from: grossSalaryYearStr, to: totalTaxStr, value: Math.round(fields.incomeTax), label: 'Inkomstskatt' },
           { from: profitBeforeTaxStr, to: totalTaxStr, value: Math.round(fields.bolagsTax), label: 'Bolagsskatt' },
           { from: profitBeforeTaxStr, to: profitAfterTaxStr, value: Math.round(fields.profitAfterTax), label: 'Vinst efter skatt' },
-          { from: profitAfterTaxStr, to: profitAfterDividendsStr, value: Math.round(fields.profitAfterDividends), label: 'Vinst efter utdelning' },
+          { from: savingsStr, to: grossDividendsStr, value: -isProfitable*Math.round(fields.grossDividends), label: 'Bruttoutdelning' },
+          { from: profitAfterTaxStr, to: grossDividendsStr, value: isProfitable*Math.round(fields.grossDividends - savings2dividends), label: 'Bruttoutdelning från vinst' },
+          { from: savingsStr, to: grossDividendsStr, value: isProfitable*savings2dividends, label: 'Bruttoutdelning från besparingar' },
           { from: grossDividendsStr, to: totalTaxStr, value: Math.round(fields.dividendTax), label: 'Utdelningsskatt' },
-          { from: grossSalaryYearStr, to: netSalaryYearStr, value: Math.round(fields.netSalaryYear), label: 'Nettolön' },
-          { from: grossDividendsStr, to: netDividendsStr, value: Math.round(fields.netDividends), label: 'Nettoutdelning' }
+          { from: grossDividendsStr, to: netDividendsStr, value: Math.round(fields.netDividends), label: 'Nettoutdelning' },
+          { from: profitAfterTaxStr, to: profitAfterDividendsStr, value: Math.round(fields.profitAfterDividends), label: 'Vinst efter utdelning' },
       ];
 
       let anyNaN = tempData.some(entry => isNaN(entry.value));
