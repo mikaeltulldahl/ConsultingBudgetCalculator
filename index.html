@@ -85,7 +85,7 @@
   <div class="wrapper">
     <div class="required">
       <label for="year">Räkenskapsår:</label>
-      <input type="number" id="year" value="2024" min="2020" max="2024">
+      <input type="number" id="year" value="2025" min="2020" max="2025">
     </div>
     
     <h2>Intäkter</h2>
@@ -94,10 +94,10 @@
       <input type="number" step="10" id="hourlyRate" min="0" value="700"><br>
 
       <label for="billingStartDate">Uppdrag start:</label>
-      <input type="date" id="billingStartDate" value="2024-01-01"><br>
+      <input type="date" id="billingStartDate" value="2025-01-01"><br>
 
       <label for="billingEndDate">Uppdrag slut:</label>
-      <input type="date" id="billingEndDate" value="2024-12-31"><br>
+      <input type="date" id="billingEndDate" value="2025-12-31"><br>
 
       <details>
         <summary style="cursor: pointer;">
@@ -126,7 +126,7 @@
     <div>
       <div class="required">
         <label for="yearBorn"> Födelseår:</label>
-        <input type="number" id="yearBorn" min="1900" max="2024" placeholder="YYYY" >
+        <input type="number" id="yearBorn" min="1900" max="2025" placeholder="YYYY" >
       </div>
 
       <div class="required">
@@ -746,7 +746,8 @@
                       2021:1329,
                       2022:1327,
                       2023:1300,
-                      2024:1219};
+                      2024:1219,
+                      2025:1249};
       return Math.min(params[fields.year], Math.floor(0.01*fields.taxableIncome));
     }
 
@@ -821,6 +822,7 @@
     }
 
     function getJobbskatteavdrag(fields){
+      // source: https://www4.skatteverket.se/rattsligvagledning/edition/2024.7/2940.html
       let pbb = getPrisbasbelopp(fields.year);
       let ratio = fields.grossSalaryYear/pbb;
       let params =  { 2019:[0.3405, 1.703, 0.1280, 2.323, 0.20, 0.05, 30000],
@@ -828,7 +830,8 @@
                       2021:[0.3405, 1.703, 0.1280, 2.323, 0.20, 0.05, 30000],
                       2022:[0.3874, 1.812, 0.1280, 2.432, 0.20, 0.05, 30000],
                       2023:[0.3874, 1.812, 0.1280, 2.432, 0.22, 0.07, 36000],
-                      2024:[0.3874, 1.813, 0.1643, 2.608, 0.22, 0.07, 36000]}; // params 4-6 preliminary
+                      2024:[0.3874, 1.813, 0.1643, 2.608, 0, 0, 0],
+                      2025:[0.3874, 1.813, 0.1643, 2.608, 0, 0, 0],}; // preliminary
       if(fields.age < 66){
         if(ratio < 0.91){
           return Math.floor((fields.grossSalaryYear - fields.grundavdrag)*fields.kommunalSkattPercent);
@@ -843,7 +846,18 @@
           return Math.floor((params[fields.year][3]*pbb - fields.grundavdrag) * fields.kommunalSkattPercent);
         }
         return Math.floor((params[fields.year][3]*pbb - fields.grundavdrag)*fields.kommunalSkattPercent - 0.03*(fields.grossSalaryYear - 13.54*pbb));
-      }else{
+      }else if (fields.year >= 2024){
+        if (ratio <= 1.75) {
+          return Math.floor(0.22 * fields.grossSalaryYear);
+        }
+        if (ratio <= 5.24) {
+          return Math.floor((0.2635*pbb) + (0.07*fields.grossSalaryYear));
+        }
+        if (ratio <= 10.48) {
+          return Math.floor(0.6293*pbb);
+        }
+        return Math.floor(Math.max(0, (0.6293*pbb) - 0.03*(fields.grossSalaryYear - 10.48*pbb)));
+      } else {
         if(fields.grossSalaryYear <= 100000){
           return Math.floor(params[fields.year][4]*fields.grossSalaryYear);
         }
@@ -862,7 +876,8 @@
                     2021:47600,
                     2022:48300,
                     2023:52500,
-                    2024:57300};
+                    2024:57300,
+                    2025:58800};
       return values[year];
     }
 
@@ -872,7 +887,8 @@
                     2021:68200,
                     2022:71000,
                     2023:74300,
-                    2024:76200};
+                    2024:76200,
+                    2025:80600};
       return values[year];
     }
      
@@ -882,7 +898,8 @@
                     2021:537200,
                     2022:554900,
                     2023:613900,
-                    2024:598500};
+                    2024:598500,
+                    2025:625800};
       return values[year];
     }
 
@@ -916,7 +933,8 @@
                               2021:0.0900,
                               2022:0.0923,
                               2023:0.1094,
-                              2024:0.1162};
+                              2024:0.1162,
+                              2025:0.1096};
       
       let totalSalary = fields.grossSalaryYear; // TODO sum from all employees
       let canUseSalaryBase = fields.grossSalaryYear >= 9.60*inkomstbasbelopp || fields.grossSalaryYear >= (6*inkomstbasbelopp + 0.05*totalSalary);
