@@ -270,6 +270,9 @@
 
         <label for="dividendsLimitHuvudregeln"> Utdelningsgräns huvudregeln:</label>
         <input type="number" id="dividendsLimitHuvudregeln" disabled><br>
+
+        <label for="savedDividends"> Sparat utdelningsutrymme från tidigare:</label>
+        <input type="number" id="savedDividends" step="10000" value="0" min="0"><br>
         
         <label for="dividendsLimit"> Utdelningsgräns:</label>
         <input type="number" id="dividendsLimit" disabled><br>
@@ -390,6 +393,7 @@
     const profitAfterTaxField = document.getElementById("profitAfterTax");
 
     // Utdelning
+    const savedDividendsField = document.getElementById('savedDividends');
     const omkostnadsbeloppField = document.getElementById('omkostnadsbelopp');
     const dividendsLimitForenklingsregelnField = document.getElementById('dividendsLimitForenklingsregeln');
     const dividendsLimitHuvudregelnField = document.getElementById('dividendsLimitHuvudregeln');
@@ -607,6 +611,7 @@
     usePensionField.addEventListener("change", updateAll);
     maxDividendCheckbox.addEventListener("change", updateAll);
     grossDividendsField.addEventListener("input", updateAll);
+    savedDividendsField.addEventListener("input", updateAll);
     omkostnadsbeloppField.addEventListener("input", updateAll);
     async function updateAll(){
       fields = readFields();
@@ -656,6 +661,7 @@
         profitBeforeTax : NaN,
         profitAfterTax : NaN,
         grossDividends : parseInt(grossDividendsField.value),
+        savedDividends: parseInt(savedDividendsField.value),
         omkostnadsbelopp : parseInt(omkostnadsbeloppField.value),
         dividendsLimitForenklingsregeln : NaN,
         dividendsLimitHuvudregeln : NaN,
@@ -921,7 +927,7 @@
     });
 
     function updateDividends(fields){
-      if(isNaN(fields.grossSalaryYear) || isNaN(fields.profitAfterTax) || isNaN(fields.omkostnadsbelopp)){
+      if(isNaN(fields.grossSalaryYear) || isNaN(fields.profitAfterTax) || isNaN(fields.savedDividends) || isNaN(fields.omkostnadsbelopp)){
         return;
       }
 
@@ -940,13 +946,13 @@
       let canUseSalaryBase = fields.grossSalaryYear >= 9.60*inkomstbasbelopp || fields.grossSalaryYear >= (6*inkomstbasbelopp + 0.05*totalSalary);
       let salaryBasedLimit = stockOwnerPercentage*0.5*totalSalary;
       fields.dividendsLimitHuvudregeln = klyvningsRanta[fields.year]*fields.omkostnadsbelopp + canUseSalaryBase*Math.min(salaryBasedLimit, 50*fields.grossSalaryYear);
-      fields.dividendsLimit = Math.floor(Math.max(fields.dividendsLimitForenklingsregeln, fields.dividendsLimitHuvudregeln));
+      fields.dividendsLimit = Math.floor(Math.max(fields.dividendsLimitForenklingsregeln, fields.dividendsLimitHuvudregeln)) + fields.savedDividends;
       if(maxDividendCheckbox.checked){
         fields.grossDividends = Math.max(0, Math.min(fields.dividendsLimit, fields.profitAfterTax));
       }else if(fields.grossDividends > fields.dividendsLimit){
         fields.grossDividends = fields.dividendsLimit;
       }
-      fields.netDividends =fields.grossDividends*(1-0.2);
+      fields.netDividends = fields.grossDividends*(1-0.2);
       fields.profitAfterDividends = fields.profitAfterTax - fields.grossDividends;
     }
 
