@@ -151,6 +151,9 @@
       <label for="salaryMonths"> Månader med lön:</label>
       <input type="number" id="salaryMonths" min="0" max="12" value="12"><br>
 
+      <label for="useSemesterersattning">Ta ut semesterersättning:</label>
+      <input type="checkbox" id="useSemesterersattning" checked><br>
+
       <details>
         <summary style="cursor: pointer;">
           <span style="font-weight: bold;">Detaljer</span>
@@ -365,6 +368,7 @@
     const burialSkattPercentField = document.getElementById("burialSkattPercent");
     const grossSalaryMonthField = document.getElementById("grossSalaryMonth");
     const salaryMonthsField = document.getElementById("salaryMonths");
+    const useSemesterersattningCheckbox = document.getElementById('useSemesterersattning');
     const grossSemesterersattningField = document.getElementById("grossSemesterersattning");
     const grossSalaryYearField = document.getElementById("grossSalaryYear");
     const grundavdragField = document.getElementById("grundavdrag");
@@ -605,6 +609,7 @@
     churchMemberField.addEventListener("change", updateAll);
     grossSalaryMonthField.addEventListener("input", updateAll);
     salaryMonthsField.addEventListener("input", updateAll);
+    useSemesterersattningCheckbox.addEventListener("change", updateAll);
     otherRevenueField.addEventListener("input", updateAll);
     invoicedAmountField.addEventListener("change", updateAll);
     otherCostsField.addEventListener("input", updateAll);
@@ -648,6 +653,7 @@
         incomeTaxPercentage : NaN,
         grossSalaryMonth : parseInt(grossSalaryMonthField.value),
         salaryMonths : parseInt(salaryMonthsField.value),
+        useSemesterersattning: useSemesterersattningCheckbox.checked,
         vacationDays : parseInt(vacationDaysField.value),
         usePension : usePensionField.checked,
         otherCosts : parseInt(otherCostsField.value),
@@ -715,7 +721,7 @@
       if(isNaN(fields.kommunalSkattPercent) || isNaN(fields.churchSkattPercent) || isNaN(fields.burialSkattPercent) || isNaN(fields.age) || fields.age < 0 || fields.age > 150){
         return;
       }
-      fields.vacationMonths = 0.0043*fields.vacationDays;
+      fields.vacationMonths = fields.useSemesterersattning ? 0.0043*fields.vacationDays : 0;
       fields.grossSemesterersattning = Math.floor(fields.vacationMonths*fields.grossSalaryMonth);
       let monthMultiplier = fields.vacationMonths + fields.salaryMonths;
       fields.grossSalaryYear  = Math.floor(monthMultiplier*fields.grossSalaryMonth);
