@@ -317,6 +317,7 @@
   <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
   <script src="https://cdn.amcharts.com/lib/5/flow.js"></script>
   <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/themes/Responsive.js"></script>
   <div id="sankeyDiagram" class="chart-container"></div>
   <br>
 
@@ -1001,8 +1002,43 @@
     var root = am5.Root.new("sankeyDiagram"); 
 
     // Set themes
+    const responsive = am5themes_Responsive.new(root);
+
+    responsive.addRule({
+      name: "Label",
+      relevant: am5themes_Responsive.widthM,
+      settings: {
+        fontSize: 4
+      }
+    });
+
+    responsive.addRule({
+      name: "Label",
+      relevant: am5themes_Responsive.widthL,
+      settings: {
+        fontSize: 6
+      }
+    });
+
+    responsive.addRule({
+      name: "Label",
+      relevant: am5themes_Responsive.widthXL,
+      settings: {
+        fontSize: 9
+      }
+    });
+
+    responsive.addRule({
+      name: "Label",
+      relevant: am5themes_Responsive.widthXXL,
+      settings: {
+        fontSize: 12
+      }
+    });
+
     root.setThemes([
-      am5themes_Animated.new(root)
+      am5themes_Animated.new(root),
+      responsive
     ]);
 
     // Create series
@@ -1015,7 +1051,7 @@
         paddingBottom: 20,
         paddingRight: 150,
         linkSort: null,
-        nodePadding: 20,
+        nodePadding: 40,
         tooltip: am5.Tooltip.new(root, {
           labelText: "[bold]{label}:[/]\n{value}",
         })
