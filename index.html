@@ -106,18 +106,18 @@
         </summary>
         <hr>
         <label for="workingRate">Arbetstakt (%):</label>
-        <input type="number" step="25" id="workingRate" min="0" max="100" value="100"><br>
+        <input type="number" step="25" id="workingRate" min="0" max="100" value="100" disabled title="100% är 40 timmar per vecka"><br>
 
         <label for="vacationDays">Semesterdagar:</label>
         <input type="number" id="vacationDays" min="0" value="25"><br>
 
         <label for="billableHours"> Fakturerbara timmar:</label>
-        <input type="number" id="billableHours" min="0">
+        <input type="number" id="billableHours" min="0" disabled title="8 * Arbetstakt * (arbetsdagar från uppgdrag start till slut med hänsyn till röda dagar - semesterdagar)">
         <hr>
       </details>
 
       <label for="invoicedAmount"> Fakturerat belopp exkl. moms:</label>
-      <input type="number" id="invoicedAmount" disabled><br>
+      <input type="number" id="invoicedAmount" disabled disabled title="Timpris * fakturerbara timmar" ><br>
 
       <label for="otherRevenue"> Övriga intäkter exkl. moms:</label>
       <input type="number" step="10000" id="otherRevenue" value="0" min="0"><br>
@@ -161,60 +161,60 @@
         </summary>
         <hr>
         <label for="grossSemesterersattning"> Semesterersättning brutto:</label>
-        <input type="number" id="grossSemesterersattning" disabled><br>
+        <input type="number" id="grossSemesterersattning" disabled disabled title="Semesterdagar * 0.0043 * månadslön brutto"><br>
 
         <label for="kommunalSkattPercent">Kommunal skatt (%):</label>
-        <input type="number" id="kommunalSkattPercent" disabled><br>
+        <input type="number" id="kommunalSkattPercent" disabled disabled title="Bestäms av kommun och år"><br>
       
         <label for="churchSkattPercent"> Kyrkoavgift (%):</label>
-        <input type="number" id="churchSkattPercent" disabled><br>
+        <input type="number" id="churchSkattPercent" disabled disabled title="Bestäms av församling och år"><br>
       
         <label for="burialSkattPercent"> Begravningsavgift (%):</label>
-        <input type="number" id="burialSkattPercent" disabled><br>
+        <input type="number" id="burialSkattPercent" disabled disabled title="Bestäms av kommun och år"><br>
 
         <label for="grossSalaryYear"> Årslön brutto:</label>
-        <input type="number" id="grossSalaryYear" disabled><br>
-      
+        <input type="number" id="grossSalaryYear" disabled disabled title="Semesterersättning brutto + månader med lön * månadslön brutto"><br>
+
         <label for="grundavdrag"> Grundavdrag:</label>
-        <input type="number" id="grundavdrag" disabled><br>
+        <input type="number" id="grundavdrag" disabled disabled title="Bestäms av ålder och årslön brutto"><br>
       
         <label for="kommunalSkatt"> Kommunal inkomstskatt:</label>
-        <input type="number" id="kommunalSkatt" disabled><br>
-      
+        <input type="number" id="kommunalSkatt" disabled disabled title="Kommunal skattesats * (årslön brutto - grundavdrag)"><br>
+
         <label for="statligSkatt"> Statlig inkomstskatt:</label>
-        <input type="number" id="statligSkatt" disabled><br>
-      
+        <input type="number" id="statligSkatt" disabled disabled title="0.2 * max(0, årslön brutto - grundavdrag - skiktgräns)"><br>
+
         <label for="churchSkatt"> Kyrkoavgift:</label>
-        <input type="number" id="churchSkatt" disabled><br>
+        <input type="number" id="churchSkatt" disabled title="Kyrkoavgift skattesats * (årslön brutto - grundavdrag)"><br>
       
         <label for="burialSkatt"> Begravningsavgift:</label>
-        <input type="number" id="burialSkatt" disabled><br>
+        <input type="number" id="burialSkatt" disabled title="Begravningsavgift skattesats * (årslön brutto - grundavdrag)"><br>
       
         <label for="publicServiceSkatt"> Public service-avgift:</label>
-        <input type="number" id="publicServiceSkatt" disabled><br>
+        <input type="number" id="publicServiceSkatt" disabled title="Fast årlig avgift för public service"><br>
       
         <label for="jobbskatteavdrag"> Jobbskatteavdrag:</label>
-        <input type="number" id="jobbskatteavdrag" disabled><br>
+        <input type="number" id="jobbskatteavdrag" disabled title="Beräknas baserat på årslön brutto, kommunal skattesats och ålder"><br>
       
         <label for="skattereduktionForvarvsinkomst"> Skattereduktion för förvärvsinkomst:</label>
-        <input type="number" id="skattereduktionForvarvsinkomst" disabled><br>
+        <input type="number" id="skattereduktionForvarvsinkomst" disabled title="min(1500, 0.0075 * (årslön brutto - grundavdrag - 40000))"><br>
 
         <label for="incomeTax"> Total inkomstskatt:</label>
-        <input type="number" id="incomeTax" disabled><br>
+        <input type="number" id="incomeTax" disabled title="Kommunal inkomstskatt + statlig inkomstskatt + begravningsavgift + kyrkoavgift + public service-avgift - jobbskatteavdrag - skattereduktion för förvärvsinkomst"><br>
 
         <label for="netSalaryYear"> Årslön netto:</label>
-        <input type="number" id="netSalaryYear" disabled><br>
+        <input type="number" id="netSalaryYear" disabled title="Årslön brutto - total inkomstskatt:"><br>
 
         <label for="netSemesterersattning"> Semesterersättning netto:</label>
-        <input type="number" id="netSemesterersattning" disabled><br>
+        <input type="number" id="netSemesterersattning" disabled title="Semesterdagar * 0.0043 * månadslön netto"><br>
         <hr>
       </details>
 
       <label for="netSalaryMonth"> Månadslön netto:</label>
-      <input type="number" id="netSalaryMonth" disabled><br>
+      <input type="number" id="netSalaryMonth" disabled disabled title="(Årslön netto - semesterersättning netto) / månader med lön"><br>
 
       <label for="incomeTaxPercentage"> Total inkomstskatt (%):</label>
-      <input type="number" id="incomeTaxPercentage" disabled><br>
+      <input type="number" id="incomeTaxPercentage" disabled disabled title="Total inkomstskatt / årslön brutto"><br>
 
     </div>
 
@@ -233,27 +233,27 @@
         </summary>
         <hr>
         <label for="pension"> Tjänstepension:</label>
-        <input type="number" id="pension" disabled><br>
+        <input type="number" id="pension" disabled disabled title="0.047 * Årslön brutto" ><br>
       
         <label for="insurance"> Trygghetsförsäkring vid arbetsskada:</label>
-        <input type="number" id="insurance" disabled><br>
+        <input type="number" id="insurance" disabled disabled title="verksamt.se räknar med 0.003 * årslön brutto men fora tar fast avgift" ><br>
       
         <label for="slp"> Särskild löneskatt SLP:</label>
-        <input type="number" id="slp" disabled><br>
+        <input type="number" id="slp" disabled  disabled title="0.2426 * (tjänstepension + trygghetsförsäkring)"><br>
       
         <label for="arbetsgivaravgift"> Arbetsgivaravgift:</label>
-        <input type="number" id="arbetsgivaravgift" disabled>
+        <input type="number" id="arbetsgivaravgift" disabled disabled title="0.3142 * årslön brutto">
         <hr>
       </details>
 
-      <label for="totalCost"> Total kostnad:</label>
-      <input type="number" id="totalCost" disabled><br>
+      <label for="totalCost"> Totalkostnad:</label>
+      <input type="number" id="totalCost" disabled title="Övriga kostnader + årslön brutto + tjänstepension + trygghetsförsäkring + SLP + arbetsgivaravgift + semesterersättning"><br>
 
       <label for="profitBeforeTax"> Resultat före skatt:</label>
-      <input type="number" id="profitBeforeTax" disabled><br>
+      <input type="number" id="profitBeforeTax" disabled title="Fakturerat belopp + övriga intäkter - totalkostnad"><br>
 
-      <label for="profitAfterTax"> Årets resultat:</label>
-      <input type="number" id="profitAfterTax" disabled><br>
+      <label for="profitAfterTax"> Resultat efter skatt:</label>
+      <input type="number" id="profitAfterTax" disabled title="Resultat före skatt * (1 - 0.206)"><br>
     
     </div>
 
@@ -269,45 +269,45 @@
         <input type="number" step="25000" id="omkostnadsbelopp" value="25000" min="0"><br>
 
         <label for="dividendsLimitForenklingsregeln"> Utdelningsgräns förenklingsregeln:</label>
-        <input type="number" id="dividendsLimitForenklingsregeln" disabled><br>
+        <input type="number" id="dividendsLimitForenklingsregeln" disabled title="ägarandel * 2.75 * inkomstbasbelopp"><br>
 
         <label for="dividendsLimitHuvudregeln"> Utdelningsgräns huvudregeln:</label>
-        <input type="number" id="dividendsLimitHuvudregeln" disabled><br>
+        <input type="number" id="dividendsLimitHuvudregeln" disabled title="Klyvningsränta * omkostnadsbelopp + ifall kan använda lönebaserad utdelning: min(ägarandel * 0.5 * total bruttolön alla anställda, 50 * årslön brutto)"><br>
 
         <label for="savedDividends"> Sparat utdelningsutrymme från tidigare:</label>
         <input type="number" id="savedDividends" step="10000" value="0" min="0"><br>
         
         <label for="dividendsLimit"> Utdelningsgräns:</label>
-        <input type="number" id="dividendsLimit" disabled><br>
+        <input type="number" id="dividendsLimit" disabled title="max(förenklingsregeln, huvudregeln) + sparat utdelningsutrymme"><br>
 
         <label for="maxDividend">Välj maximal utdelning:</label>
         <input type="checkbox" id="maxDividend" checked="true"><br>
 
         <label for="grossDividends">Årsutdelning brutto:</label>
-        <input type="number" id="grossDividends" step="10000" value="0" min="0" disabled>
+        <input type="number" id="grossDividends" step="10000" value="0" min="0" disabled disabled title="min(Utdelningsgräns, resultat efter skatt)">
         <hr>
       </details>
       
       <label for="netDividends"> Årsutdelning netto (Utdelas nästa år):</label>
-      <input type="number" id="netDividends" disabled><br>
+      <input type="number" id="netDividends" disabled title="Årsutdelning brutto * 0.8"><br>
 
       <label for="profitAfterDividends"> Årets resultat efter utdelning:</label>
-      <input type="number" id="profitAfterDividends" disabled><br>
+      <input type="number" id="profitAfterDividends" disabled title="Resultat efter skatt - årsutdelning brutto"><br>
     </div>
 
     <h2>Slutsatser</h2>
     <div>
       <label for="netSumMonth"> Månadssumma (lön + utdelning) netto:</label>
-      <input type="number" id="netSumMonth" disabled><br>
+      <input type="number" id="netSumMonth" disabled disabled title="Månadslön netto + årsutdelning netto / månader med lön"><br>
   
       <label for="totalTax"> Total skatt*:</label>
-      <input type="number" id="totalTax" disabled><br>
+      <input type="number" id="totalTax" disabled disabled title="Total inkomstskatt + SLP + arbetsgivaravgift + årsutdelning brutto * 0.206 / (1- 0.206) + utdelningsskatt"><br>
 
       <label for="bolagsTaxExclDividends"> Bolagskatt på ej utdelad vinst:</label>
-      <input type="number" id="bolagsTaxExclDividends" disabled><br>
+      <input type="number" id="bolagsTaxExclDividends" disabled disabled title=" Årets resultat efter utdelning * 0.206 / (1- 0.206)"><br>
 
       <label for="totalTaxPercentage"> Total skatt* (%):</label>
-      <input type="number" id="totalTaxPercentage" disabled><br>
+      <input type="number" id="totalTaxPercentage" disabled disabled title="Total skatt / (fakturerat belopp + övriga intäkter)"><br>
     </div>
 
     <p>* exklusive bolagskatt på ej utdelad vinst.</p>
