@@ -317,7 +317,6 @@
   <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
   <script src="https://cdn.amcharts.com/lib/5/flow.js"></script>
   <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
-  <script src="https://cdn.amcharts.com/lib/5/themes/Responsive.js"></script>
   <div id="sankeyDiagram" class="chart-container"></div>
   <br>
 
@@ -627,7 +626,7 @@
       updateConclusion(fields);
       writeFields(fields);
       updateChart(fields);
-      updateSankeyChart(fields);
+      updateSankeyChartData(fields);
     }
 
     function readFields(){
@@ -1002,43 +1001,8 @@
     var root = am5.Root.new("sankeyDiagram"); 
 
     // Set themes
-    const responsive = am5themes_Responsive.new(root);
-
-    responsive.addRule({
-      name: "Label",
-      relevant: am5themes_Responsive.widthM,
-      settings: {
-        fontSize: 4
-      }
-    });
-
-    responsive.addRule({
-      name: "Label",
-      relevant: am5themes_Responsive.widthL,
-      settings: {
-        fontSize: 6
-      }
-    });
-
-    responsive.addRule({
-      name: "Label",
-      relevant: am5themes_Responsive.widthXL,
-      settings: {
-        fontSize: 9
-      }
-    });
-
-    responsive.addRule({
-      name: "Label",
-      relevant: am5themes_Responsive.widthXXL,
-      settings: {
-        fontSize: 12
-      }
-    });
-
     root.setThemes([
-      am5themes_Animated.new(root),
-      responsive
+      am5themes_Animated.new(root)
     ]);
 
     // Create series
@@ -1049,7 +1013,6 @@
         valueField: "value",
         paddingTop: 20,
         paddingBottom: 20,
-        paddingRight: 150,
         linkSort: null,
         nodePadding: 40,
         tooltip: am5.Tooltip.new(root, {
@@ -1064,7 +1027,7 @@
       toggleKey: "none" // disables toggling
     });
 
-    function updateSankeyChart(fields) {
+    function updateSankeyChartData(fields) {
       // nodes
       let totalTaxStr = `[bold]Total skatt:[/]\n${Math.round(fields.totalTax + fields.bolagsTaxExclDividends).toLocaleString()}`;
       let invoicedAmountStr = `[bold]Fakturerat belopp:[/]\n${Math.round(fields.invoicedAmount).toLocaleString()}`;
@@ -1075,15 +1038,15 @@
       let savingsStr = `[bold]Från besparingar:[/]\n${totLoss.toLocaleString()}`;
       let revenueStr = `[bold]Intäkter:[/]\n${Math.round(fields.invoicedAmount + fields.otherRevenue).toLocaleString()}`;
       let otherCostsStr = `[bold]Övriga kostnader:[/]\n${Math.round(fields.otherCosts).toLocaleString()}`;
-      let grossSalaryYearStr = `[bold]Bruttolön:[/]\n${Math.round(fields.grossSalaryYear).toLocaleString()}`;
+      let grossSalaryYearStr = `[bold]Lön brutto:[/]\n${Math.round(fields.grossSalaryYear).toLocaleString()}`;
       let pensionStr = `[bold]Pension:[/]\n${Math.round(fields.pension).toLocaleString()}`;
-      let insuranceStr = `[bold]Trygghetsförsäkring:[/]\n${Math.round(fields.insurance).toLocaleString()}`;
-      let profitBeforeTaxStr = `[bold]Vinst före skatt:[/]\n${Math.round(fields.profitBeforeTax).toLocaleString()}`;
-      let profitAfterTaxStr = `[bold]Vinst efter skatt:[/]\n${Math.round(fields.profitAfterTax).toLocaleString()}`;
-      let grossDividendsStr = `[bold]Bruttoutdelning:[/]\n${Math.round(fields.grossDividends).toLocaleString()}`;
+      let insuranceStr = `[bold]Försäkring:[/]\n${Math.round(fields.insurance).toLocaleString()}`;
+      let profitBeforeTaxStr = `[bold]Vinst brutto:[/]\n${Math.round(fields.profitBeforeTax).toLocaleString()}`;
+      let profitAfterTaxStr = `[bold]Vinst netto:[/]\n${Math.round(fields.profitAfterTax).toLocaleString()}`;
+      let grossDividendsStr = `[bold]Utdelning brutto:[/]\n${Math.round(fields.grossDividends).toLocaleString()}`;
       let profitAfterDividendsStr = `[bold]Vinst efter utdelning:[/]\n${Math.round(fields.profitAfterDividends).toLocaleString()}`;
-      let netSalaryYearStr = `[bold]Nettolön:[/]\n${Math.round(fields.netSalaryYear).toLocaleString()}`;
-      let netDividendsStr = `[bold]Nettoutdelning:[/]\n${Math.round(fields.netDividends).toLocaleString()}`;
+      let netSalaryYearStr = `[bold]Lön netto:[/]\n${Math.round(fields.netSalaryYear).toLocaleString()}`;
+      let netDividendsStr = `[bold]Utdelning netto:[/]\n${Math.round(fields.netDividends).toLocaleString()}`;
 
       // links
       let isProfitable = Math.sign(fields.profitAfterTax);
@@ -1092,21 +1055,21 @@
           { from: invoicedAmountStr, to: revenueStr, value: Math.round(fields.invoicedAmount), label: 'Fakturerat belopp' },
           { from: savingsStr, to: revenueStr, value: loss, label: 'Förlust' },
           { from: revenueStr, to: otherCostsStr, value: Math.round(fields.otherCosts), label: 'Övriga kostnader' },
-          { from: revenueStr, to: insuranceStr, value: Math.round(fields.insurance), label: 'Trygghetsförsäkring' },
+          { from: revenueStr, to: insuranceStr, value: Math.round(fields.insurance), label: 'Försäkring' },
           { from: revenueStr, to: pensionStr, value: Math.round(fields.pension), label: 'Pension' },
-          { from: revenueStr, to: grossSalaryYearStr, value: Math.round(fields.grossSalaryYear), label: 'Bruttolön' },
-          { from: grossSalaryYearStr, to: netSalaryYearStr, value: Math.round(fields.netSalaryYear), label: 'Nettolön' },
+          { from: revenueStr, to: grossSalaryYearStr, value: Math.round(fields.grossSalaryYear), label: 'Lön brutto' },
+          { from: grossSalaryYearStr, to: netSalaryYearStr, value: Math.round(fields.netSalaryYear), label: 'Lön netto' },
           { from: grossSalaryYearStr, to: totalTaxStr, value: Math.round(fields.incomeTax), label: 'Inkomstskatt' },
           { from: revenueStr, to: totalTaxStr, value: Math.round(fields.slp), label: 'SLP' },
           { from: revenueStr, to: totalTaxStr, value: Math.round(fields.arbetsgivaravgift), label: 'Arbetsgivaravgift' },
-          { from: revenueStr, to: profitBeforeTaxStr, value: Math.round(fields.profitBeforeTax), label: 'Vinst före skatt' },
+          { from: revenueStr, to: profitBeforeTaxStr, value: Math.round(fields.profitBeforeTax), label: 'Vinst brutto' },
           { from: profitBeforeTaxStr, to: totalTaxStr, value: Math.round(fields.bolagsTax), label: 'Bolagsskatt' },
-          { from: profitBeforeTaxStr, to: profitAfterTaxStr, value: Math.round(fields.profitAfterTax), label: 'Vinst efter skatt' },
-          { from: savingsStr, to: grossDividendsStr, value: -isProfitable*Math.round(fields.grossDividends), label: 'Bruttoutdelning' },
-          { from: profitAfterTaxStr, to: grossDividendsStr, value: isProfitable*Math.round(fields.grossDividends - savings2dividends), label: 'Bruttoutdelning från vinst' },
-          { from: savingsStr, to: grossDividendsStr, value: isProfitable*savings2dividends, label: 'Bruttoutdelning från besparingar' },
+          { from: profitBeforeTaxStr, to: profitAfterTaxStr, value: Math.round(fields.profitAfterTax), label: 'Vinst netto' },
+          { from: savingsStr, to: grossDividendsStr, value: -isProfitable*Math.round(fields.grossDividends), label: 'Utdelning brutto' },
+          { from: profitAfterTaxStr, to: grossDividendsStr, value: isProfitable*Math.round(fields.grossDividends - savings2dividends), label: 'Utdelning brutto från vinst' },
+          { from: savingsStr, to: grossDividendsStr, value: isProfitable*savings2dividends, label: 'Utdelning brutto från besparingar' },
           { from: grossDividendsStr, to: totalTaxStr, value: Math.round(fields.dividendTax), label: 'Utdelningsskatt' },
-          { from: grossDividendsStr, to: netDividendsStr, value: Math.round(fields.netDividends), label: 'Nettoutdelning' },
+          { from: grossDividendsStr, to: netDividendsStr, value: Math.round(fields.netDividends), label: 'Utdelning netto' },
           { from: profitAfterTaxStr, to: profitAfterDividendsStr, value: Math.round(fields.profitAfterDividends), label: 'Vinst efter utdelning' },
       ];
 
@@ -1125,6 +1088,53 @@
 
       series.data.setAll(tempData);
     }    
+
+    function updateSankeyChartSize() {
+      const width = document.getElementById('sankeyDiagram').offsetWidth;
+      const fontSize = Math.round(width / 70);
+      if (width <= 400) {
+        // labels inside nodes
+        series.nodes.labels.template.setAll({
+          fontSize: fontSize,
+          crisp: true,
+          maxWidth: width/9,
+          oversizedBehavior: "wrap",
+          x: am5.percent(50),
+          centerX: am5.percent(50),
+          y: am5.percent(50),
+          centerY: am5.percent(50),
+          rotation: -90,
+        });
+
+        series.setAll({
+          nodeWidth: 20,
+          paddingRight: 0,
+          paddingLeft: 0,
+        });
+
+      } else {
+        // labels on the right of the nodes
+        series.nodes.labels.template.setAll({
+          fontSize: fontSize,
+          crisp: true,
+          maxWidth: width/9,
+          oversizedBehavior: "wrap",
+          x: am5.percent(0),
+          centerX: am5.percent(0),
+          y: am5.percent(50),
+          centerY: am5.percent(50),
+          rotation: 0,
+        });
+
+        series.setAll({
+          nodeWidth: 10,
+          paddingRight: 8*fontSize,
+          paddingLeft: 10,
+        });
+      }
+    }
+    window.addEventListener("resize", updateSankeyChartSize);
+    updateSankeyChartSize();
 
     const Utils = ChartUtils.init()
     const chartData = {
