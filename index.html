@@ -738,7 +738,16 @@
       fields.churchSkatt = Math.floor(fields.churchSkattPercent*fields.taxableIncome);
       fields.publicServiceSkatt = getPublicServiceSkatt(fields);
       
-      fields.jobbskatteavdrag = getJobbskatteavdrag(fields);
+      fields.inkomstbasbelopp = getInkomstbasbelopp(fields.year);
+       // source https://www4.skatteverket.se/rattsligvagledning/edition/2024.7/1348.html
+      if (fields.grossSalaryYearRough < 0.423 * getPrisbasbelopp(fields.year)){
+        fields.allmanPensionsAvgift = 0;
+      }else{
+        fields.allmanPensionsAvgift = 0.07*Math.min(fields.grossSalaryYearRough, 8.07*fields.inkomstbasbelopp); 
+        fields.allmanPensionsAvgift = Math.floor(fields.allmanPensionsAvgift/100)*100;
+      }
+      let skattereduktionAllmanPensionsAvgift = fields.allmanPensionsAvgift;
+      fields.jobbskatteavdrag = Math.min(getJobbskatteavdrag(fields), fields.kommunalSkatt - skattereduktionAllmanPensionsAvgift); 
       fields.skattereduktionForvarvsinkomst = getSkattereduktionForvarvsinkomst(fields.taxableIncome);
       fields.incomeTax = fields.kommunalSkatt + fields.statligSkatt + fields.burialSkatt + fields.churchSkatt + fields.publicServiceSkatt - fields.jobbskatteavdrag - fields.skattereduktionForvarvsinkomst;
       if(fields.incomeTax < 0){
@@ -800,9 +809,9 @@
         }
       }
 
-      const [minSalaryGrundavdrag, minSalary] = getMinSalary();
+      const minSalary = getMinSalary();
       if(fields.grossSalaryYearRough <= minSalary){
-        fields.grundavdrag = minSalaryGrundavdrag;
+        fields.grundavdrag = fields.grossSalaryYearRough;
         return;
       }
       const [maxSalaryGrundavdrag, maxSalary] = getMaxSalary();
@@ -813,7 +822,7 @@
       fields.grundavdrag = getMiddleSalary();
       
       function getMinSalary(){
-        return [0, parseInt(grundavdragCache[idx][0]['ink tom'])];
+        return parseInt(grundavdragCache[idx][0]['ink tom']);
       }
 
       function getMaxSalary(){
@@ -836,50 +845,52 @@
     function getJobbskatteavdrag(fields){
       // source: https://www4.skatteverket.se/rattsligvagledning/edition/2024.7/2940.html
       let pbb = getPrisbasbelopp(fields.year);
-      let ratio = fields.grossSalaryYear/pbb;
-      let params =  { 2019:[0.3405, 1.703, 0.1280, 2.323, 0.20, 0.05, 30000],
-                      2020:[0.3405, 1.703, 0.1280, 2.323, 0.20, 0.05, 30000],
-                      2021:[0.3405, 1.703, 0.1280, 2.323, 0.20, 0.05, 30000],
-                      2022:[0.3874, 1.812, 0.1280, 2.432, 0.20, 0.05, 30000],
-                      2023:[0.3874, 1.812, 0.1280, 2.432, 0.22, 0.07, 36000],
-                      2024:[0.3874, 1.813, 0.1643, 2.608, 0, 0, 0],
-                      2025:[0.3874, 1.813, 0.1643, 2.608, 0, 0, 0],}; // preliminary
-      if(fields.age < 66){
+      let ratio = fields.grossSalaryYearRough/pbb;
+      let params =  { 2019:[0.3405, 1.703, 0.1280, 2.323, 0.20, 0.05, 30000, 0.03, 65],
+                      2020:[0.3405, 1.703, 0.1280, 2.323, 0.20, 0.05, 30000, 0.03, 65],
+                      2021:[0.3405, 1.703, 0.1280, 2.323, 0.20, 0.05, 30000, 0.03, 65],
+                      2022:[0.3874, 1.812, 0.1280, 2.432, 0.20, 0.05, 30000, 0.03, 65],
+                      2023:[0.3874, 1.812, 0.1280, 2.432, 0.22, 0.07, 36000, 0.03, 65],
+                      2024:[0.3874, 1.813, 0.1643, 2.608, 0, 0, 0, 0.03, 66],
+                      2025:[0.3874, 1.813, 0.199, 2.776, 0, 0, 0, 0, 66],}; // source page 41: https://www.regeringen.se/contentassets/0229ac516d4241e5a7b3dbf8e2d6b5a3/berakningskonventioner-2025.pdf
+      if(fields.age < params[fields.year][8]){
         if(ratio < 0.91){
-          return Math.floor((fields.grossSalaryYear - fields.grundavdrag)*fields.kommunalSkattPercent);
+          return Math.floor((fields.grossSalaryYearRough - fields.grundavdrag)*fields.kommunalSkattPercent);
         }
         if(ratio < 3.24){
-          return Math.floor(((0.91*pbb + params[fields.year][0]*(fields.grossSalaryYear - 0.91*pbb)) - fields.grundavdrag) * fields.kommunalSkattPercent);
+          return Math.floor(((0.91*pbb + params[fields.year][0]*(fields.grossSalaryYearRough - 0.91*pbb)) - fields.grundavdrag) * fields.kommunalSkattPercent);
         }
         if(ratio < 8.08){
-          return Math.floor(((params[fields.year][1]*pbb + params[fields.year][2]*(fields.grossSalaryYear - 3.24*pbb)) - fields.grundavdrag) * fields.kommunalSkattPercent);
+          return Math.floor(((params[fields.year][1]*pbb + params[fields.year][2]*(fields.grossSalaryYearRough - 3.24*pbb)) - fields.grundavdrag) * fields.kommunalSkattPercent);
         }
         if(ratio < 13.54){
           return Math.floor((params[fields.year][3]*pbb - fields.grundavdrag) * fields.kommunalSkattPercent);
         }
-        return Math.floor((params[fields.year][3]*pbb - fields.grundavdrag)*fields.kommunalSkattPercent - 0.03*(fields.grossSalaryYear - 13.54*pbb));
-      }else if (fields.year >= 2024){
-        if (ratio <= 1.75) {
-          return Math.floor(0.22 * fields.grossSalaryYear);
+        return Math.floor((params[fields.year][3]*pbb - fields.grundavdrag) * fields.kommunalSkattPercent - params[fields.year][7]*(fields.grossSalaryYearRough - 13.54*pbb));
+      }else{ // Jobbskatteavdrag för äldre
+        if (fields.year >= 2024){
+          if (ratio <= 1.75) {
+            return Math.floor(0.22 * fields.grossSalaryYearRough);
+          }
+          if (ratio <= 5.24) {
+            return Math.floor((0.2635*pbb) + (0.07*fields.grossSalaryYearRough));
+          }
+          if (ratio <= 10.48) {
+            return Math.floor(0.6293*pbb);
+          }
+          return Math.floor(Math.max(0, (0.6293*pbb) - params[fields.year][7]*(fields.grossSalaryYearRough - 10.48*pbb)));
+        } else {
+          if(fields.grossSalaryYearRough <= 100000){
+            return Math.floor(params[fields.year][4]*fields.grossSalaryYearRough);
+          }
+          if(fields.grossSalaryYearRough <= 300000){
+            return Math.floor(15000 + params[fields.year][5]*fields.grossSalaryYearRough);
+          }
+          if(fields.grossSalaryYearRough <= 600000){
+            return Math.floor(params[fields.year][6]);
+          }
+          return Math.floor(Math.max(0, params[fields.year][6] - 0.03*(fields.grossSalaryYearRough - 600000)));
         }
-        if (ratio <= 5.24) {
-          return Math.floor((0.2635*pbb) + (0.07*fields.grossSalaryYear));
-        }
-        if (ratio <= 10.48) {
-          return Math.floor(0.6293*pbb);
-        }
-        return Math.floor(Math.max(0, (0.6293*pbb) - 0.03*(fields.grossSalaryYear - 10.48*pbb)));
-      } else {
-        if(fields.grossSalaryYear <= 100000){
-          return Math.floor(params[fields.year][4]*fields.grossSalaryYear);
-        }
-        if(fields.grossSalaryYear <= 300000){
-          return Math.floor(15000 + params[fields.year][5]*fields.grossSalaryYear);
-        }
-        if(fields.grossSalaryYear <= 600000){
-          return Math.floor(params[fields.year][6]);
-        }
-        return Math.floor(Math.max(0, params[fields.year][6] - 0.03*(fields.grossSalaryYear - 600000)));
       }
     }
 
@@ -937,9 +948,8 @@
         return;
       }
 
-      let inkomstbasbelopp = getInkomstbasbelopp(fields.year);
       let stockOwnerPercentage = 1;
-      fields.dividendsLimitForenklingsregeln = stockOwnerPercentage*2.75*inkomstbasbelopp;
+      fields.dividendsLimitForenklingsregeln = stockOwnerPercentage*2.75*fields.inkomstbasbelopp;
       let klyvningsRanta =  { 2019:0.0951,
                               2020:0.0900,
                               2021:0.0900,
@@ -949,7 +959,7 @@
                               2025:0.1096};
       
       let totalSalary = fields.grossSalaryYear; // TODO sum from all employees
-      let canUseSalaryBase = fields.grossSalaryYear >= 9.60*inkomstbasbelopp || fields.grossSalaryYear >= (6*inkomstbasbelopp + 0.05*totalSalary);
+      let canUseSalaryBase = fields.grossSalaryYear >= 9.60*fields.inkomstbasbelopp || fields.grossSalaryYear >= (6*fields.inkomstbasbelopp + 0.05*totalSalary);
       let salaryBasedLimit = stockOwnerPercentage*0.5*totalSalary;
       fields.dividendsLimitHuvudregeln = klyvningsRanta[fields.year]*fields.omkostnadsbelopp + canUseSalaryBase*Math.min(salaryBasedLimit, 50*fields.grossSalaryYear);
       fields.dividendsLimit = Math.floor(Math.max(fields.dividendsLimitForenklingsregeln, fields.dividendsLimitHuvudregeln)) + fields.savedDividends;
