@@ -331,6 +331,18 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-crosshair"></script>
+  <script>
+    // Fix for Chart.js 4 compatibility: ensure chart.crosshair exists before afterDraw
+    if (Chart.registry.plugins.get('crosshair')) {
+      const plugin = Chart.registry.plugins.get('crosshair');
+      const originalAfterDraw = plugin.afterDraw;
+      plugin.afterDraw = function(chart, args, options) {
+        if (chart && chart.crosshair) {
+          originalAfterDraw.call(this, chart, args, options);
+        }
+      };
+    }
+  </script>
   <script src="https://imhvost.github.io/chart-utils.min.js"></script>
 
   <footer>
