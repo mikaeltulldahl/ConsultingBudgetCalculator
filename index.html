@@ -145,6 +145,9 @@
           <!-- Options will be populated dynamically -->
         </select>
       </div>
+      <label for="useMaxGrossSalary">Lön upp till brytpunkt för statlig skatt:</label>
+      <input type="checkbox" id="useMaxGrossSalary"><br>
+
       <label for="grossSalaryMonth">Månadslön brutto:</label>
       <input type="number" step="1000" id="grossSalaryMonth" min="0" value="55000"><br>
 
@@ -391,6 +394,7 @@
     const forsamlingField = document.getElementById("forsamling");
     const churchSkattPercentField = document.getElementById("churchSkattPercent");
     const burialSkattPercentField = document.getElementById("burialSkattPercent");
+    const useMaxGrossSalaryCheckbox = document.getElementById("useMaxGrossSalary");
     const grossSalaryMonthField = document.getElementById("grossSalaryMonth");
     const salaryMonthsField = document.getElementById("salaryMonths");
     const useSemesterersattningCheckbox = document.getElementById('useSemesterersattning');
@@ -652,6 +656,7 @@
     invoicedAmountField.addEventListener("change", updateAll);
     otherCostsField.addEventListener("input", updateAll);
     usePensionField.addEventListener("change", updateAll);
+    useMaxGrossSalaryCheckbox.addEventListener("change", updateAll);
     maxDividendCheckbox.addEventListener("change", updateAll);
     grossDividendsField.addEventListener("input", updateAll);
     savedDividendsField.addEventListener("input", updateAll);
@@ -738,6 +743,9 @@
       netSemesterersattningField.value = isNaN(fields.netSemesterersattning) ? '' : fields.netSemesterersattning.toFixed();
       netSalaryMonthField.value = isNaN(fields.netSalaryMonth) ? '' : fields.netSalaryMonth.toFixed();
       incomeTaxPercentageField.value = isNaN(fields.incomeTaxPercentage) ? '' : fields.incomeTaxPercentage.toFixed(1);
+      if(useMaxGrossSalaryCheckbox.checked) {
+        grossSalaryMonthField.value = isNaN(fields.grossSalaryMonth) ? '' : fields.grossSalaryMonth.toFixed();
+      }
       pensionField.value = isNaN(fields.pension) ? '' : fields.pension.toFixed();
       insuranceField.value = isNaN(fields.insurance) ? '' : fields.insurance.toFixed();
       slpField.value = isNaN(fields.slp) ? '' : fields.slp.toFixed();
@@ -766,8 +774,16 @@
         return;
       }
       fields.vacationMonths = fields.useSemesterersattning ? 0.0043*fields.vacationDays : 0;
-      fields.grossSemesterersattning = Math.floor(fields.vacationMonths*fields.grossSalaryMonth);
       let monthMultiplier = fields.vacationMonths + fields.salaryMonths;
+      // Calculate max gross salary if checkbox is checked
+      if(useMaxGrossSalaryCheckbox.checked) {
+        let brytpunkt = getBrytpunktStatligSkatt(fields.year, fields.age);
+        if(isNaN(brytpunkt)) {
+          return;
+        }
+        fields.grossSalaryMonth = Math.floor(brytpunkt / monthMultiplier);        
+      }
+      fields.grossSemesterersattning = Math.floor(fields.vacationMonths*fields.grossSalaryMonth);
       fields.grossSalaryYear  = Math.floor(monthMultiplier*fields.grossSalaryMonth);
       fields.grossSalaryYearRough = Math.floor(fields.grossSalaryYear/100)*100;
       
@@ -965,6 +981,17 @@
       return values[year];
     }
      
+    function getBrytpunktStatligSkatt(year, age){
+      let values = {2019:{young:504400, old:629600}, // source year 2019 - 2024:  https://www.spiris.se/blogg/skatter/inkomstskatt
+                    2020:{young:523200, old:575500},
+                    2021:{young:537200, old:596800},
+                    2022:{young:554900, old:618700},
+                    2023:{young:613900, old:683200},
+                    2024:{young:615300, old:697300},
+                    2025:{young:643100, old:733200}, // source year 2025 - 2026: https://www.skatteverket.se/privat/etjansterochblanketter/svarpavanligafragor/inkomstavtjanst/privattjansteinkomsterfaq/narskamanbetalastatliginkomstskattochhurhogarden.5.10010ec103545f243e8000166.html
+                    2026:{young:660400, old:760500}}; 
+      return age >= 66 ? values[year].old : values[year].young;
+    }
 
     function getSkiktgrans(year){
       let values = {2020:523200,
@@ -992,6 +1019,10 @@
 
     maxDividendCheckbox.addEventListener('change', function() {
       grossDividendsField.disabled = this.checked;
+    });
+
+    useMaxGrossSalaryCheckbox.addEventListener('change', function() {
+      grossSalaryMonthField.disabled = this.checked;
     });
 
     function updateDividends(fields){
