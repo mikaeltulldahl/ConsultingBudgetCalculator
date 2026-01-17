@@ -85,7 +85,7 @@
   <div class="wrapper">
     <div class="required">
       <label for="year">Räkenskapsår:</label>
-      <input type="number" id="year" value="2025" min="2020" max="2025">
+      <input type="number" id="year" value="2026" min="2020" max="2026">
     </div>
     
     <h2>Intäkter</h2>
@@ -94,10 +94,10 @@
       <input type="number" step="10" id="hourlyRate" min="0" value="700"><br>
 
       <label for="billingStartDate">Uppdrag start:</label>
-      <input type="date" id="billingStartDate" value="2025-01-01"><br>
+      <input type="date" id="billingStartDate" value="2026-01-01"><br>
 
       <label for="billingEndDate">Uppdrag slut:</label>
-      <input type="date" id="billingEndDate" value="2025-12-31"><br>
+      <input type="date" id="billingEndDate" value="2026-12-31"><br>
 
       <details>
         <summary style="cursor: pointer;">
@@ -126,7 +126,7 @@
     <div>
       <div class="required">
         <label for="yearBorn"> Födelseår:</label>
-        <input type="number" id="yearBorn" min="1900" max="2025" placeholder="YYYY" >
+        <input type="number" id="yearBorn" min="1900" max="2026" placeholder="YYYY" >
       </div>
 
       <div class="required">
@@ -146,7 +146,7 @@
         </select>
       </div>
       <label for="grossSalaryMonth">Månadslön brutto:</label>
-      <input type="number" step="1000" id="grossSalaryMonth" min="0" value="51275"><br>
+      <input type="number" step="1000" id="grossSalaryMonth" min="0" value="55000"><br>
 
       <label for="salaryMonths"> Månader med lön:</label>
       <input type="number" id="salaryMonths" min="0" max="12" value="12"><br>
@@ -268,11 +268,24 @@
         <label for="omkostnadsbelopp"> Omkostnadsbelopp:</label>
         <input type="number" step="25000" id="omkostnadsbelopp" value="25000" min="0"><br>
 
-        <label for="dividendsLimitForenklingsregeln"> Utdelningsgräns förenklingsregeln:</label>
-        <input type="number" id="dividendsLimitForenklingsregeln" disabled title="ägarandel * 2.75 * inkomstbasbelopp"><br>
+        <label for="omkostnadsbeloppInterest"> Ränta på omkostnadsbelopp:</label>
+        <input type="number" id="omkostnadsbeloppInterest" disabled><br>
 
-        <label for="dividendsLimitHuvudregeln"> Utdelningsgräns huvudregeln:</label>
-        <input type="number" id="dividendsLimitHuvudregeln" disabled title="Klyvningsränta * omkostnadsbelopp + ifall kan använda lönebaserad utdelning: min(ägarandel * 0.5 * total bruttolön alla anställda, 50 * årslön brutto)"><br>
+        <label for="salaryBasedLimit"> Lönebaserat utdelningsutrymme:</label>
+        <input type="number" id="salaryBasedLimit" disabled><br>
+
+        <div id="dividendLimitsContainer" hidden>
+          <label for="dividendsLimitForenklingsregeln"> Utdelningsgräns förenklingsregeln:</label>
+          <input type="number" id="dividendsLimitForenklingsregeln" disabled title="ägarandel * 2.75 * inkomstbasbelopp"><br>
+
+          <label for="dividendsLimitHuvudregeln"> Utdelningsgräns huvudregeln:</label>
+          <input type="number" id="dividendsLimitHuvudregeln" disabled title="Klyvningsränta * omkostnadsbelopp + ifall kan använda lönebaserad utdelning: min(ägarandel * 0.5 * total bruttolön alla anställda, 50 * årslön brutto)"><br>
+        </div>
+
+        <div id="grundbeloppContainer">
+          <label for="grundbelopp"> Grundbelopp:</label>
+          <input type="number" id="grundbelopp" disabled title="ägarandel / min(1, total ägarandel i alla bolag) * 4 * inkomstbasbelopp"><br>
+        </div>
 
         <label for="savedDividends"> Sparat utdelningsutrymme från tidigare:</label>
         <input type="number" id="savedDividends" step="10000" value="0" min="0"><br>
@@ -411,6 +424,9 @@
     // Utdelning
     const savedDividendsField = document.getElementById('savedDividends');
     const omkostnadsbeloppField = document.getElementById('omkostnadsbelopp');
+    const omkostnadsbeloppInterestField = document.getElementById('omkostnadsbeloppInterest');
+    const salaryBasedLimitField = document.getElementById('salaryBasedLimit');
+    const dividendLimitsContainer = document.getElementById('dividendLimitsContainer');
     const dividendsLimitForenklingsregelnField = document.getElementById('dividendsLimitForenklingsregeln');
     const dividendsLimitHuvudregelnField = document.getElementById('dividendsLimitHuvudregeln');
     const dividendsLimitField = document.getElementById('dividendsLimit');
@@ -418,6 +434,8 @@
     const grossDividendsField = document.getElementById('grossDividends');
     const netDividendsField = document.getElementById('netDividends');
     const profitAfterDividendsField = document.getElementById('profitAfterDividends');
+    const grundbeloppField = document.getElementById('grundbelopp');
+    const grundbeloppContainer = document.getElementById('grundbeloppContainer');
 
     // Slutsatser
     const netSumMonthField = document.getElementById('netSumMonth');
@@ -614,6 +632,14 @@
       }
     });
 
+    yearField.addEventListener("input", function () {
+      const year = parseInt(yearField.value);
+      // Hide dividend limit fields for 2026 and later
+      dividendLimitsContainer.hidden = year >= 2026;
+      // Show grundbelopp field for 2026 and later
+      grundbeloppContainer.hidden = year < 2026;
+    });
+
     yearField.addEventListener("input", updateAll);
     yearBornField.addEventListener("input", updateAll);
     vacationDaysField.addEventListener("input", updateAll);
@@ -681,6 +707,9 @@
         grossDividends : parseInt(grossDividendsField.value),
         savedDividends: parseInt(savedDividendsField.value),
         omkostnadsbelopp : parseInt(omkostnadsbeloppField.value),
+        omkostnadsbeloppInterest : NaN,
+        salaryBasedLimit : NaN,
+        grundbelopp : NaN,
         dividendsLimitForenklingsregeln : NaN,
         dividendsLimitHuvudregeln : NaN,
         dividendsLimit : NaN,
@@ -716,6 +745,9 @@
       totalCostField.value = isNaN(fields.totalCost) ? '' : fields.totalCost.toFixed();
       profitBeforeTaxField.value = isNaN(fields.profitBeforeTax) ? '' : fields.profitBeforeTax.toFixed();
       profitAfterTaxField.value = isNaN(fields.profitAfterTax) ? '' : fields.profitAfterTax.toFixed();
+      omkostnadsbeloppInterestField.value = isNaN(fields.omkostnadsbeloppInterest) ? '' : fields.omkostnadsbeloppInterest.toFixed();
+      salaryBasedLimitField.value = isNaN(fields.salaryBasedLimit) ? '' : fields.salaryBasedLimit.toFixed();
+      grundbeloppField.value = isNaN(fields.grundbelopp) ? '' : fields.grundbelopp.toFixed();
       dividendsLimitForenklingsregelnField.value = isNaN(fields.dividendsLimitForenklingsregeln) ? '' : fields.dividendsLimitForenklingsregeln.toFixed();
       dividendsLimitHuvudregelnField.value = isNaN(fields.dividendsLimitHuvudregeln) ? '' : fields.dividendsLimitHuvudregeln.toFixed();
       dividendsLimitField.value = isNaN(fields.dividendsLimit) ? '' : fields.dividendsLimit.toFixed();
@@ -780,7 +812,8 @@
                       2022:1327,
                       2023:1300,
                       2024:1219,
-                      2025:1249};
+                      2025:1249,
+                      2026:1184};
       return Math.min(params[fields.year], Math.floor(0.01*fields.taxableIncome));
     }
 
@@ -864,7 +897,8 @@
                       2022:[0.3874, 1.812, 0.1280, 2.432, 0.20, 0.05, 30000, 0.03, 65],
                       2023:[0.3874, 1.812, 0.1280, 2.432, 0.22, 0.07, 36000, 0.03, 65],
                       2024:[0.3874, 1.813, 0.1643, 2.608, 0, 0, 0, 0.03, 66],
-                      2025:[0.3874, 1.813, 0.199, 2.776, 0, 0, 0, 0, 66],}; // source page 41: https://www.regeringen.se/contentassets/0229ac516d4241e5a7b3dbf8e2d6b5a3/berakningskonventioner-2025.pdf
+                      2025:[0.3874, 1.813, 0.199, 2.776, 0, 0, 0, 0, 66], // source page 41: https://www.regeringen.se/contentassets/0229ac516d4241e5a7b3dbf8e2d6b5a3/berakningskonventioner-2025.pdf
+                      2026:[0.3874, 1.813, 0.251, 3.027, 0, 0, 0, 0, 66],}; // source page 42: https://www.regeringen.se/contentassets/1ed01e00001b42e5ad8d47433db63ece/berakningskonventioner_2026.pdf
       if(fields.age < params[fields.year][8]){
         if(ratio < 0.91){
           return Math.floor((fields.grossSalaryYearRough - fields.grundavdrag)*fields.kommunalSkattPercent);
@@ -906,13 +940,16 @@
       }
     }
 
+    // source for a lot of these values:
+    // https://www.skatteverket.se/foretag/drivaforetag/foretagsformer/famansforetag/beloppochprocentsatser.4.34f3b0b713e2cf5455b7288.html
     function getPrisbasbelopp(year){
       let values = {2020:47300,
                     2021:47600,
                     2022:48300,
                     2023:52500,
                     2024:57300,
-                    2025:58800};
+                    2025:58800,
+                    2026:59200};
       return values[year];
     }
 
@@ -923,7 +960,8 @@
                     2022:71000,
                     2023:74300,
                     2024:76200,
-                    2025:80600};
+                    2025:80600,
+                    2026:83400};
       return values[year];
     }
      
@@ -934,7 +972,8 @@
                     2022:554900,
                     2023:613900,
                     2024:598500,
-                    2025:625800};
+                    2025:625800,
+                    2026:643000};
       return values[year];
     }
 
@@ -956,25 +995,53 @@
     });
 
     function updateDividends(fields){
+      // assumptions:
+      // - bolagsform: aktiebolag
+      // - uppfyller regler för fåmansföretag
+      // - du äger 100% av aktierna
+      // - du är enda anställda i bolaget
+      // - du har inte lön från andra källor
+      // - du äger inte kvalificerade aktier i andra bolag (du är ej verksam i betydande omfattning andra fåmansföretag)
+
       if(isNaN(fields.grossSalaryYear) || isNaN(fields.profitAfterTax) || isNaN(fields.savedDividends) || isNaN(fields.omkostnadsbelopp)){
         return;
       }
 
-      let stockOwnerPercentage = 1;
-      fields.dividendsLimitForenklingsregeln = stockOwnerPercentage*2.75*fields.inkomstbasbelopp;
+      let stockOwnerPercentage = 1; // TODO read from input field
+      if (stockOwnerPercentage <= 0 || stockOwnerPercentage > 1){ // prevent invalid input
+        return;
+      }
+
+      let stockOwnerShipInOtherCompanies = 0; // TODO read from input field
+      let totalStockOwnership = stockOwnerPercentage + stockOwnerShipInOtherCompanies; // i.e. I own 50% of this company and 30% of another company => totalStockOwnership = 0.8
       let klyvningsRanta =  { 2019:0.0951,
                               2020:0.0900,
                               2021:0.0900,
                               2022:0.0923,
                               2023:0.1094,
                               2024:0.1162,
-                              2025:0.1096};
+                              2025:0.1096,
+                              2026:0.1155};
       
       let totalSalary = fields.grossSalaryYear; // TODO sum from all employees
-      let canUseSalaryBase = fields.grossSalaryYear >= 9.60*fields.inkomstbasbelopp || fields.grossSalaryYear >= (6*fields.inkomstbasbelopp + 0.05*totalSalary);
-      let salaryBasedLimit = stockOwnerPercentage*0.5*totalSalary;
-      fields.dividendsLimitHuvudregeln = klyvningsRanta[fields.year]*fields.omkostnadsbelopp + canUseSalaryBase*Math.min(salaryBasedLimit, 50*fields.grossSalaryYear);
-      fields.dividendsLimit = Math.floor(Math.max(fields.dividendsLimitForenklingsregeln, fields.dividendsLimitHuvudregeln)) + fields.savedDividends;
+      if (fields.year <= 2025) {
+        let canUseSalaryBase = fields.grossSalaryYear >= 9.60*fields.inkomstbasbelopp || fields.grossSalaryYear >= (6*fields.inkomstbasbelopp + 0.05*totalSalary);
+        fields.salaryBasedLimit = stockOwnerPercentage*0.5*totalSalary;
+        fields.dividendsLimitForenklingsregeln = stockOwnerPercentage*2.75*fields.inkomstbasbelopp;
+        fields.omkostnadsbeloppInterest = klyvningsRanta[fields.year]*fields.omkostnadsbelopp;
+        fields.dividendsLimitHuvudregeln = fields.omkostnadsbeloppInterest + canUseSalaryBase*Math.min(fields.salaryBasedLimit, 50*fields.grossSalaryYear);
+        fields.dividendsLimit = Math.floor(Math.max(fields.dividendsLimitForenklingsregeln, fields.dividendsLimitHuvudregeln)) + fields.savedDividends;
+      } else { // year 2026
+        // after 2026, klyvningsRanta works differently https://revisionsbyran.se/statslanerantan-30-11-2025/#:~:text=Klyvningsr%C3%A4nta%20p%C3%A5%20belopp%20%3E%20100%20000%20kr 
+        // after 2026, dividends limit rules have changed: https://www.skatteverket.se/foretag/drivaforetag/foretagsformer/famansforetag/andradereglerinforinkomstdeklarationen2027.4.4a54dc8b19aa6175a152359.html
+        // source used for most of these calculations https://youtu.be/m6xlQ2f1EEk?si=pZfeql7cWZPBI5SK
+          fields.dividendsLimitForenklingsregeln = NaN; // not applicable anymore
+          fields.dividendsLimitHuvudregeln = NaN; // not applicable anymore
+          fields.grundbelopp = stockOwnerPercentage / Math.min(1, totalStockOwnership) * 4 * fields.inkomstbasbelopp;
+          fields.salaryBasedLimit = 0.5 * Math.min(Math.max(0, stockOwnerPercentage*totalSalary - 8*fields.inkomstbasbelopp), 50*fields.grossSalaryYear);
+          fields.omkostnadsbeloppInterest = klyvningsRanta[fields.year]*Math.max(0, fields.omkostnadsbelopp - 100000);
+          fields.dividendsLimit = Math.floor(fields.omkostnadsbeloppInterest + fields.grundbelopp + fields.salaryBasedLimit) + fields.savedDividends;
+      }
       if(maxDividendCheckbox.checked){
         fields.grossDividends = Math.max(0, Math.min(fields.dividendsLimit, fields.profitAfterTax));
       }else if(fields.grossDividends > fields.dividendsLimit){
