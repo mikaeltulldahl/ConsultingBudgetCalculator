@@ -279,7 +279,7 @@
 
         <div id="dividendLimitsContainer" hidden>
           <label for="dividendsLimitForenklingsregeln"> Utdelningsgräns förenklingsregeln:</label>
-          <input type="number" id="dividendsLimitForenklingsregeln" disabled title="ägarandel * 2.75 * inkomstbasbelopp"><br>
+          <input type="number" id="dividendsLimitForenklingsregeln" disabled title="ägarandel * 2.75 * föregående års inkomstbasbelopp"><br>
 
           <label for="dividendsLimitHuvudregeln"> Utdelningsgräns huvudregeln:</label>
           <input type="number" id="dividendsLimitHuvudregeln" disabled title="Klyvningsränta * omkostnadsbelopp + ifall kan använda lönebaserad utdelning: min(ägarandel * 0.5 * total bruttolön alla anställda, 50 * årslön brutto)"><br>
@@ -287,7 +287,7 @@
 
         <div id="grundbeloppContainer">
           <label for="grundbelopp"> Grundbelopp:</label>
-          <input type="number" id="grundbelopp" disabled title="ägarandel / min(1, total ägarandel i alla bolag) * 4 * inkomstbasbelopp"><br>
+          <input type="number" id="grundbelopp" disabled title="ägarandel / min(1, total ägarandel i alla bolag) * 4 * föregående års inkomstbasbelopp"><br>
         </div>
 
         <label for="savedDividends"> Sparat utdelningsutrymme från tidigare:</label>
@@ -798,12 +798,13 @@
       fields.churchSkatt = Math.floor(fields.churchSkattPercent*fields.taxableIncome);
       fields.publicServiceSkatt = getPublicServiceSkatt(fields);
       
-      fields.inkomstbasbelopp = getInkomstbasbelopp(fields.year);
+      fields.currentIBB = getInkomstbasbelopp(fields.year);
+      fields.prevIBB = getInkomstbasbelopp(fields.year - 1) || fields.currentIBB;
        // source https://www4.skatteverket.se/rattsligvagledning/edition/2024.7/1348.html
       if (fields.grossSalaryYearRough < 0.423 * getPrisbasbelopp(fields.year)){
         fields.allmanPensionsAvgift = 0;
       }else{
-        fields.allmanPensionsAvgift = 0.07*Math.min(fields.grossSalaryYearRough, 8.07*fields.inkomstbasbelopp); 
+        fields.allmanPensionsAvgift = 0.07*Math.min(fields.grossSalaryYearRough, 8.07*fields.currentIBB); 
         fields.allmanPensionsAvgift = Math.floor(fields.allmanPensionsAvgift/100)*100;
       }
       let skattereduktionAllmanPensionsAvgift = fields.allmanPensionsAvgift;
@@ -1055,10 +1056,11 @@
                               2026:0.1155};
       
       let totalSalary = fields.grossSalaryYear; // TODO sum from all employees
+      // the dividend rules are based on the previous year's IBB
       if (fields.year <= 2025) {
-        let canUseSalaryBase = fields.grossSalaryYear >= 9.60*fields.inkomstbasbelopp || fields.grossSalaryYear >= (6*fields.inkomstbasbelopp + 0.05*totalSalary);
+        let canUseSalaryBase = fields.grossSalaryYear >= 9.60*fields.prevIBB || fields.grossSalaryYear >= (6*fields.prevIBB + 0.05*totalSalary);
         fields.salaryBasedLimit = stockOwnerPercentage*0.5*totalSalary;
-        fields.dividendsLimitForenklingsregeln = stockOwnerPercentage*2.75*fields.inkomstbasbelopp;
+        fields.dividendsLimitForenklingsregeln = stockOwnerPercentage*2.75*fields.prevIBB;
         fields.omkostnadsbeloppInterest = klyvningsRanta[fields.year]*fields.omkostnadsbelopp;
         fields.dividendsLimitHuvudregeln = fields.omkostnadsbeloppInterest + canUseSalaryBase*Math.min(fields.salaryBasedLimit, 50*fields.grossSalaryYear);
         fields.dividendsLimit = Math.floor(Math.max(fields.dividendsLimitForenklingsregeln, fields.dividendsLimitHuvudregeln)) + fields.savedDividends;
@@ -1068,8 +1070,8 @@
         // source used for most of these calculations https://youtu.be/m6xlQ2f1EEk?si=pZfeql7cWZPBI5SK
           fields.dividendsLimitForenklingsregeln = NaN; // not applicable anymore
           fields.dividendsLimitHuvudregeln = NaN; // not applicable anymore
-          fields.grundbelopp = stockOwnerPercentage / Math.min(1, totalStockOwnership) * 4 * fields.inkomstbasbelopp;
-          fields.salaryBasedLimit = 0.5 * Math.min(Math.max(0, stockOwnerPercentage*totalSalary - 8*fields.inkomstbasbelopp), 50*fields.grossSalaryYear);
+          fields.grundbelopp = stockOwnerPercentage / Math.min(1, totalStockOwnership) * 4 * fields.prevIBB;
+          fields.salaryBasedLimit = 0.5 * Math.min(Math.max(0, stockOwnerPercentage*totalSalary - 8*fields.prevIBB), 50*fields.grossSalaryYear);
           fields.omkostnadsbeloppInterest = klyvningsRanta[fields.year]*Math.max(0, fields.omkostnadsbelopp - 100000);
           fields.dividendsLimit = Math.floor(fields.omkostnadsbeloppInterest + fields.grundbelopp + fields.salaryBasedLimit) + fields.savedDividends;
       }
