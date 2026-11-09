@@ -3,9 +3,11 @@
 // In environments with an HTTP proxy, run with NODE_USE_ENV_PROXY=1.
 import { writeFile, mkdir } from 'node:fs/promises';
 
+// ordinary: grundavdrag; forhojt: förhöjt grundavdrag for older people (from 65 until 2022,
+// from 66 since 2023, see forhojtGrundavdragAge in js/params.js).
 const DATASETS = {
-  under66: 'ebbd8d70-9b9c-4327-b2ce-a371ee66744c',
-  from66: '43902bf8-cb34-4288-ab95-2080f8a878dc',
+  ordinary: 'ebbd8d70-9b9c-4327-b2ce-a371ee66744c',
+  forhojt: '43902bf8-cb34-4288-ab95-2080f8a878dc',
 };
 const BASE = 'https://skatteverket.entryscape.net/rowstore/dataset';
 const outDir = new URL('../data/grundavdrag/', import.meta.url);

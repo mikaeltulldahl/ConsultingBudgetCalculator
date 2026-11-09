@@ -9,8 +9,8 @@ const PBB = { 2019: 46500 };
 for (const [y, p] of Object.entries(YEARS)) PBB[y] = p.prisbasbelopp;
 
 for (const [year, pbb] of Object.entries(PBB)) {
-  const table = grundavdragTables[`${year}-under66`];
-  test(`grundavdrag formula equals Skatteverket table, ${year} under 66`, { skip: !table && 'no table' }, () => {
+  const table = grundavdragTables[`${year}-ordinary`];
+  test(`grundavdrag formula equals Skatteverket table, ${year} ordinary grundavdrag`, { skip: !table && 'no table' }, () => {
     const max = table[table.length - 1][0] + 50000;
     for (let income = 0; income <= max; income += 100) {
       assert.equal(grundavdragFormula(income, pbb), lookupGrundavdrag(table, income), `income ${income}`);
@@ -20,7 +20,7 @@ for (const [year, pbb] of Object.entries(PBB)) {
 
 test('every year in params has both grundavdrag tables', () => {
   for (const year of Object.keys(YEARS)) {
-    assert.ok(grundavdragTables[`${year}-under66`], `${year} under66`);
-    assert.ok(grundavdragTables[`${year}-from66`], `${year} from66`);
+    assert.ok(grundavdragTables[`${year}-ordinary`], `${year} ordinary`);
+    assert.ok(grundavdragTables[`${year}-forhojt`], `${year} forhojt`);
   }
 });

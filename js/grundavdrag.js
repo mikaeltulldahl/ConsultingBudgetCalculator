@@ -1,21 +1,22 @@
 // Grundavdrag (basic allowance) for fastställd förvärvsinkomst.
 //
-// Under 66: computed from the statutory formula (63 kap. 3 § inkomstskattelagen), which is
+// Ordinary grundavdrag: computed from the statutory formula (63 kap. 3 § inkomstskattelagen),
 // verified against Skatteverket's published tables for every 100 kr of income, 2019-2026
 // (tests/correctness/grundavdrag.test.mjs).
-// From 66 (förhöjt grundavdrag, 63 kap. 3 a §): looked up in Skatteverket's table, stored
-// in data/grundavdrag/<year>-from66.json.
+// Förhöjt grundavdrag for older people (63 kap. 3 a §, from age 65 until 2022, 66 since
+// 2023): looked up in Skatteverket's table, stored in data/grundavdrag/<year>-forhojt.json.
 //
 // A table is a list of rows [incomeFrom, incomeTo (null = open ended), grundavdrag
 // (null = equals the income)], sorted by income, as stored in data/grundavdrag/.
 
 export const GRUNDAVDRAG_DATASETS = {
-  under66: 'ebbd8d70-9b9c-4327-b2ce-a371ee66744c',
-  from66: '43902bf8-cb34-4288-ab95-2080f8a878dc',
+  ordinary: 'ebbd8d70-9b9c-4327-b2ce-a371ee66744c',
+  forhojt: '43902bf8-cb34-4288-ab95-2080f8a878dc',
 };
 
-export function grundavdragGroup(age) {
-  return age < 66 ? 'under66' : 'from66';
+// forhojtAge: age (at the start of the year) from which förhöjt grundavdrag applies.
+export function grundavdragGroup(age, forhojtAge) {
+  return age < forhojtAge ? 'ordinary' : 'forhojt';
 }
 
 // income: fastställd förvärvsinkomst, rounded down to whole hundreds.
@@ -53,8 +54,8 @@ export function grundavdragFormula(income, pbb) {
   return Math.min(income, ceil100(g));
 }
 
-// Returns NaN if a needed table is not available.
-export function grundavdrag({ year, age, income, pbb, table }) {
-  if (grundavdragGroup(age) === 'under66') return grundavdragFormula(income, pbb);
+// group: 'ordinary' | 'forhojt'. table: required for 'forhojt'. Returns NaN if missing.
+export function grundavdrag({ group, income, pbb, table }) {
+  if (group === 'ordinary') return grundavdragFormula(income, pbb);
   return table ? lookupGrundavdrag(table, income) : NaN;
 }

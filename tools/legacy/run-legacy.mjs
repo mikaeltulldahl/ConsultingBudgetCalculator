@@ -6,8 +6,8 @@ import vm from 'node:vm';
 const here = new URL('./', import.meta.url);
 const fixtureDir = new URL('../../data/grundavdrag/', import.meta.url);
 const DATASET_GROUP = {
-  'ebbd8d70-9b9c-4327-b2ce-a371ee66744c': 'under66',
-  '43902bf8-cb34-4288-ab95-2080f8a878dc': 'from66',
+  'ebbd8d70-9b9c-4327-b2ce-a371ee66744c': 'ordinary',
+  '43902bf8-cb34-4288-ab95-2080f8a878dc': 'forhojt',
 };
 
 const tables = {};

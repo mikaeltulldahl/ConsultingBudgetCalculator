@@ -5,8 +5,8 @@
 // and returns one flat object with all intermediate values. A value that cannot be
 // computed because inputs are missing is NaN.
 //
-// data.grundavdragTable(year, 'from66') must return Skatteverket's table of förhöjt
-// grundavdrag for the year (only consulted for people aged 66 or older), see grundavdrag.js.
+// data.grundavdragTable(year, 'forhojt') must return Skatteverket's table of förhöjt
+// grundavdrag for the year (only consulted for older people), see grundavdrag.js.
 
 import { getYearParams, getInkomstbasbelopp, RATES } from './params.js';
 import { grundavdrag, grundavdragGroup } from './grundavdrag.js';
@@ -85,7 +85,7 @@ function salary(f, p, data) {
   f.vacationMonths = f.useSemesterersattning ? RATES.semesterersattningPerDay * f.vacationDays : 0;
   const monthMultiplier = f.vacationMonths + f.salaryMonths;
   if (f.useMaxGrossSalary) {
-    const brytpunkt = f.age >= 66 ? p.brytpunkt.from66 : p.brytpunkt.under66;
+    const brytpunkt = getBrytpunkt(f.year, grundavdragGroup(f.age, p.forhojtGrundavdragAge), data);
     f.grossSalaryMonth = Math.floor(brytpunkt / monthMultiplier);
   }
   f.grossSemesterersattning = Math.floor(f.vacationMonths * f.grossSalaryMonth);
@@ -106,14 +106,19 @@ function salary(f, p, data) {
 // Slutlig skatt on income from employment. Needs f.year, f.age, the tax rates (as
 // fractions) and f.grossSalaryYearRough (fastställd förvärvsinkomst). Sets f.grundavdrag,
 // f.taxableIncome, each tax component, the tax reductions and f.incomeTax.
+//
+// The tax reductions can only reduce kommunal and statlig inkomstskatt, in this order:
+// allmän pensionsavgift, arbetsinkomster (jobbskatteavdrag, at most the kommunal skatt
+// left after the first reduction), förvärvsinkomst, and in 2021-2022 the tillfällig
+// skattereduktion för arbetsinkomster. Begravningsavgift, kyrkoavgift,
+// public service-avgift and the allmän pensionsavgift itself are never reduced.
 function incomeTax(f, p, data) {
-  const group = grundavdragGroup(f.age);
+  const group = grundavdragGroup(f.age, p.forhojtGrundavdragAge);
   f.grundavdrag = grundavdrag({
-    year: f.year,
-    age: f.age,
+    group,
     income: f.grossSalaryYearRough,
     pbb: p.prisbasbelopp,
-    table: group === 'from66' ? data.grundavdragTable(f.year, group) : null,
+    table: group === 'forhojt' ? data.grundavdragTable(f.year, group) : null,
   });
   if (isNaN(f.grundavdrag)) {
     return;
@@ -127,22 +132,56 @@ function incomeTax(f, p, data) {
 
   f.currentIBB = getInkomstbasbelopp(f.year);
   f.prevIBB = getInkomstbasbelopp(f.year - 1) || f.currentIBB;
-  // https://www4.skatteverket.se/rattsligvagledning/edition/2024.7/1348.html
-  if (f.grossSalaryYearRough < RATES.allmanPensionsavgiftFloorPbb * p.prisbasbelopp) {
-    f.allmanPensionsAvgift = 0;
-  } else {
-    f.allmanPensionsAvgift = RATES.allmanPensionsavgift * Math.min(f.grossSalaryYearRough, RATES.allmanPensionsavgiftCapIbb * f.currentIBB);
-    f.allmanPensionsAvgift = Math.floor(f.allmanPensionsAvgift / 100) * 100;
+  f.allmanPensionsAvgift = allmanPensionsavgift(f.grossSalaryYearRough, p, f.currentIBB);
+
+  const reducible = f.kommunalSkatt + f.statligSkatt;
+  f.skattereduktionAllmanPensionsavgift = Math.min(f.allmanPensionsAvgift, reducible);
+  f.jobbskatteavdrag = Math.max(0, Math.min(jobbskatteavdrag(f, p), f.kommunalSkatt - f.skattereduktionAllmanPensionsavgift));
+  f.skattereduktionForvarvsinkomst = p.skattereduktionForvarvsinkomst
+    ? Math.max(0, Math.min(skattereduktionForvarvsinkomst(f.taxableIncome),
+      reducible - f.skattereduktionAllmanPensionsavgift - f.jobbskatteavdrag))
+    : 0;
+  f.tillfalligSkattereduktion = p.tillfalligSkattereduktionArbetsinkomster
+    ? Math.max(0, Math.min(tillfalligSkattereduktion(f.grossSalaryYearRough),
+      reducible - f.skattereduktionAllmanPensionsavgift - f.jobbskatteavdrag - f.skattereduktionForvarvsinkomst))
+    : 0;
+  f.incomeTax = f.kommunalSkatt + f.statligSkatt + f.burialSkatt + f.churchSkatt + f.publicServiceSkatt +
+    f.allmanPensionsAvgift - f.skattereduktionAllmanPensionsavgift - f.jobbskatteavdrag -
+    f.skattereduktionForvarvsinkomst - f.tillfalligSkattereduktion;
+}
+
+// Lag (2021:930) om tillfällig skattereduktion för arbetsinkomster, 4 §.
+function tillfalligSkattereduktion(income) {
+  if (income <= 60000 || income >= 500000) return 0;
+  if (income < 240000) return Math.floor(0.0125 * (income - 60000));
+  if (income <= 300000) return 2250;
+  return Math.floor(2250 - 0.01125 * (income - 300000));
+}
+
+// Allmän pensionsavgift: 7 % of income up to 8.07 inkomstbasbelopp, nothing if income is
+// below 42.3 % of prisbasbelopp. Rounded to the nearest hundred, 50 rounded down.
+// https://www4.skatteverket.se/rattsligvagledning/edition/2024.7/1348.html
+function allmanPensionsavgift(income, p, ibb) {
+  if (income < RATES.allmanPensionsavgiftFloorPbb * p.prisbasbelopp) {
+    return 0;
   }
-  const skattereduktionAllmanPensionsAvgift = f.allmanPensionsAvgift;
-  f.jobbskatteavdrag = Math.min(jobbskatteavdrag(f, p), f.kommunalSkatt - skattereduktionAllmanPensionsAvgift);
-  f.skattereduktionForvarvsinkomst = skattereduktionForvarvsinkomst(f.taxableIncome);
-  f.incomeTax = f.kommunalSkatt + f.statligSkatt + f.burialSkatt + f.churchSkatt + f.publicServiceSkatt -
-    f.jobbskatteavdrag - f.skattereduktionForvarvsinkomst;
-  if (f.incomeTax < 0) {
-    f.jobbskatteavdrag += f.incomeTax;
-    f.incomeTax = 0;
-  }
+  const avgift = RATES.allmanPensionsavgift * Math.min(income, RATES.allmanPensionsavgiftCapIbb * ibb);
+  return Math.ceil(Math.floor(avgift) / 100 - 0.5) * 100 + 0; // + 0 turns -0 into 0
+}
+
+// Brytpunkt: the highest yearly income (whole hundreds) on which no statlig inkomstskatt is
+// paid, i.e. where beskattningsbar förvärvsinkomst reaches the skiktgräns.
+const brytpunktCache = new Map();
+export function getBrytpunkt(year, group, data) {
+  const key = `${year}-${group}`;
+  if (brytpunktCache.has(key)) return brytpunktCache.get(key);
+  const p = getYearParams(year);
+  const table = group === 'forhojt' ? data.grundavdragTable(year, group) : null;
+  const taxable = (income) => income - grundavdrag({ group, income, pbb: p.prisbasbelopp, table });
+  let income = p.skiktgrans;
+  while (taxable(income + 100) <= p.skiktgrans) income += 100;
+  if (!isNaN(taxable(income))) brytpunktCache.set(key, income);
+  return isNaN(taxable(income)) ? NaN : income;
 }
 
 // Private income tax for a given annual income from employment, e.g. to compare with

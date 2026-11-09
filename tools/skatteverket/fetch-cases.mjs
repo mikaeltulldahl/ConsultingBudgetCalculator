@@ -121,6 +121,7 @@ for (const c of buildCases(years)) {
       allmanPensionsAvgift: num('allmanPensionsavgift'),
       jobbskatteavdrag: num('skattereduktionArbetsinkomster'),
       skattereduktionForvarvsinkomst: num('skattereduktionForvarvsinkomst'),
+      tillfalligSkattereduktion: num('skattereduktionArbetsinkomstTillfallig'),
       incomeTax: num('slutligSkatt'),
     },
     raw: flat,
