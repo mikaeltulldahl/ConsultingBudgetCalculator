@@ -25,6 +25,7 @@ export const YEARS = {
     forhojtGrundavdragAge: 65,
     skattereduktionForvarvsinkomst: false, // introduced 2021
     tillfalligSkattereduktionArbetsinkomster: false,
+    bolagsskatt: 0.214, // 21.4 % for räkenskapsår starting 2019-2020
   },
   2021: {
     prisbasbelopp: 47600,
@@ -37,6 +38,7 @@ export const YEARS = {
     skattereduktionForvarvsinkomst: true,
     // Lag (2021:930) om tillfällig skattereduktion för arbetsinkomster, 2021-2022 only.
     tillfalligSkattereduktionArbetsinkomster: true,
+    bolagsskatt: 0.206,
   },
   2022: {
     prisbasbelopp: 48300,
@@ -49,6 +51,7 @@ export const YEARS = {
     skattereduktionForvarvsinkomst: true,
     // Lag (2021:930) om tillfällig skattereduktion för arbetsinkomster, 2021-2022 only.
     tillfalligSkattereduktionArbetsinkomster: true,
+    bolagsskatt: 0.206,
   },
   2023: {
     prisbasbelopp: 52500,
@@ -60,6 +63,7 @@ export const YEARS = {
     forhojtGrundavdragAge: 66,
     skattereduktionForvarvsinkomst: true,
     tillfalligSkattereduktionArbetsinkomster: false,
+    bolagsskatt: 0.206,
   },
   2024: {
     prisbasbelopp: 57300,
@@ -71,6 +75,7 @@ export const YEARS = {
     forhojtGrundavdragAge: 66,
     skattereduktionForvarvsinkomst: true,
     tillfalligSkattereduktionArbetsinkomster: false,
+    bolagsskatt: 0.206,
   },
   2025: {
     prisbasbelopp: 58800,
@@ -84,6 +89,7 @@ export const YEARS = {
     forhojtGrundavdragAge: 66,
     skattereduktionForvarvsinkomst: true,
     tillfalligSkattereduktionArbetsinkomster: false,
+    bolagsskatt: 0.206,
   },
   2026: {
     prisbasbelopp: 59200,
@@ -98,6 +104,7 @@ export const YEARS = {
     forhojtGrundavdragAge: 66,
     skattereduktionForvarvsinkomst: true,
     tillfalligSkattereduktionArbetsinkomster: false,
+    bolagsskatt: 0.206,
   },
 };
 
@@ -109,7 +116,6 @@ const EXTRA_INKOMSTBASBELOPP = { 2019: 64400 };
 export const RATES = {
   arbetsgivaravgift: 0.3142,
   sarskildLoneskatt: 0.2426, // SLP on pension premiums
-  bolagsskatt: 0.206,
   dividendTax: 0.2, // kapitalinkomstskatt on dividends within the gränsbelopp: 2/3 * 30 %
   statligSkatt: 0.2,
   pensionPremium: 0.047, // tjänstepension as share of gross salary (assumption, ITP1-like)

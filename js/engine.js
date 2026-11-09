@@ -84,7 +84,7 @@ function salary(f, p, data) {
   }
   f.vacationMonths = f.useSemesterersattning ? RATES.semesterersattningPerDay * f.vacationDays : 0;
   const monthMultiplier = f.vacationMonths + f.salaryMonths;
-  if (f.useMaxGrossSalary) {
+  if (f.useMaxGrossSalary && monthMultiplier > 0) {
     const brytpunkt = getBrytpunkt(f.year, grundavdragGroup(f.age, p.forhojtGrundavdragAge), data);
     f.grossSalaryMonth = Math.floor(brytpunkt / monthMultiplier);
   }
@@ -98,7 +98,7 @@ function salary(f, p, data) {
     return;
   }
   f.netSalaryYear = f.grossSalaryYear - f.incomeTax;
-  f.netSalaryMonth = f.netSalaryYear / monthMultiplier;
+  f.netSalaryMonth = monthMultiplier > 0 ? f.netSalaryYear / monthMultiplier : 0;
   f.netSemesterersattning = f.vacationMonths * f.netSalaryMonth;
   f.incomeTaxPercentage = 100 * f.incomeTax / f.grossSalaryYear;
 }
@@ -259,7 +259,7 @@ function jobbskatteavdrag(f, p) {
 // Bolag (resultat)
 // ---------------------------------------------------------------------------
 
-function company(f) {
+function company(f, p) {
   if (isNaN(f.otherCosts) || isNaN(f.grossSalaryYear) || isNaN(f.otherRevenue) || isNaN(f.invoicedAmount)) {
     return;
   }
@@ -269,7 +269,9 @@ function company(f) {
   f.arbetsgivaravgift = RATES.arbetsgivaravgift * f.grossSalaryYear;
   f.totalCost = f.otherCosts + f.grossSalaryYear + f.pension + f.insurance + f.slp + f.arbetsgivaravgift;
   f.profitBeforeTax = f.invoicedAmount + f.otherRevenue - f.totalCost;
-  f.profitAfterTax = f.profitBeforeTax * (1 - RATES.bolagsskatt);
+  // A loss gives no tax back this year (it can only be carried forward), so no bolagsskatt.
+  f.bolagsTax = Math.max(0, f.profitBeforeTax) * p.bolagsskatt;
+  f.profitAfterTax = f.profitBeforeTax - f.bolagsTax;
 }
 
 // ---------------------------------------------------------------------------
@@ -318,28 +320,29 @@ function dividends(f, p) {
 // Sammanfattning
 // ---------------------------------------------------------------------------
 
-function summary(f) {
+function summary(f, p) {
   if (isNaN(f.incomeTax) || isNaN(f.slp) || isNaN(f.arbetsgivaravgift) || isNaN(f.grossDividends) ||
       isNaN(f.netSalaryMonth) || isNaN(f.netDividends) || isNaN(f.salaryMonths) ||
       isNaN(f.profitBeforeTax) || isNaN(f.otherRevenue) || isNaN(f.invoicedAmount)) {
     return;
   }
-  const t = RATES.bolagsskatt;
+  const t = p.bolagsskatt;
   if (f.profitBeforeTax > 0) {
-    f.bolagsTax = f.profitBeforeTax * t;
     // Bolagsskatt on the profit that was paid out as dividends.
     f.bolagsTaxOnDividends = f.grossDividends * t / (1 - t);
     // Bolagsskatt on the profit that stays in the company.
     f.bolagsTaxExclDividends = f.profitAfterDividends * t / (1 - t);
   } else {
-    f.bolagsTax = 0;
     f.bolagsTaxOnDividends = 0;
     f.bolagsTaxExclDividends = 0;
   }
   f.dividendTax = RATES.dividendTax * f.grossDividends;
   f.totalTax = f.incomeTax + f.slp + f.arbetsgivaravgift + f.bolagsTaxOnDividends + f.dividendTax;
-  // Dividends are spread over the months with regular salary (not semesterersättning).
-  f.netSumMonth = f.netSalaryMonth + f.netDividends / f.salaryMonths;
+  // Dividends are spread over the months with regular salary (not semesterersättning),
+  // or over 12 months if there is no salary.
+  f.netSumMonth = f.salaryMonths > 0
+    ? f.netSalaryMonth + f.netDividends / f.salaryMonths
+    : f.netDividends / 12;
   f.totalTaxPercentage = 100 * f.totalTax / (f.invoicedAmount + f.otherRevenue);
 }
 
@@ -349,9 +352,9 @@ function summary(f) {
 
 function run(f, p, data) {
   salary(f, p, data);
-  company(f);
+  company(f, p);
   dividends(f, p);
-  summary(f);
+  summary(f, p);
   return f;
 }
 
@@ -381,7 +384,7 @@ export function salarySweep(result, data, step = 500) {
   let marginalDone = false;
   for (let i = 0; i < count; i++) {
     const gross = i * step;
-    const f = run({ ...result, grossSalaryMonth: gross }, p, data);
+    const f = run({ ...result, grossSalaryMonth: gross, useMaxGrossSalary: false }, p, data);
     if (f.profitAfterDividends < 0) break;
 
     out.grossSalaryMonth.push(gross);
