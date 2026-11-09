@@ -5,11 +5,11 @@
 // and returns one flat object with all intermediate values. A value that cannot be
 // computed because inputs are missing is NaN.
 //
-// data.grundavdragTable(year, group) must return the grundavdrag table rows for the year
-// and age group ('under66' | 'from66'), see grundavdrag.js.
+// data.grundavdragTable(year, 'from66') must return Skatteverket's table of förhöjt
+// grundavdrag for the year (only consulted for people aged 66 or older), see grundavdrag.js.
 
 import { getYearParams, getInkomstbasbelopp, RATES } from './params.js';
-import { lookupGrundavdrag, grundavdragGroup } from './grundavdrag.js';
+import { grundavdrag, grundavdragGroup } from './grundavdrag.js';
 import { businessDays } from './holidays.js';
 
 // ---------------------------------------------------------------------------
@@ -93,8 +93,14 @@ function salary(f, p, data) {
   // Fastställd förvärvsinkomst is rounded down to whole hundreds.
   f.grossSalaryYearRough = Math.floor(f.grossSalaryYear / 100) * 100;
 
-  const table = data.grundavdragTable(f.year, grundavdragGroup(f.age));
-  f.grundavdrag = table ? lookupGrundavdrag(table, f.grossSalaryYearRough) : NaN;
+  const group = grundavdragGroup(f.age);
+  f.grundavdrag = grundavdrag({
+    year: f.year,
+    age: f.age,
+    income: f.grossSalaryYearRough,
+    pbb: p.prisbasbelopp,
+    table: group === 'from66' ? data.grundavdragTable(f.year, group) : null,
+  });
   if (isNaN(f.grundavdrag)) {
     return;
   }

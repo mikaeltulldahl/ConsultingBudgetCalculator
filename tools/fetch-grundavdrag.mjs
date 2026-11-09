@@ -1,4 +1,4 @@
-// Downloads Skatteverket's grundavdrag tables (open data) into tests/fixtures/grundavdrag/.
+// Downloads Skatteverket's grundavdrag tables (open data) into data/grundavdrag/.
 // Usage: node tools/fetch-grundavdrag.mjs 2026 [2027 ...]
 // In environments with an HTTP proxy, run with NODE_USE_ENV_PROXY=1.
 import { writeFile, mkdir } from 'node:fs/promises';
@@ -8,7 +8,7 @@ const DATASETS = {
   from66: '43902bf8-cb34-4288-ab95-2080f8a878dc',
 };
 const BASE = 'https://skatteverket.entryscape.net/rowstore/dataset';
-const outDir = new URL('../tests/fixtures/grundavdrag/', import.meta.url);
+const outDir = new URL('../data/grundavdrag/', import.meta.url);
 
 async function fetchAll(id, year) {
   const rows = [];

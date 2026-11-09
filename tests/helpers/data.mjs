@@ -1,7 +1,7 @@
-// Engine data source backed by the files in tests/fixtures/.
+// Engine data source backed by the files in data/.
 import { readFileSync, readdirSync } from 'node:fs';
 
-const dir = new URL('../fixtures/grundavdrag/', import.meta.url);
+const dir = new URL('../../data/grundavdrag/', import.meta.url);
 const tables = {};
 for (const name of readdirSync(dir)) {
   const { year, group, rows } = JSON.parse(readFileSync(new URL(name, dir), 'utf8'));
