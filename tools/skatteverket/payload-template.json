@@ -1,0 +1,192 @@
+{
+  "allmannaAvdrag": {
+    "socialforsakringsavgifter": null
+  },
+  "avdragKapital": {
+    "forlustAktierFondandelarMarknadsnoterade": null,
+    "forlustFondandelarInteMarknadsnoterade": null,
+    "forlustNaringsfastighetNaringsbostadsratt": null,
+    "forlustSmahusBostadsratt": null,
+    "investeraravdrag": null,
+    "underlagSvenskKapForsakring": null,
+    "ranteutgifter": null,
+    "ranteutgifterBegransad": null
+  },
+  "avdragTjanst": {
+    "dubbelBosattning": null,
+    "ovrigaUtgifterBrutto": null,
+    "resorTillOchFranArbetetBrutto": null,
+    "tjansteresor": null
+  },
+  "grunduppgifter": {
+    "fodelsear": "1985",
+    "inkomstar": "2026",
+    "kommunkod": 180,
+    "prognos": true,
+    "skattesatserTyp": 1,
+    "skatteAvgiftssatser": {
+      "avgiftssatsBegravningsavgift": 0.07,
+      "kommunalLandstingsSkattesats": 30.55,
+      "avgiftssatsKyrkoavgift": null,
+      "avgiftssatsSamfundsavgift": null,
+      "summaKommunalskattAvgifter": null
+    }
+  },
+  "tjansteinkomster": {
+    "hittillsUnderAret": {
+      "allmanPensionTjanstepensionHittills": null,
+      "avdragenSkatt": null,
+      "kostnadsersattningarHittills": null,
+      "loneinkomsterHittills": null,
+      "sjukAktivitetsersattningLonHittills": null,
+      "sjukAktivitetsersattningPensionHittills": null,
+      "sjukpenningAKassaMmHittills": null,
+      "period": {
+        "fromDate": "",
+        "tomDate": ""
+      }
+    },
+    "restenAvAret": {
+      "allmanPensionTjanstepensionResten": null,
+      "inkomstFrom": 1,
+      "kostnadsersattningarResten": null,
+      "loneinkomsterResten": 660000,
+      "sjukAktivitetsersattningLonResten": null,
+      "sjukAktivitetsersattningPensionResten": null,
+      "sjukpenningAKassaMmResten": null,
+      "period": {
+        "fromDate": "",
+        "tomDate": ""
+      }
+    }
+  },
+  "ovrigaTjansteinkomster": {
+    "ersattningFranVinstandelsstiftelseMmUtanPgiOchJobbskatteavdrag": null,
+    "hobbyinkomster": null,
+    "inkomsterFranFamansbolag": null,
+    "ovrigaInkomsterUtanPgi": null
+  },
+  "inkomsterKapital": {
+    "inkomstUthyrningPrivatbostad": null,
+    "inkomstrantor": null,
+    "inkomstrantorSkatteavdrag": null,
+    "inkomstrantorUtanSkatteavdrag": null,
+    "schablonintakt": null,
+    "schablonintaktFond": null,
+    "schablonintaktIsk": null,
+    "vinstAktierFondandelarMarknadsnoterade": null,
+    "vinstFondandelarInteMarknadsnoterade": null,
+    "vinstNaringsfastighetNaringsbostadsratt": null,
+    "vinstSmahusBostadsratt": null
+  },
+  "naringsfastigheter": {
+    "underlagFastighetsavgift": {
+      "fastighetsavgiftHalvHyreshus": null,
+      "fastighetsavgiftHelHyreshus": null
+    },
+    "underlagFastighetsskatt": {
+      "fastighetsskattHyreshusTomt": null,
+      "fastighetsskattIndustri": null,
+      "fastighetsskattLokal": null,
+      "fastighetsskattVatten": null,
+      "fastighetsskattVind": null
+    }
+  },
+  "naringsverksamhet": {
+    "aktivNaringsverksamhet": {
+      "overskottAktivNaringsverksamhet": null,
+      "sjukpenningAktivNaringsverksamhet": null
+    },
+    "allmannaAvdragDto": {
+      "allmantAvdragUnderskottNaringsverksamhet": null
+    },
+    "arbetsgivareSocialaAvgifter": {
+      "inkomsterIngaSocialaAvgifter": null,
+      "kostnaderIngaSocialaAvgifter": null
+    },
+    "avkastningsskattPensionskostnader": {
+      "underlagAvkastningsskattPension": null
+    },
+    "nedsattningEgenavgifter": {
+      "regionaltNedsattningsbelopp": null
+    },
+    "passivNaringsverksamhet": {
+      "overskottPassivNaringsverksamhet": null
+    },
+    "rantefordelning": {
+      "negativRantefordelning": null,
+      "positivRantefordelning": null
+    },
+    "sarskildLoneskattPensionskostnader": {
+      "underlagPensionskostnaderAnstallda": null,
+      "underlagPensionskostnaderEgen": null
+    },
+    "underlagExpansionsfondsskatt": {
+      "minskningExpansionsfond": null,
+      "okningExpansionsfond": null,
+      "underlagAterforingExpansionsfondsskatt": null
+    },
+    "skattereduktionForInvesteringarIInventarier": {
+      "underlagInvesteringarInventarier": null
+    }
+  },
+  "skattOvrigt": {
+    "avrakningUtlandskSkatt": null,
+    "egenInbetalningSkatt": null,
+    "preliminarSkatt": null
+  },
+  "pensionsforhallandenKarensuppgifter": {
+    "allmanPensionHelaAret": false,
+    "antalDagarKarensEnDag": null,
+    "antalDagarKarensFjortonDagar": null,
+    "antalDagarKarensNittioDagar": null,
+    "antalDagarKarensSextioDagar": null,
+    "antalDagarKarensSjuDagar": 365,
+    "antalDagarKarensTrettioDagar": null,
+    "helSjukAktivitetsersattning": false,
+    "manuelltUnderlagForSlfPaAktivNrvJanTillJun2019": null
+  },
+  "smahusAgarlagenhet": {
+    "underlagFastighetsavgift": {
+      "fastighetsavgiftHalvSmahus": null,
+      "fastighetsavgiftHelSmahus": null,
+      "skrivenHelaAret": false,
+      "underlagSkattereduktionFastighetsavgiftHalvAvgift": null,
+      "underlagSkattereduktionFastighetsavgiftHelAvgift": null
+    },
+    "underlagFastighetsskatt": {
+      "fastighetsskattSmahusTomt": null
+    }
+  },
+  "underlagSkattreduktion": {
+    "fackforeningsavgift": null,
+    "preliminarFornybarElkWh": null,
+    "rotarbeteFaktura": null,
+    "rotarbeteFakturaTillagg": null,
+    "rutarbeteFaktura": null,
+    "rutarbeteFakturaTillagg": null,
+    "rotarbeteForman": null,
+    "rotarbeteFormanTillagg": null,
+    "rutarbeteForman": null,
+    "rutarbeteFormanTillagg": null,
+    "gava": null,
+    "regionalSkattereduktion": false,
+    "installationGronTeknik": null,
+    "akassa": null
+  },
+  "uppgifterAvlidnaSjomanUtInvandrade": {
+    "avlidenAr": null,
+    "bosattManader": 12,
+    "dagarFjarrfart": null,
+    "dagarNarfart": null,
+    "folkbokford": true,
+    "inUtvandrad": false,
+    "invandradManad": null,
+    "utvandradManad": null
+  },
+  "utlandskForsakringAvkastningsskatt": {
+    "skatteunderlagKapitalforsakring": null,
+    "skattefrittSparandeKapf": null,
+    "skatteunderlagPensionsforsakring": null
+  }
+}

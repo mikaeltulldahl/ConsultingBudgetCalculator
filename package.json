@@ -2,8 +2,10 @@
   "name": "consulting-budget-calculator",
   "private": true,
   "type": "module",
-  "description": "Budgetkalkylator för konsulter – static site, no runtime dependencies.",
+  "description": "Budgetkalkylator f\u00f6r konsulter \u2013 static site, no runtime dependencies.",
   "scripts": {
-    "test": "node --test \"tests/**/*.test.mjs\""
+    "test": "node --test \"tests/**/*.test.mjs\"",
+    "update-snapshots": "node tools/update-snapshots.mjs",
+    "fetch-skatteverket-cases": "node tools/skatteverket/fetch-cases.mjs"
   }
 }

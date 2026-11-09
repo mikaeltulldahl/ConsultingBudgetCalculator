@@ -93,6 +93,20 @@ function salary(f, p, data) {
   // Fastställd förvärvsinkomst is rounded down to whole hundreds.
   f.grossSalaryYearRough = Math.floor(f.grossSalaryYear / 100) * 100;
 
+  incomeTax(f, p, data);
+  if (isNaN(f.grundavdrag)) {
+    return;
+  }
+  f.netSalaryYear = f.grossSalaryYear - f.incomeTax;
+  f.netSalaryMonth = f.netSalaryYear / monthMultiplier;
+  f.netSemesterersattning = f.vacationMonths * f.netSalaryMonth;
+  f.incomeTaxPercentage = 100 * f.incomeTax / f.grossSalaryYear;
+}
+
+// Slutlig skatt on income from employment. Needs f.year, f.age, the tax rates (as
+// fractions) and f.grossSalaryYearRough (fastställd förvärvsinkomst). Sets f.grundavdrag,
+// f.taxableIncome, each tax component, the tax reductions and f.incomeTax.
+function incomeTax(f, p, data) {
   const group = grundavdragGroup(f.age);
   f.grundavdrag = grundavdrag({
     year: f.year,
@@ -129,10 +143,23 @@ function salary(f, p, data) {
     f.jobbskatteavdrag += f.incomeTax;
     f.incomeTax = 0;
   }
-  f.netSalaryYear = f.grossSalaryYear - f.incomeTax;
-  f.netSalaryMonth = f.netSalaryYear / monthMultiplier;
-  f.netSemesterersattning = f.vacationMonths * f.netSalaryMonth;
-  f.incomeTaxPercentage = 100 * f.incomeTax / f.grossSalaryYear;
+}
+
+// Private income tax for a given annual income from employment, e.g. to compare with
+// Skatteverket's calculator. Rates in percent.
+export function privateIncomeTax({ year, yearBorn, income, kommunalSkattPercent, burialSkattPercent, churchSkattPercent = 0 }, data) {
+  const p = getYearParams(year);
+  const f = {
+    year,
+    age: year - yearBorn - 1,
+    kommunalSkattPercent: 0.01 * kommunalSkattPercent,
+    burialSkattPercent: 0.01 * burialSkattPercent,
+    churchSkattPercent: 0.01 * churchSkattPercent,
+    grossSalaryYearRough: Math.floor(income / 100) * 100,
+    incomeTax: NaN,
+  };
+  incomeTax(f, p, data);
+  return f;
 }
 
 function skattereduktionForvarvsinkomst(taxableIncome) {
