@@ -1,0 +1,9 @@
+{
+  "name": "consulting-budget-calculator",
+  "private": true,
+  "type": "module",
+  "description": "Budgetkalkylator för konsulter – static site, no runtime dependencies.",
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.mjs\""
+  }
+}
