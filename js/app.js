@@ -1,12 +1,15 @@
 // Page logic: reads the form, runs the engine and writes results and charts.
 // All tax maths lives in engine.js; this file only deals with the page.
 import { calculate, salarySweep, billableHours } from './engine.js';
+import { EXPLANATIONS } from './explanations.js';
+import { buildStructure, renderMap, renderFlowList } from './structure.js';
+import { initQuick } from './quick.js';
 import { FIRST_YEAR, LAST_YEAR, UnsupportedYearError, getYearParams } from './params.js';
 import { grundavdragGroup } from './grundavdrag.js';
 import {
   FIELDS, defaultState, makeDocument, parseDocument, isPristine, toEngineInputs, toCsv,
 } from './scenario.js';
-import { loadStored, saveStored, clearStored } from './storage.js';
+import { loadStored, saveStored, clearStored, loadPrefs, savePrefs, clearPrefs } from './storage.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -41,6 +44,28 @@ function setStatus(key, message) {
   const el = $('statusMessage');
   el.textContent = [...statusMessages.values()].join(' ');
   el.hidden = statusMessages.size === 0;
+}
+
+// ---------------------------------------------------------------------------
+// Output fields: formatted text for people, raw value in data-value for export and tests
+// ---------------------------------------------------------------------------
+
+function setOutput(el, value, decimals = 0) {
+  if (typeof el === 'string') el = $(el);
+  const raw = Number.isFinite(value) ? value.toFixed(decimals) : '';
+  el.dataset.value = raw;
+  const unit = el.dataset.unit ? ` ${el.dataset.unit}` : '';
+  el.textContent = raw === ''
+    ? '–'
+    : Number(raw).toLocaleString('sv-SE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + unit;
+}
+
+// Tax rates are shown exactly as published (e.g. 30,55 %).
+function setRate(id, value) {
+  const el = $(id);
+  const v = value === null || value === undefined || value === '' ? '' : String(value);
+  el.dataset.value = v;
+  el.textContent = v === '' ? '–' : `${v.replace('.', ',')} %`;
 }
 
 // ---------------------------------------------------------------------------
@@ -107,9 +132,9 @@ async function populateForsamling(preferred = null) {
 // Fills the (read-only) rate fields from the bundled kommun data and the chosen församling.
 function updateTaxRates() {
   const rates = validKommun() ? ratesForYear(parseInt(yearField.value))?.[kommunSelector.value] : null;
-  $('kommunalSkattPercent').value = rates ? rates[0] : '';
-  $('burialSkattPercent').value = rates ? rates[1] : '';
-  $('churchSkattPercent').value = churchMemberField.checked && validForsamling() ? forsamlingSelector.value : '';
+  setRate('kommunalSkattPercent', rates ? rates[0] : '');
+  setRate('burialSkattPercent', rates ? rates[1] : '');
+  setRate('churchSkattPercent', churchMemberField.checked && validForsamling() ? forsamlingSelector.value : '');
   updateAll();
 }
 
@@ -144,9 +169,31 @@ function updateBillableHours() {
 function updateInvoicedAmount() {
   const rate = parseInt($('hourlyRate').value);
   const hours = parseInt(billableHoursField.value);
-  $('invoicedAmount').value = isNaN(rate) || isNaN(hours) ? 0 : rate * hours;
+  setOutput('invoicedAmount', isNaN(rate) || isNaN(hours) ? 0 : rate * hours);
   updateAll();
 }
+
+// The company can use its own invoiced amount instead of the one from Uppdrag.
+function syncManualInvoiced() {
+  const manual = $('manualInvoicedAmount').value !== '';
+  $('manualInvoicedRow').hidden = !manual;
+  $('invoicedLink').classList.toggle('manual', manual);
+  $('toggleManualInvoiced').textContent = manual ? 'Använd beloppet från Uppdrag igen' : 'Ange eget belopp i stället';
+}
+$('toggleManualInvoiced').addEventListener('click', () => {
+  const field = $('manualInvoicedAmount');
+  if (field.value === '') {
+    field.value = $('invoicedAmount').dataset.value || 0;
+    syncManualInvoiced();
+    field.focus();
+    field.select();
+  } else {
+    field.value = '';
+    syncManualInvoiced();
+  }
+  updateAll();
+});
+$('manualInvoicedAmount').addEventListener('input', updateAll);
 
 for (const id of ['billingStartDate', 'billingEndDate', 'workingRate', 'vacationDays']) {
   $(id).addEventListener('input', updateBillableHours);
@@ -195,11 +242,22 @@ const format = (value, decimals) => (Number.isFinite(value) ? value.toFixed(deci
 
 function writeFields(r) {
   for (const [id, decimals] of Object.entries(OUTPUTS)) {
-    $(id).value = format(r?.[id], decimals);
+    if (id === 'grossDividends') continue; // an input field, see below
+    setOutput(id, r?.[id], decimals);
   }
-  $('churchSkatt').value = churchMemberField.checked ? format(r?.churchSkatt, 0) : '';
+  for (const el of document.querySelectorAll('output[data-mirror]')) setOutput(el, r?.[el.dataset.mirror], 0);
+  setOutput('usedInvoicedAmount', r?.invoicedAmount);
+  setOutput('churchSkatt', churchMemberField.checked ? r?.churchSkatt : NaN);
+  $('grossDividends').value = format(r?.grossDividends, 0);
   if ($('useMaxGrossSalary').checked) $('grossSalaryMonth').value = format(r?.grossSalaryMonth, 0);
   $('grossDividends').max = format(r?.dividendsLimit, 0);
+
+  const kr = (v) => (Number.isFinite(v) ? `${Math.round(v).toLocaleString('sv-SE')} kr` : '–');
+  $('sumNetMonth').textContent = kr(r?.netSumMonth);
+  $('sumTaxPct').textContent = Number.isFinite(r?.totalTaxPercentage) ? `${r.totalTaxPercentage.toLocaleString('sv-SE', { maximumFractionDigits: 1, minimumFractionDigits: 1 })} %` : '–';
+  $('sumLeft').textContent = kr(r?.profitAfterDividends);
+  $('sumInvoiced').textContent = kr(r?.invoicedAmount);
+  $('summaryHint').hidden = Number.isFinite(r?.netSumMonth);
 }
 
 function updateYearDependentFields() {
@@ -231,6 +289,7 @@ async function updateAll() {
   updateCharts(result);
   updateSankeyChartData(result ?? {});
   currentResult = result;
+  renderStructure();
   renderScenarios();
   scheduleSave();
 }
@@ -471,6 +530,7 @@ async function applyState(state) {
       if (f.type === 'boolean') el.checked = state[f.id];
       else el.value = state[f.id] ?? '';
     }
+    syncManualInvoiced();
     $('grossSalaryMonth').disabled = state.useMaxGrossSalary;
     $('grossDividends').disabled = state.maxDividend;
     $('forsamling').hidden = !state.churchMember;
@@ -663,24 +723,30 @@ async function importJson(file) {
   }
 }
 
-// One row per field on the page, in page order, with its explanation (the mouse-over text).
+const explanationText = (id) => {
+  const e = EXPLANATIONS[id];
+  return e ? [e.what, e.formula].filter(Boolean).join(' ') : '';
+};
+
+// One row per field in the structure, part by part, with its explanation.
 function pageRows() {
-  const rows = [];
-  let section = '';
-  for (const el of document.querySelectorAll('.wrapper h2, .wrapper label')) {
-    if (el.tagName === 'H2') {
-      section = el.textContent.trim();
-      continue;
+  const rows = [['Allmänt', 'Inkomstår', Number(yearField.value) || null, 'Inmatning', explanationText('year')]];
+  for (const part of document.querySelectorAll('#parts .part')) {
+    const section = part.querySelector('h2').firstChild.textContent.trim();
+    for (const label of part.querySelectorAll('label[for]')) {
+      const field = $(label.htmlFor);
+      if (!field || field.dataset.mirror || field.closest('[hidden]')) continue;
+      let value;
+      if (field.type === 'checkbox') value = field.checked ? 'Ja' : 'Nej';
+      else if (field.tagName === 'SELECT') value = field.selectedIndex > 0 ? field.selectedOptions[0].text : '';
+      else if (field.tagName === 'OUTPUT') value = field.dataset.value === '' || field.dataset.value === undefined ? null : Number(field.dataset.value);
+      else if (field.type === 'number') value = field.value === '' ? null : Number(field.value);
+      else value = field.value;
+      const text = [...label.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent).join(' ');
+      const name = text.replace(/^\s*→\s*/, '').replace(/\s+/g, ' ').trim();
+      const calculated = field.tagName === 'OUTPUT' || field.disabled;
+      rows.push([section, name, value, calculated ? 'Beräknat' : 'Inmatning', explanationText(field.id)]);
     }
-    const field = el.htmlFor ? $(el.htmlFor) : el.parentElement.querySelector('select');
-    if (!field || field.closest('[hidden]') || field.closest('#dataSection')) continue;
-    let value;
-    if (field.type === 'checkbox') value = field.checked ? 'Ja' : 'Nej';
-    else if (field.tagName === 'SELECT') value = field.selectedIndex > 0 ? field.selectedOptions[0].text : '';
-    else if (field.type === 'number') value = field.value === '' ? null : Number(field.value);
-    else value = field.value;
-    const label = el.textContent.trim().replace(/:$/, '');
-    rows.push([section, label, value, field.disabled ? 'Beräknat' : 'Inmatning', field.title || '']);
   }
   return rows;
 }
@@ -716,6 +782,12 @@ async function clearData() {
   clearStored();
   await applyState(defaultState());
   clearStored();
+  // Also forget page preferences, so nothing at all is left in this browser.
+  Object.assign(prefs, { part: 'uppdrag', howtoClosed: false });
+  for (const el of document.querySelectorAll('.part')) el.classList.toggle('active', el.dataset.part === 'uppdrag');
+  $('howto').hidden = false;
+  renderStructure();
+  clearPrefs();
   showNotice('Dina uppgifter har rensats från den här webbläsaren.');
 }
 
@@ -732,10 +804,175 @@ $('importFile').addEventListener('change', (e) => {
 $('clearData').addEventListener('click', clearData);
 
 // ---------------------------------------------------------------------------
+// Structure: map, selected part, explanations, modes
+// ---------------------------------------------------------------------------
+
+const prefs = { part: 'uppdrag', mode: 'structure', howtoClosed: false, ...loadPrefs() };
+const narrow = () => window.matchMedia('(max-width: 899px)').matches;
+
+function renderStructure() {
+  const r = currentResult ?? {};
+  const structure = buildStructure({
+    hourlyRate: Number($('hourlyRate').value === '' ? NaN : $('hourlyRate').value),
+    invoicedAmount: Number.isFinite(r.invoicedAmount) ? r.invoicedAmount : Number($('invoicedAmount').dataset.value),
+    manualInvoiced: $('manualInvoicedAmount').value !== '',
+    profitAfterTax: r.profitAfterTax,
+    grossSalaryYear: r.grossSalaryYear,
+    grossDividends: r.grossDividends,
+    netSumMonth: r.netSumMonth,
+  });
+  $('structureMap').innerHTML = renderMap(structure, prefs.part);
+  $('structureTree').innerHTML = renderFlowList(structure, prefs.part);
+}
+
+function selectPart(part, { scroll = false } = {}) {
+  if (!document.querySelector(`.part[data-part="${part}"]`)) part = 'uppdrag';
+  prefs.part = part;
+  savePrefs(prefs);
+  for (const el of document.querySelectorAll('.part')) el.classList.toggle('active', el.dataset.part === part);
+  renderStructure();
+  if (scroll && narrow()) document.querySelector(`.part[data-part="${part}"]`).scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function setMode(mode) {
+  prefs.mode = mode;
+  savePrefs(prefs);
+  $('structureMode').hidden = mode !== 'structure';
+  $('quickMode').hidden = mode !== 'quick';
+  for (const b of document.querySelectorAll('[data-mode]')) b.setAttribute('aria-pressed', b.dataset.mode === mode);
+  if (mode === 'quick') quick.refresh();
+}
+
+document.addEventListener('click', (e) => {
+  const target = e.target.closest('[data-goto]');
+  if (!target) return;
+  e.preventDefault();
+  if (prefs.mode !== 'structure') setMode('structure');
+  selectPart(target.dataset.goto, { scroll: true });
+});
+document.addEventListener('keydown', (e) => {
+  const target = e.target.closest?.('[data-goto][role="button"]');
+  if (target && (e.key === 'Enter' || e.key === ' ')) {
+    e.preventDefault();
+    selectPart(target.dataset.goto, { scroll: true });
+  }
+});
+for (const b of document.querySelectorAll('[data-mode]')) b.addEventListener('click', () => setMode(b.dataset.mode));
+$('closeHowto').addEventListener('click', () => {
+  $('howto').hidden = true;
+  prefs.howtoClosed = true;
+  savePrefs(prefs);
+});
+
+// ⓘ buttons with an explanation popover, added to every label that has an explanation.
+const popover = $('popover');
+function closePopover() {
+  popover.hidden = true;
+  popover.replaceChildren();
+}
+function openPopover(button, id) {
+  const e = EXPLANATIONS[id];
+  const label = document.querySelector(`label[for="${id}"]`);
+  const title = [...label.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent).join(' ').replace(/^\s*→\s*/, '').trim();
+  const h = Object.assign(document.createElement('h3'), { textContent: title });
+  const what = Object.assign(document.createElement('p'), { textContent: e.what });
+  popover.replaceChildren(h, what);
+  if (e.formula) popover.append(Object.assign(document.createElement('p'), { className: 'formula', textContent: e.formula }));
+  if (e.source) {
+    const p = document.createElement('p');
+    const a = Object.assign(document.createElement('a'), { href: e.source[1], textContent: `${e.source[0]} ↗`, target: '_blank', rel: 'noopener' });
+    p.append('Källa: ', a);
+    popover.append(p);
+  }
+  popover.hidden = false;
+  const r = button.getBoundingClientRect();
+  const left = Math.min(window.innerWidth - popover.offsetWidth - 8, Math.max(8, r.left - 20));
+  const below = r.bottom + 8 + popover.offsetHeight <= window.innerHeight;
+  popover.style.left = `${left}px`;
+  popover.style.top = `${below ? r.bottom + 8 : Math.max(8, r.top - popover.offsetHeight - 8)}px`;
+}
+for (const label of document.querySelectorAll('label[for]')) {
+  const key = EXPLANATIONS[label.htmlFor] ? label.htmlFor : null;
+  if (!key) continue;
+  const b = Object.assign(document.createElement('button'), { type: 'button', className: 'info', textContent: 'i' });
+  b.setAttribute('aria-label', `Förklaring: ${label.textContent.trim()}`);
+  b.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (!popover.hidden && popover.dataset.for === key) return closePopover();
+    popover.dataset.for = key;
+    openPopover(b, key);
+  });
+  // Put the button right after the label text (before any "från …" chip).
+  const chip = label.querySelector('.from');
+  if (chip) chip.before(b, ' ');
+  else label.append(' ', b);
+}
+document.addEventListener('click', (e) => {
+  if (!popover.hidden && !popover.contains(e.target) && !e.target.closest('.info')) closePopover();
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePopover(); });
+window.addEventListener('scroll', closePopover, { passive: true });
+
+// Quick calculators.
+const quick = initQuick({
+  kommunRates: () => kommunRates,
+  engineData,
+  ensureGrundavdragTable,
+  setOutput,
+  structureSummary: () => ({
+    netSumMonth: currentResult?.netSumMonth,
+    year: Number(yearField.value) || null,
+    yearBorn: Number($('yearBorn').value) || null,
+    kommun: validKommun() ? kommunSelector.value : null,
+  }),
+  async onConnect(kind, v) {
+    const state = readState();
+    const parts = { privat: 'person', faktura: 'uppdrag', grans: 'utdelning', kostnad: 'lon' };
+    if (kind === 'privat') Object.assign(state, { year: v.year, yearBorn: v.yearBorn, kommun: v.kommun, grossSalaryMonth: Math.round(v.income / 12), salaryMonths: 12, useSemesterersattning: false, useMaxGrossSalary: false });
+    if (kind === 'faktura') Object.assign(state, { hourlyRate: v.hourlyRate, billingStartDate: v.billingStartDate, billingEndDate: v.billingEndDate, vacationDays: v.vacationDays, workingRate: v.workingRate, billableHours: null, manualInvoicedAmount: null });
+    if (kind === 'grans') Object.assign(state, { year: v.year, omkostnadsbelopp: v.omkostnadsbelopp, savedDividends: v.savedDividends });
+    if (kind === 'kostnad') Object.assign(state, { grossSalaryMonth: v.grossSalaryMonth, usePension: v.usePension, useMaxGrossSalary: false });
+    for (const [k, val] of Object.entries(state)) if (typeof val === 'number' && !Number.isFinite(val)) state[k] = null;
+    if (state.kommun !== (kommunSelector.value || '')) { state.forsamling = ''; state.kyrkoavgift = null; }
+    setMode('structure');
+    await applyState(state);
+    selectPart(parts[kind], { scroll: true });
+    showNotice('Snabbräknarens värden finns nu i din struktur.');
+  },
+});
+
+// Charts follow the light/dark colour scheme.
+function applyChartTheme() {
+  const css = getComputedStyle(document.documentElement);
+  const text = css.getPropertyValue('--muted').trim();
+  const line = css.getPropertyValue('--line').trim();
+  Chart.defaults.color = text;
+  Chart.defaults.borderColor = line;
+  for (const chart of [sumChart, percentageChart]) chart.update('none');
+  series.nodes.labels.template.set('fill', am5.color(css.getPropertyValue('--text').trim()));
+}
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyChartTheme);
+
+// Visitor statistics: GoatCounter counts page views without cookies or personal data.
+// Fill in the site code (from goatcounter.com) to turn it on. No other events are sent.
+const GOATCOUNTER_CODE = null;
+if (GOATCOUNTER_CODE && !['localhost', '127.0.0.1'].includes(location.hostname)) {
+  const script = document.createElement('script');
+  script.async = true;
+  script.dataset.goatcounter = `https://${GOATCOUNTER_CODE}.goatcounter.com/count`;
+  script.src = 'https://gc.zgo.at/count.v4.js';
+  document.head.append(script);
+}
+
+// ---------------------------------------------------------------------------
 // Start
 // ---------------------------------------------------------------------------
 
 async function init() {
+  applyChartTheme();
+  selectPart(prefs.part);
+  $('howto').hidden = prefs.howtoClosed;
   yearField.min = FIRST_YEAR;
   yearField.max = LAST_YEAR;
   $('yearBorn').max = LAST_YEAR;
@@ -762,5 +999,6 @@ async function init() {
     populateKommunDropdown();
     updateBillableHours();
   }
+  setMode(prefs.mode === 'quick' ? 'quick' : 'structure');
 }
 init();

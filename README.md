@@ -5,6 +5,19 @@ https://mikaeltulldahl.github.io/ConsultingBudgetCalculator/
 
 Everything is calculated in your browser; nothing you enter is sent anywhere.
 
+## How the page is organised
+
+- **Min struktur**: a map of your setup (assignment → your company → you). Each box and
+  arrow opens its own calculator card: Uppdrag, Ditt aktiebolag, Lön, Utdelning and Du.
+  On phones the map becomes a vertical flow. Today the structure is one assignment, one
+  company and one person; the map is drawn from a list of parts so more people, companies
+  and income sources can be added later.
+- **Snabbräknare**: five stand-alone calculators (Privat skatt, Fakturerat belopp,
+  Utdelningsgräns, Lön ↔ bolagskostnad, Motsvarande anställning). "Koppla in i min
+  struktur" copies their values into the structure.
+- Every field has an ⓘ explanation (what it is, how it is calculated, source), kept in
+  `js/explanations.js`; the CSV export uses the same texts.
+
 ## Your data
 
 - What you fill in is remembered in your own browser (localStorage) until you click
@@ -35,6 +48,9 @@ invariants such as "money is conserved" and "net pay grows with gross pay".
 | `js/params.js` | Tax parameters per year. |
 | `js/grundavdrag.js`, `js/holidays.js` | Grundavdrag and Swedish holidays. |
 | `js/scenario.js`, `js/storage.js` | Saved data format, export/import, CSV, browser storage. |
+| `js/structure.js`, `js/quick.js` | Structure map / phone flow, and the quick calculators. |
+| `js/explanations.js` | Explanation texts and sources for every field. |
+| `css/style.css` | Styles, light and dark theme. |
 | `data/` | Kommun tax rates and förhöjt grundavdrag tables, served with the page. |
 | `tests/` | Tests (`node --test`, no dependencies). |
 | `tools/` | Scripts that download data and reference cases. |
@@ -91,3 +107,9 @@ npm run update-snapshots
 4. Run `npm test`. A failing Skatteverket test points to the rule that changed.
 
 Behind an HTTP proxy, run the Node scripts with `NODE_USE_ENV_PROXY=1`.
+
+## Visitor statistics
+
+The page can count page views with [GoatCounter](https://www.goatcounter.com) (no cookies,
+no personal data, no other events). It is off until a site code is filled in:
+set `GOATCOUNTER_CODE` in `js/app.js` to the code of your GoatCounter site.

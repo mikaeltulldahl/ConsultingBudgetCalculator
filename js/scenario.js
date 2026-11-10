@@ -22,6 +22,7 @@ export const FIELDS = [
   { id: 'workingRate', type: 'number', default: 100 },
   { id: 'vacationDays', type: 'number', default: 25 },
   { id: 'billableHours', type: 'number', default: null }, // null = computed from the dates
+  { id: 'manualInvoicedAmount', type: 'number', default: null }, // null = from the assignment
   { id: 'otherRevenue', type: 'number', default: 0 },
   { id: 'yearBorn', type: 'number', default: null },
   { id: 'kommun', type: 'text', default: '' },
@@ -148,7 +149,8 @@ export function toEngineInputs(state, kommunRates) {
   const num = (v) => (v === null || v === undefined ? NaN : v);
   const rates = (kommunRates[state.year] ?? kommunRates[LAST_YEAR] ?? {})[state.kommun];
   const hours = state.billableHours ?? billableHoursFromDates(state);
-  const invoiced = state.hourlyRate === null || hours === null ? 0 : state.hourlyRate * hours;
+  const fromAssignment = state.hourlyRate === null || hours === null ? 0 : state.hourlyRate * hours;
+  const invoiced = state.manualInvoicedAmount ?? fromAssignment;
   return {
     year: num(state.year),
     yearBorn: num(state.yearBorn),

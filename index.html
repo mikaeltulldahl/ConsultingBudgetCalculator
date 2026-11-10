@@ -1,455 +1,364 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="sv">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Budgetkalkylator för konsulter</title> 
+  <title>Budgetkalkylator för konsulter</title>
+  <meta name="description" content="Gratis kalkylator för konsulter med eget aktiebolag: fakturering, lön, skatt, utdelning (3:12) och vad du får ut netto. Räknar i din webbläsare, kontrollerad mot Skatteverkets beräkning.">
+  <meta property="og:title" content="Budgetkalkylator för konsulter">
+  <meta property="og:description" content="Fakturering, lön, skatt och utdelning för konsulter med eget AB – allt kopplat ihop. Gratis och öppen källkod.">
+  <meta name="color-scheme" content="light dark">
   <link rel="apple-touch-icon" sizes="180x180" href="images/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png">
   <link rel="manifest" href="images/site.webmanifest">
   <meta name="google-site-verification" content="cCk3brPzTIF9DnfQhu-h0uYZJVbmkwK2WBIPQh1oP9E" />
-  <style>
-    header, footer {
-      margin: 0;
-      background-color: #333;
-      color: #fff;
-      padding: 10px;
-      text-align: center;
-    }
-
-    body {
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh; /* Ensure the body takes up at least the full height of the viewport */
-      font-family: Arial, sans-serif;
-      background-color: #f2f2f2; /* Example background color */
-    }
-
-    .wrapper {
-      flex: 1;
-      padding: 20px;
-      margin: 0 auto; /* Centering */
-    }
-
-    .chart-container {
-      flex: 1;
-      margin: 0 auto; /* Centering */
-      width: max(40vw, min(100vw, 400px));
-      min-height: max(min(40vw, 60vh), 400px);
-      max-height: max(60vh, 400px);
-    }
-
-    .required:after { content:" *"; color: red;} 
-
-    .status {
-      max-width: 40em;
-      padding: 8px 12px;
-      border-left: 4px solid #c0392b;
-      background-color: #fdecea;
-      color: #333;
-    }
-
-    input, select {
-      padding-left: 8px;
-      padding-right: 8px;
-      margin: 1px;
-      border: 2px solid #bbb;
-      border-radius: 4px;
-      background-color: #fff;
-      color: #333;
-    }
-    
-    input[disabled], select[disabled] {
-      border: 2px solid #ccc;
-      opacity: 0.6;
-    }
-
-    h2 {
-      margin-top: 0.5em;
-      margin-bottom: 0;
-    }
-    
-    .inverted-image {
-      filter: grayscale(100%) invert(100%);
-      width: 50px;
-      height: auto; /* Maintain aspect ratio */
-    }
-
-    h1, .inverted-image {
-      display: inline;
-      vertical-align: middle; /* Aligns the image vertically with text */
-  }
-
-    .privacy-note {
-      max-width: 40em;
-      margin-top: 0;
-      font-size: 0.9em;
-    }
-
-    .link-button {
-      padding: 0;
-      border: none;
-      background: none;
-      color: #0645ad;
-      text-decoration: underline;
-      font: inherit;
-      cursor: pointer;
-    }
-
-    /* Wide tables scroll inside this box instead of widening the page on phones
-       (the wrapper sizes itself to its content, so a percentage would not limit it). */
-    .table-scroll {
-      max-width: calc(100vw - 40px);
-      overflow-x: auto;
-    }
-
-    #scenarioTable {
-      border-collapse: collapse;
-      margin: 8px 0;
-    }
-
-    #scenarioTable th, #scenarioTable td {
-      padding: 4px 8px;
-      border-bottom: 1px solid #ccc;
-      text-align: right;
-      vertical-align: top;
-      white-space: nowrap;
-    }
-
-    #scenarioTable tbody th {
-      text-align: left;
-      font-weight: normal;
-    }
-
-    /* Keep the row labels visible while the table scrolls sideways on narrow screens. */
-    #scenarioTable tbody th, #scenarioTable thead th:first-child {
-      position: sticky;
-      left: 0;
-      background-color: #f2f2f2;
-      white-space: normal;
-      min-width: 8em;
-      max-width: 11em;
-    }
-
-    #scenarioTable .diff {
-      color: #666;
-    }
-
-    #dataSection button {
-      margin: 2px 0;
-    }
-
-</style>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <header>
-    <img class="inverted-image" src="images/icon_transparent.png">
-    <h1>Budgetkalkylator för konsulter</h1>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <img class="logo" src="images/icon_transparent.png" alt="">
+      <h1>Budgetkalkylator för konsulter</h1>
+      <div class="modeswitch" role="group" aria-label="Läge">
+        <button type="button" data-mode="structure" aria-pressed="true">Min struktur</button>
+        <button type="button" data-mode="quick" aria-pressed="false">Snabbräknare</button>
+      </div>
+    </div>
   </header>
-  <br>
-  <div class="wrapper">
+
+  <main class="page">
     <p id="statusMessage" class="status" role="status" hidden></p>
     <p class="privacy-note">Dina uppgifter sparas bara i din webbläsare och skickas aldrig någonstans.
-      <button type="button" id="clearData" class="link-button">Rensa mina uppgifter</button></p>
-    <div class="required">
-      <label for="year">Räkenskapsår:</label>
-      <input type="number" id="year" value="2026">
-    </div>
-    
-    <h2>Intäkter</h2>
-    <div>
-      <label for="hourlyRate">Timpris exkl. moms:</label>
-      <input type="number" step="10" id="hourlyRate" min="0" value="700"><br>
+      <button type="button" id="clearData" class="link-button">Rensa mina uppgifter</button>
+      · <a href="#about">Om kalkylatorn</a></p>
 
-      <label for="billingStartDate">Uppdrag start:</label>
-      <input type="date" id="billingStartDate" value="2026-01-01"><br>
+    <!-- ===================================================================== -->
+    <!-- Structure mode                                                          -->
+    <!-- ===================================================================== -->
+    <div id="structureMode">
+      <section class="summary" aria-label="Sammanfattning">
+        <div class="summary-item"><span>Netto per månad</span><b id="sumNetMonth">–</b></div>
+        <div class="summary-item"><span>Total skatt</span><b id="sumTaxPct">–</b></div>
+        <div class="summary-item"><span>Kvar i bolaget</span><b id="sumLeft">–</b></div>
+        <div class="summary-item"><span>Fakturerat</span><b id="sumInvoiced">–</b></div>
+        <div class="summary-item year-item">
+          <label for="year">Inkomstår</label>
+          <input type="number" id="year" value="2026" inputmode="numeric">
+        </div>
+        <p id="summaryHint" class="summary-hint" hidden>Fyll i födelseår och kommun under <button type="button" class="link-button" data-goto="person">Du</button> för att se resultatet.</p>
+      </section>
 
-      <label for="billingEndDate">Uppdrag slut:</label>
-      <input type="date" id="billingEndDate" value="2026-12-31"><br>
+      <section id="howto" class="howto" aria-label="Så använder du kalkylatorn">
+        <div>
+          <b>Så använder du kalkylatorn</b>
+          <ol>
+            <li>Börja med <button type="button" class="link-button" data-goto="uppdrag">Uppdrag</button>: timpris och period.</li>
+            <li>Fyll i födelseår och kommun under <button type="button" class="link-button" data-goto="person">Du</button>.</li>
+            <li>Välj lön under <button type="button" class="link-button" data-goto="lon">Lön</button> och se vad du får ut i sammanfattningen och diagrammen.</li>
+          </ol>
+          <p>Kartan visar hur delarna hänger ihop. Klicka på en ruta eller pil för att se och ändra den delen. Under <b>Snabbräknare</b> räknar du på en sak i taget.</p>
+        </div>
+        <button type="button" id="closeHowto" class="icon-button" aria-label="Stäng">✕</button>
+      </section>
 
-      <details>
-        <summary style="cursor: pointer;">
-          <span style="font-weight: bold;">Detaljer</span>
-          <span style="margin-left: 5px; font-size: 0.8em;">(klicka för att expandera)</span>
-        </summary>
-        <hr>
-        <label for="workingRate">Arbetstakt (%):</label>
-        <input type="number" step="25" id="workingRate" min="0" max="100" value="100" title="100% är 40 timmar per vecka"><br>
+      <div class="layout">
+        <section class="card map-card" aria-label="Struktur">
+          <div class="card-head"><h2>Din struktur</h2><span class="muted small">Klicka på en ruta eller pil</span></div>
+          <div id="structureMap"></div>
+          <div id="structureTree"></div>
+          <div class="legend"><span><i class="lg-source"></i>Inkomstkälla</span><span><i class="lg-bolag"></i>Bolag</span><span><i class="lg-person"></i>Person</span><span>Pilar: pengar som flödar</span></div>
+        </section>
 
-        <label for="vacationDays">Semesterdagar:</label>
-        <input type="number" id="vacationDays" min="0" value="25"><br>
+        <div class="side" id="parts">
+          <!-- Uppdrag -------------------------------------------------------- -->
+          <section class="card part" data-part="uppdrag" aria-labelledby="h-uppdrag">
+            <h2 id="h-uppdrag">Uppdrag <span class="badge source">Inkomstkälla</span></h2>
+            <p class="kind">Räknare: Fakturerat belopp</p>
+            <div class="row"><label for="hourlyRate">Timpris exkl. moms</label><input type="number" step="10" id="hourlyRate" min="0" value="700" inputmode="numeric"></div>
+            <div class="row"><label for="billingStartDate">Uppdrag start</label><input type="date" id="billingStartDate" value="2026-01-01"></div>
+            <div class="row"><label for="billingEndDate">Uppdrag slut</label><input type="date" id="billingEndDate" value="2026-12-31"></div>
+            <details class="details">
+              <summary>Detaljer</summary>
+              <div class="row"><label for="workingRate">Arbetstakt (%)</label><input type="number" step="25" id="workingRate" min="0" max="100" value="100" inputmode="numeric"></div>
+              <div class="row"><label for="vacationDays">Semesterdagar</label><input type="number" id="vacationDays" min="0" value="25" inputmode="numeric"></div>
+              <div class="row"><label for="billableHours">Fakturerbara timmar</label><input type="number" id="billableHours" min="0" inputmode="numeric"></div>
+            </details>
+            <div class="result"><label for="invoicedAmount">→ Fakturerat belopp exkl. moms</label><output id="invoicedAmount" data-unit="kr"></output>
+              <small>går till <button type="button" class="link-button" data-goto="bolag">ditt aktiebolag</button></small></div>
+          </section>
 
-        <label for="billableHours"> Fakturerbara timmar:</label>
-        <input type="number" id="billableHours" min="0" title="8 * Arbetstakt * (arbetsdagar från uppgdrag start till slut med hänsyn till röda dagar - semesterdagar)">
-        <hr>
-      </details>
+          <!-- Bolag ---------------------------------------------------------- -->
+          <section class="card part" data-part="bolag" aria-labelledby="h-bolag">
+            <h2 id="h-bolag">Ditt aktiebolag <span class="badge bolag">Bolag</span></h2>
+            <p class="kind">Räknare: Bolagets resultat</p>
+            <div class="group-title">Intäkter</div>
+            <div class="row">
+              <label for="usedInvoicedAmount">Fakturerat
+                <button type="button" class="from" id="invoicedLink" data-goto="uppdrag">från Uppdrag</button></label>
+              <output id="usedInvoicedAmount" data-unit="kr"></output>
+            </div>
+            <div class="row" id="manualInvoicedRow" hidden><label for="manualInvoicedAmount">Eget belopp</label><input type="number" step="10000" id="manualInvoicedAmount" min="0" inputmode="numeric"></div>
+            <div class="row-actions"><button type="button" class="link-button" id="toggleManualInvoiced">Ange eget belopp i stället</button></div>
+            <div class="row"><label for="otherRevenue">Övriga intäkter exkl. moms</label><input type="number" step="10000" id="otherRevenue" value="0" min="0" inputmode="numeric"></div>
+            <div class="group-title">Kostnader</div>
+            <div class="row"><label for="companySalary">Lön till dig <button type="button" class="from" data-goto="lon">från Lön</button></label><output id="companySalary" data-mirror="grossSalaryYear" data-unit="kr"></output></div>
+            <div class="row"><label for="otherCosts">Övriga kostnader exkl. moms</label><input type="number" step="10000" min="0" id="otherCosts" value="20000" inputmode="numeric"></div>
+            <details class="details">
+              <summary>Detaljer</summary>
+              <div class="row"><label for="arbetsgivaravgift">Arbetsgivaravgift</label><output id="arbetsgivaravgift" data-unit="kr"></output></div>
+              <div class="row"><label for="pension">Tjänstepension</label><output id="pension" data-unit="kr"></output></div>
+              <div class="row"><label for="insurance">Trygghetsförsäkring vid arbetsskada</label><output id="insurance" data-unit="kr"></output></div>
+              <div class="row"><label for="slp">Särskild löneskatt (SLP)</label><output id="slp" data-unit="kr"></output></div>
+              <div class="row"><label for="totalCost">Totalkostnad</label><output id="totalCost" data-unit="kr"></output></div>
+            </details>
+            <div class="group-title">Resultat</div>
+            <div class="row"><label for="profitBeforeTax">Resultat före skatt</label><output id="profitBeforeTax" data-unit="kr"></output></div>
+            <div class="row"><label for="profitAfterTax">Resultat efter skatt</label><output id="profitAfterTax" data-unit="kr"></output></div>
+            <div class="row"><label for="companyDividend">Utdelning till dig <button type="button" class="from" data-goto="utdelning">se Utdelning</button></label><output id="companyDividend" data-mirror="grossDividends" data-unit="kr"></output></div>
+            <div class="result"><label for="profitAfterDividends">→ Kvar i bolaget efter utdelning</label><output id="profitAfterDividends" data-unit="kr"></output></div>
+          </section>
 
-      <label for="invoicedAmount"> Fakturerat belopp exkl. moms:</label>
-      <input type="number" id="invoicedAmount" disabled title="Timpris * fakturerbara timmar" ><br>
+          <!-- Lön ------------------------------------------------------------ -->
+          <section class="card part" data-part="lon" aria-labelledby="h-lon">
+            <h2 id="h-lon">Lön: bolaget → du <span class="badge edge">Anställning</span></h2>
+            <p class="kind">Räknare: Lön och pension</p>
+            <div class="row"><label for="useMaxGrossSalary">Lön upp till brytpunkt för statlig skatt</label><input type="checkbox" id="useMaxGrossSalary"></div>
+            <div class="row"><label for="grossSalaryMonth">Månadslön brutto</label><input type="number" step="1000" id="grossSalaryMonth" min="0" value="55000" inputmode="numeric"></div>
+            <div class="row"><label for="salaryMonths">Månader med lön</label><input type="number" id="salaryMonths" min="0" max="12" value="12" inputmode="numeric"></div>
+            <div class="row"><label for="useSemesterersattning">Ta ut semesterersättning</label><input type="checkbox" id="useSemesterersattning" checked></div>
+            <div class="row"><label for="usePension">Ta ut tjänstepension</label><input type="checkbox" id="usePension" checked></div>
+            <details class="details">
+              <summary>Detaljer</summary>
+              <div class="row"><label for="grossSemesterersattning">Semesterersättning brutto</label><output id="grossSemesterersattning" data-unit="kr"></output></div>
+              <div class="row"><label for="lonPension">Tjänstepension per år</label><output id="lonPension" data-mirror="pension" data-unit="kr"></output></div>
+            </details>
+            <div class="result"><label for="grossSalaryYear">→ Årslön brutto</label><output id="grossSalaryYear" data-unit="kr"></output>
+              <small>går till <button type="button" class="link-button" data-goto="person">din privata skatt</button> och är en kostnad i <button type="button" class="link-button" data-goto="bolag">bolaget</button></small></div>
+          </section>
 
-      <label for="otherRevenue"> Övriga intäkter exkl. moms:</label>
-      <input type="number" step="10000" id="otherRevenue" value="0" min="0"><br>
-    </div>
-    <h2>Lön</h2>
-    <div>
-      <div class="required">
-        <label for="yearBorn"> Födelseår:</label>
-        <input type="number" id="yearBorn" min="1900" placeholder="YYYY" >
-      </div>
+          <!-- Utdelning ------------------------------------------------------ -->
+          <section class="card part" data-part="utdelning" aria-labelledby="h-utdelning">
+            <h2 id="h-utdelning">Utdelning: bolaget → du <span class="badge edge">Ägande 100 %</span></h2>
+            <p class="kind">Räknare: Utdelningsgräns (3:12)</p>
+            <div class="row"><label for="dividendBase">Resultat efter skatt <button type="button" class="from" data-goto="bolag">från bolaget</button></label><output id="dividendBase" data-mirror="profitAfterTax" data-unit="kr"></output></div>
+            <div class="row"><label for="maxDividend">Välj maximal utdelning</label><input type="checkbox" id="maxDividend" checked></div>
+            <div class="row"><label for="grossDividends">Årsutdelning brutto</label><input type="number" id="grossDividends" step="10000" value="0" min="0" disabled inputmode="numeric"></div>
+            <details class="details">
+              <summary>Detaljer</summary>
+              <div class="row"><label for="omkostnadsbelopp">Omkostnadsbelopp</label><input type="number" step="25000" id="omkostnadsbelopp" value="25000" min="0" inputmode="numeric"></div>
+              <div class="row"><label for="savedDividends">Sparat utdelningsutrymme från tidigare</label><input type="number" id="savedDividends" step="10000" value="0" min="0" inputmode="numeric"></div>
+              <div class="row"><label for="omkostnadsbeloppInterest">Ränta på omkostnadsbelopp</label><output id="omkostnadsbeloppInterest" data-unit="kr"></output></div>
+              <div class="row"><label for="salaryBasedLimit">Lönebaserat utdelningsutrymme</label><output id="salaryBasedLimit" data-unit="kr"></output></div>
+              <div id="dividendLimitsContainer" hidden>
+                <div class="row"><label for="dividendsLimitForenklingsregeln">Utdelningsgräns förenklingsregeln</label><output id="dividendsLimitForenklingsregeln" data-unit="kr"></output></div>
+                <div class="row"><label for="dividendsLimitHuvudregeln">Utdelningsgräns huvudregeln</label><output id="dividendsLimitHuvudregeln" data-unit="kr"></output></div>
+              </div>
+              <div id="grundbeloppContainer">
+                <div class="row"><label for="grundbelopp">Grundbelopp</label><output id="grundbelopp" data-unit="kr"></output></div>
+              </div>
+              <div class="row"><label for="dividendsLimit">Utdelningsgräns</label><output id="dividendsLimit" data-unit="kr"></output></div>
+            </details>
+            <div class="result"><label for="netDividends">→ Årsutdelning netto (utbetalas nästa år)</label><output id="netDividends" data-unit="kr"></output>
+              <small>går till <button type="button" class="link-button" data-goto="person">dig</button></small></div>
+          </section>
 
-      <div class="required">
-        <label>Kommun:</label>
-        <select id="kommunSelector">
-          <!-- Options will be populated dynamically -->
-        </select>
-      </div>
-    
-      <label for="churchMember">Medlem i kyrkan:</label>
-      <input type="checkbox" id="churchMember"><br>
-
-      <div id="forsamling" class="required" hidden>
-        <label>Församling:</label>
-        <select id="forsamlingSelector" disabled>
-          <!-- Options will be populated dynamically -->
-        </select>
-      </div>
-      <label for="useMaxGrossSalary">Lön upp till brytpunkt för statlig skatt:</label>
-      <input type="checkbox" id="useMaxGrossSalary"><br>
-
-      <label for="grossSalaryMonth">Månadslön brutto:</label>
-      <input type="number" step="1000" id="grossSalaryMonth" min="0" value="55000"><br>
-
-      <label for="salaryMonths"> Månader med lön:</label>
-      <input type="number" id="salaryMonths" min="0" max="12" value="12"><br>
-
-      <label for="useSemesterersattning">Ta ut semesterersättning:</label>
-      <input type="checkbox" id="useSemesterersattning" checked><br>
-
-      <details>
-        <summary style="cursor: pointer;">
-          <span style="font-weight: bold;">Detaljer</span>
-          <span style="margin-left: 5px; font-size: 0.8em;">(klicka för att expandera)</span>
-        </summary>
-        <hr>
-        <label for="grossSemesterersattning"> Semesterersättning brutto:</label>
-        <input type="number" id="grossSemesterersattning" disabled title="Semesterdagar * 0.0043 * månadslön brutto"><br>
-
-        <label for="kommunalSkattPercent">Kommunal skatt (%):</label>
-        <input type="number" id="kommunalSkattPercent" disabled title="Bestäms av kommun och år"><br>
-      
-        <label for="churchSkattPercent"> Kyrkoavgift (%):</label>
-        <input type="number" id="churchSkattPercent" disabled title="Bestäms av församling och år"><br>
-      
-        <label for="burialSkattPercent"> Begravningsavgift (%):</label>
-        <input type="number" id="burialSkattPercent" disabled title="Bestäms av kommun och år"><br>
-
-        <label for="grossSalaryYear"> Årslön brutto:</label>
-        <input type="number" id="grossSalaryYear" disabled title="Semesterersättning brutto + månader med lön * månadslön brutto"><br>
-
-        <label for="grundavdrag"> Grundavdrag:</label>
-        <input type="number" id="grundavdrag" disabled title="Bestäms av ålder och årslön brutto"><br>
-      
-        <label for="kommunalSkatt"> Kommunal inkomstskatt:</label>
-        <input type="number" id="kommunalSkatt" disabled title="Kommunal skattesats * (årslön brutto - grundavdrag)"><br>
-
-        <label for="statligSkatt"> Statlig inkomstskatt:</label>
-        <input type="number" id="statligSkatt" disabled title="0.2 * max(0, årslön brutto - grundavdrag - skiktgräns)"><br>
-
-        <label for="churchSkatt"> Kyrkoavgift:</label>
-        <input type="number" id="churchSkatt" disabled title="Kyrkoavgift skattesats * (årslön brutto - grundavdrag)"><br>
-      
-        <label for="burialSkatt"> Begravningsavgift:</label>
-        <input type="number" id="burialSkatt" disabled title="Begravningsavgift skattesats * (årslön brutto - grundavdrag)"><br>
-      
-        <label for="publicServiceSkatt"> Public service-avgift:</label>
-        <input type="number" id="publicServiceSkatt" disabled title="Fast årlig avgift för public service"><br>
-      
-        <label for="jobbskatteavdrag"> Jobbskatteavdrag:</label>
-        <input type="number" id="jobbskatteavdrag" disabled title="Beräknas baserat på årslön brutto, kommunal skattesats och ålder"><br>
-      
-        <label for="skattereduktionForvarvsinkomst"> Skattereduktion för förvärvsinkomst:</label>
-        <input type="number" id="skattereduktionForvarvsinkomst" disabled title="min(1500, 0.0075 * (årslön brutto - grundavdrag - 40000))"><br>
-
-        <label for="incomeTax"> Total inkomstskatt:</label>
-        <input type="number" id="incomeTax" disabled title="Kommunal inkomstskatt + statlig inkomstskatt + begravningsavgift + kyrkoavgift + public service-avgift - jobbskatteavdrag - skattereduktion för förvärvsinkomst"><br>
-
-        <label for="netSalaryYear"> Årslön netto:</label>
-        <input type="number" id="netSalaryYear" disabled title="Årslön brutto - total inkomstskatt:"><br>
-
-        <label for="netSemesterersattning"> Semesterersättning netto:</label>
-        <input type="number" id="netSemesterersattning" disabled title="Semesterdagar * 0.0043 * månadslön netto"><br>
-        <hr>
-      </details>
-
-      <label for="netSalaryMonth"> Månadslön netto:</label>
-      <input type="number" id="netSalaryMonth" disabled title="(Årslön netto - semesterersättning netto) / månader med lön"><br>
-
-      <label for="incomeTaxPercentage"> Total inkomstskatt (%):</label>
-      <input type="number" id="incomeTaxPercentage" disabled title="Total inkomstskatt / årslön brutto"><br>
-
-    </div>
-
-    <h2>Resultat</h2>
-    <div>
-      <label for="usePension">Ta ut tjänstepension:</label>
-      <input type="checkbox" id="usePension" checked="true"><br>
-
-      <label for="otherCosts"> Övriga kostnader exkl. moms:</label>
-      <input type="number" step="10000" min="0" id="otherCosts" value="20000"><br>
-
-      <details>
-        <summary style="cursor: pointer;">
-          <span style="font-weight: bold;">Detaljer</span>
-          <span style="margin-left: 5px; font-size: 0.8em;">(klicka för att expandera)</span>
-        </summary>
-        <hr>
-        <label for="pension"> Tjänstepension:</label>
-        <input type="number" id="pension" disabled title="0.047 * Årslön brutto" ><br>
-      
-        <label for="insurance"> Trygghetsförsäkring vid arbetsskada:</label>
-        <input type="number" id="insurance" disabled title="verksamt.se räknar med 0.003 * årslön brutto men fora tar fast avgift" ><br>
-      
-        <label for="slp"> Särskild löneskatt SLP:</label>
-        <input type="number" id="slp" disabled  title="0.2426 * (tjänstepension + trygghetsförsäkring)"><br>
-      
-        <label for="arbetsgivaravgift"> Arbetsgivaravgift:</label>
-        <input type="number" id="arbetsgivaravgift" disabled title="0.3142 * årslön brutto">
-        <hr>
-      </details>
-
-      <label for="totalCost"> Totalkostnad:</label>
-      <input type="number" id="totalCost" disabled title="Övriga kostnader + årslön brutto + tjänstepension + trygghetsförsäkring + SLP + arbetsgivaravgift + semesterersättning"><br>
-
-      <label for="profitBeforeTax"> Resultat före skatt:</label>
-      <input type="number" id="profitBeforeTax" disabled title="Fakturerat belopp + övriga intäkter - totalkostnad"><br>
-
-      <label for="profitAfterTax"> Resultat efter skatt:</label>
-      <input type="number" id="profitAfterTax" disabled title="Resultat före skatt * (1 - 0.206)"><br>
-    
-    </div>
-
-    <h2>Utdelning</h2>
-    <div>
-      <details>
-        <summary style="cursor: pointer;">
-          <span style="font-weight: bold;">Detaljer</span>
-          <span style="margin-left: 5px; font-size: 0.8em;">(klicka för att expandera)</span>
-        </summary>
-        <hr>
-        <label for="omkostnadsbelopp"> Omkostnadsbelopp:</label>
-        <input type="number" step="25000" id="omkostnadsbelopp" value="25000" min="0"><br>
-
-        <label for="omkostnadsbeloppInterest"> Ränta på omkostnadsbelopp:</label>
-        <input type="number" id="omkostnadsbeloppInterest" disabled><br>
-
-        <label for="salaryBasedLimit"> Lönebaserat utdelningsutrymme:</label>
-        <input type="number" id="salaryBasedLimit" disabled><br>
-
-        <div id="dividendLimitsContainer" hidden>
-          <label for="dividendsLimitForenklingsregeln"> Utdelningsgräns förenklingsregeln:</label>
-          <input type="number" id="dividendsLimitForenklingsregeln" disabled title="ägarandel * 2.75 * föregående års inkomstbasbelopp"><br>
-
-          <label for="dividendsLimitHuvudregeln"> Utdelningsgräns huvudregeln:</label>
-          <input type="number" id="dividendsLimitHuvudregeln" disabled title="Klyvningsränta * omkostnadsbelopp + ifall kan använda lönebaserad utdelning: min(ägarandel * 0.5 * total bruttolön alla anställda, 50 * årslön brutto)"><br>
+          <!-- Du ------------------------------------------------------------- -->
+          <section class="card part" data-part="person" aria-labelledby="h-person">
+            <h2 id="h-person">Du <span class="badge person">Person</span></h2>
+            <p class="kind">Räknare: Privat skatt och sammanfattning</p>
+            <div class="row required"><label for="yearBorn">Födelseår</label><input type="number" id="yearBorn" min="1900" placeholder="ÅÅÅÅ" inputmode="numeric"></div>
+            <div class="row required"><label for="kommunSelector">Kommun</label><select id="kommunSelector"></select></div>
+            <div class="row"><label for="churchMember">Medlem i Svenska kyrkan</label><input type="checkbox" id="churchMember"></div>
+            <div class="row required" id="forsamling" hidden><label for="forsamlingSelector">Församling</label><select id="forsamlingSelector" disabled></select></div>
+            <div class="group-title">Inkomster</div>
+            <div class="row"><label for="personSalary">Lön <button type="button" class="from" data-goto="lon">från Lön</button></label><output id="personSalary" data-mirror="grossSalaryYear" data-unit="kr"></output></div>
+            <div class="row"><label for="personDividend">Utdelning <button type="button" class="from" data-goto="utdelning">från Utdelning</button></label><output id="personDividend" data-mirror="grossDividends" data-unit="kr"></output></div>
+            <details class="details">
+              <summary>Detaljer: privat skatt</summary>
+              <div class="row"><label for="kommunalSkattPercent">Kommunal skatt (%)</label><output id="kommunalSkattPercent" data-unit="%" data-decimals="raw"></output></div>
+              <div class="row"><label for="burialSkattPercent">Begravningsavgift (%)</label><output id="burialSkattPercent" data-unit="%" data-decimals="raw"></output></div>
+              <div class="row"><label for="churchSkattPercent">Kyrkoavgift (%)</label><output id="churchSkattPercent" data-unit="%" data-decimals="raw"></output></div>
+              <div class="row"><label for="grundavdrag">Grundavdrag</label><output id="grundavdrag" data-unit="kr"></output></div>
+              <div class="row"><label for="kommunalSkatt">Kommunal inkomstskatt</label><output id="kommunalSkatt" data-unit="kr"></output></div>
+              <div class="row"><label for="statligSkatt">Statlig inkomstskatt</label><output id="statligSkatt" data-unit="kr"></output></div>
+              <div class="row"><label for="churchSkatt">Kyrkoavgift</label><output id="churchSkatt" data-unit="kr"></output></div>
+              <div class="row"><label for="burialSkatt">Begravningsavgift</label><output id="burialSkatt" data-unit="kr"></output></div>
+              <div class="row"><label for="publicServiceSkatt">Public service-avgift</label><output id="publicServiceSkatt" data-unit="kr"></output></div>
+              <div class="row"><label for="jobbskatteavdrag">Jobbskatteavdrag</label><output id="jobbskatteavdrag" data-unit="kr"></output></div>
+              <div class="row"><label for="skattereduktionForvarvsinkomst">Skattereduktion för förvärvsinkomst</label><output id="skattereduktionForvarvsinkomst" data-unit="kr"></output></div>
+              <div class="row"><label for="incomeTax">Total inkomstskatt</label><output id="incomeTax" data-unit="kr"></output></div>
+              <div class="row"><label for="incomeTaxPercentage">Total inkomstskatt (%)</label><output id="incomeTaxPercentage" data-unit="%"></output></div>
+              <div class="row"><label for="netSalaryYear">Årslön netto</label><output id="netSalaryYear" data-unit="kr"></output></div>
+              <div class="row"><label for="netSemesterersattning">Semesterersättning netto</label><output id="netSemesterersattning" data-unit="kr"></output></div>
+            </details>
+            <div class="group-title">Vad du får ut</div>
+            <div class="row"><label for="netSalaryMonth">Månadslön netto</label><output id="netSalaryMonth" data-unit="kr"></output></div>
+            <div class="row"><label for="personNetDividend">Årsutdelning netto</label><output id="personNetDividend" data-mirror="netDividends" data-unit="kr"></output></div>
+            <div class="result"><label for="netSumMonth">→ Månadssumma (lön + utdelning) netto</label><output id="netSumMonth" data-unit="kr"></output></div>
+            <details class="details">
+              <summary>Detaljer: total skatt</summary>
+              <div class="row"><label for="totalTax">Total skatt*</label><output id="totalTax" data-unit="kr"></output></div>
+              <div class="row"><label for="totalTaxPercentage">Total skatt* (%)</label><output id="totalTaxPercentage" data-unit="%"></output></div>
+              <div class="row"><label for="bolagsTaxExclDividends">Bolagsskatt på ej utdelad vinst</label><output id="bolagsTaxExclDividends" data-unit="kr"></output></div>
+              <p class="muted small">* exklusive bolagsskatt på vinst som blir kvar i bolaget.</p>
+            </details>
+          </section>
         </div>
 
-        <div id="grundbeloppContainer">
-          <label for="grundbelopp"> Grundbelopp:</label>
-          <input type="number" id="grundbelopp" disabled title="ägarandel / min(1, total ägarandel i alla bolag) * 4 * föregående års inkomstbasbelopp"><br>
+        <div class="charts">
+          <section class="card chart-card" aria-labelledby="h-sankey">
+            <h2 id="h-sankey">Vart pengarna tar vägen</h2>
+            <div id="sankeyDiagram" class="chart-container"></div>
+          </section>
+          <section class="card chart-card" aria-labelledby="h-sum">
+            <h2 id="h-sum">Lön eller utdelning?</h2>
+            <p class="muted small">Vad du får ut vid olika månadslön, med maximal utdelning. Stjärnan visar högst summa netto.</p>
+            <div class="chart-container"><canvas id="myChart"></canvas></div>
+          </section>
+          <section class="card chart-card" aria-labelledby="h-pct">
+            <h2 id="h-pct">Skatt i procent</h2>
+            <div class="chart-container"><canvas id="percentageChart"></canvas></div>
+          </section>
         </div>
+      </div>
 
-        <label for="savedDividends"> Sparat utdelningsutrymme från tidigare:</label>
-        <input type="number" id="savedDividends" step="10000" value="0" min="0"><br>
-        
-        <label for="dividendsLimit"> Utdelningsgräns:</label>
-        <input type="number" id="dividendsLimit" disabled title="max(förenklingsregeln, huvudregeln) + sparat utdelningsutrymme"><br>
-
-        <label for="maxDividend">Välj maximal utdelning:</label>
-        <input type="checkbox" id="maxDividend" checked="true"><br>
-
-        <label for="grossDividends">Årsutdelning brutto:</label>
-        <input type="number" id="grossDividends" step="10000" value="0" min="0" disabled title="min(Utdelningsgräns, resultat efter skatt)">
-        <hr>
-      </details>
-      
-      <label for="netDividends"> Årsutdelning netto (Utdelas nästa år):</label>
-      <input type="number" id="netDividends" disabled title="Årsutdelning brutto * 0.8"><br>
-
-      <label for="profitAfterDividends"> Årets resultat efter utdelning:</label>
-      <input type="number" id="profitAfterDividends" disabled title="Resultat efter skatt - årsutdelning brutto"><br>
+      <section class="card data-card" id="dataSection" aria-labelledby="h-data">
+        <h2 id="h-data">Spara, jämför och exportera</h2>
+        <details id="scenarioDetails" class="details">
+          <summary>Jämför scenarier</summary>
+          <div class="row"><label for="scenarioName">Spara det du har fyllt i som</label>
+            <span class="inline"><input type="text" id="scenarioName" maxlength="80" placeholder="t.ex. 850 kr/h"><button type="button" id="saveScenario" class="button">Spara</button></span></div>
+          <p id="scenarioEmpty" class="muted">Inga sparade scenarier ännu. Spara ett, ändra något och jämför.</p>
+          <div class="table-scroll"><table id="scenarioTable" hidden></table></div>
+        </details>
+        <div class="buttons">
+          <button type="button" id="exportCsv" class="button">Exportera till Excel (CSV)</button>
+          <button type="button" id="exportJson" class="button">Exportera mina uppgifter</button>
+          <button type="button" id="importJson" class="button">Importera från fil</button>
+          <input type="file" id="importFile" accept=".json,application/json" hidden>
+        </div>
+        <p id="dataNotice" role="status" class="muted"></p>
+      </section>
     </div>
 
-    <h2>Slutsatser</h2>
-    <div>
-      <label for="netSumMonth"> Månadssumma (lön + utdelning) netto:</label>
-      <input type="number" id="netSumMonth" disabled title="Månadslön netto + årsutdelning netto / månader med lön"><br>
-  
-      <label for="totalTax"> Total skatt*:</label>
-      <input type="number" id="totalTax" disabled title="Total inkomstskatt + SLP + arbetsgivaravgift + årsutdelning brutto * 0.206 / (1- 0.206) + utdelningsskatt"><br>
+    <!-- ===================================================================== -->
+    <!-- Quick calculators                                                       -->
+    <!-- ===================================================================== -->
+    <div id="quickMode" hidden>
+      <p class="muted">Räkna på en sak i taget, utan att fylla i allt. Varje snabbräknare använder samma beräkningar som strukturen.</p>
+      <div class="quick-grid" role="group" aria-label="Snabbräknare">
+        <button type="button" data-quick="privat" aria-pressed="true"><b>Privat skatt</b><small>Skatt och nettolön på en årsinkomst</small></button>
+        <button type="button" data-quick="faktura" aria-pressed="false"><b>Fakturerat belopp</b><small>Timpris × timmar med röda dagar</small></button>
+        <button type="button" data-quick="grans" aria-pressed="false"><b>Utdelningsgräns</b><small>3:12 för ett bolag du äger</small></button>
+        <button type="button" data-quick="kostnad" aria-pressed="false"><b>Lön ↔ bolagskostnad</b><small>Vad en lön kostar bolaget</small></button>
+        <button type="button" data-quick="motsv" aria-pressed="false"><b>Motsvarande anställning</b><small>Lönen att jämföra ett jobberbjudande med</small></button>
+      </div>
 
-      <label for="bolagsTaxExclDividends"> Bolagskatt på ej utdelad vinst:</label>
-      <input type="number" id="bolagsTaxExclDividends" disabled title=" Årets resultat efter utdelning * 0.206 / (1- 0.206)"><br>
+      <section class="card quick-card" data-quick-card="privat" aria-labelledby="hq-privat">
+        <h2 id="hq-privat">Privat skatt <span class="badge person">Snabbräknare</span></h2>
+        <p class="kind">Skatt och nettolön på en årsinkomst från anställning. Stämmer på kronan mot Skatteverkets beräkning 2020–2026.</p>
+        <div class="row"><label for="qp-year">Inkomstår</label><input type="number" id="qp-year" data-q value="2026" inputmode="numeric"></div>
+        <div class="row"><label for="qp-yearBorn">Födelseår</label><input type="number" id="qp-yearBorn" data-q value="1985" inputmode="numeric"></div>
+        <div class="row"><label for="qp-kommun">Kommun</label><select id="qp-kommun" data-q data-kommun-select></select></div>
+        <div class="row"><label for="qp-church">Kyrkoavgift (%)</label><input type="number" id="qp-church" data-q value="0" step="0.01" min="0" inputmode="decimal"></div>
+        <div class="row"><label for="qp-income">Årsinkomst brutto</label><input type="number" id="qp-income" data-q value="660000" step="10000" min="0" inputmode="numeric"></div>
+        <details class="details"><summary>Detaljer</summary>
+          <div class="row"><label for="qp-grundavdrag">Grundavdrag</label><output id="qp-grundavdrag" data-unit="kr"></output></div>
+          <div class="row"><label for="qp-kommunalSkatt">Kommunal inkomstskatt</label><output id="qp-kommunalSkatt" data-unit="kr"></output></div>
+          <div class="row"><label for="qp-statligSkatt">Statlig inkomstskatt</label><output id="qp-statligSkatt" data-unit="kr"></output></div>
+          <div class="row"><label for="qp-allmanPensionsAvgift">Allmän pensionsavgift</label><output id="qp-allmanPensionsAvgift" data-unit="kr"></output></div>
+          <div class="row"><label for="qp-jobbskatteavdrag">Jobbskatteavdrag</label><output id="qp-jobbskatteavdrag" data-unit="kr"></output></div>
+          <div class="row"><label for="qp-publicServiceSkatt">Public service-avgift</label><output id="qp-publicServiceSkatt" data-unit="kr"></output></div>
+        </details>
+        <div class="row"><label for="qp-incomeTax">Skatt per år</label><output id="qp-incomeTax" data-unit="kr"></output></div>
+        <div class="result"><label for="qp-netMonth">→ Nettolön per månad</label><output id="qp-netMonth" data-unit="kr"></output></div>
+        <button type="button" class="button primary" data-connect="privat">Koppla in i min struktur</button>
+        <p class="muted small">Tar med inkomstår, födelseår, kommun och lön (årsinkomsten / 12) till strukturen.</p>
+      </section>
 
-      <label for="totalTaxPercentage"> Total skatt* (%):</label>
-      <input type="number" id="totalTaxPercentage" disabled title="Total skatt / (fakturerat belopp + övriga intäkter)"><br>
+      <section class="card quick-card" data-quick-card="faktura" hidden aria-labelledby="hq-faktura">
+        <h2 id="hq-faktura">Fakturerat belopp <span class="badge source">Snabbräknare</span></h2>
+        <p class="kind">Arbetsdagar med svenska röda dagar, julafton, midsommarafton och nyårsafton.</p>
+        <div class="row"><label for="qf-rate">Timpris exkl. moms</label><input type="number" id="qf-rate" data-q value="850" step="10" min="0" inputmode="numeric"></div>
+        <div class="row"><label for="qf-start">Start</label><input type="date" id="qf-start" data-q value="2026-01-01"></div>
+        <div class="row"><label for="qf-end">Slut</label><input type="date" id="qf-end" data-q value="2026-12-31"></div>
+        <div class="row"><label for="qf-vacation">Semesterdagar</label><input type="number" id="qf-vacation" data-q value="25" min="0" inputmode="numeric"></div>
+        <div class="row"><label for="qf-working">Arbetstakt (%)</label><input type="number" id="qf-working" data-q value="100" step="25" min="0" max="100" inputmode="numeric"></div>
+        <div class="row"><label for="qf-hours">Fakturerbara timmar</label><output id="qf-hours" data-unit=""></output></div>
+        <div class="result"><label for="qf-amount">→ Fakturerat belopp</label><output id="qf-amount" data-unit="kr"></output></div>
+        <button type="button" class="button primary" data-connect="faktura">Koppla in i min struktur</button>
+        <p class="muted small">Tar med timpris, period, semesterdagar och arbetstakt till Uppdrag i strukturen.</p>
+      </section>
+
+      <section class="card quick-card" data-quick-card="grans" hidden aria-labelledby="hq-grans">
+        <h2 id="hq-grans">Utdelningsgräns (3:12) <span class="badge bolag">Snabbräknare</span></h2>
+        <p class="kind">För ett fåmansföretag där du är verksam.</p>
+        <div class="row"><label for="qg-year">Inkomstår</label><input type="number" id="qg-year" data-q value="2026" inputmode="numeric"></div>
+        <div class="row"><label for="qg-ownership">Din ägarandel (%)</label><input type="number" id="qg-ownership" data-q value="100" min="1" max="100" inputmode="numeric"></div>
+        <div class="row"><label for="qg-ownSalary">Din lön från bolaget per år</label><input type="number" id="qg-ownSalary" data-q value="665912" step="10000" min="0" inputmode="numeric"></div>
+        <div class="row"><label for="qg-totalSalary">Alla löner i bolaget per år</label><input type="number" id="qg-totalSalary" data-q value="665912" step="10000" min="0" inputmode="numeric"></div>
+        <div class="row"><label for="qg-omkostnadsbelopp">Omkostnadsbelopp</label><input type="number" id="qg-omkostnadsbelopp" data-q value="25000" step="25000" min="0" inputmode="numeric"></div>
+        <div class="row"><label for="qg-saved">Sparat utdelningsutrymme</label><input type="number" id="qg-saved" data-q value="0" step="10000" min="0" inputmode="numeric"></div>
+        <details class="details"><summary>Detaljer</summary>
+          <div class="row"><label for="qg-grundbelopp">Grundbelopp</label><output id="qg-grundbelopp" data-unit="kr"></output></div>
+          <div class="row"><label for="qg-forenklingsregeln">Förenklingsregeln</label><output id="qg-forenklingsregeln" data-unit="kr"></output></div>
+          <div class="row"><label for="qg-salaryBasedLimit">Lönebaserat utrymme</label><output id="qg-salaryBasedLimit" data-unit="kr"></output></div>
+          <div class="row"><label for="qg-omkostnadsbeloppInterest">Ränta på omkostnadsbelopp</label><output id="qg-omkostnadsbeloppInterest" data-unit="kr"></output></div>
+        </details>
+        <div class="result"><label for="qg-limit">→ Utdelningsgräns</label><output id="qg-limit" data-unit="kr"></output></div>
+        <p class="muted small">Utdelning upp till gränsen beskattas med 20 %.</p>
+        <button type="button" class="button primary" data-connect="grans">Koppla in i min struktur</button>
+        <p class="muted small">Tar med inkomstår, omkostnadsbelopp och sparat utrymme. Strukturen räknar i dag med att du äger hela bolaget.</p>
+      </section>
+
+      <section class="card quick-card" data-quick-card="kostnad" hidden aria-labelledby="hq-kostnad">
+        <h2 id="hq-kostnad">Lön ↔ bolagskostnad <span class="badge bolag">Snabbräknare</span></h2>
+        <p class="kind">Vad en månadslön kostar bolaget.</p>
+        <div class="row"><label for="qk-salary">Månadslön brutto</label><input type="number" id="qk-salary" data-q value="55000" step="1000" min="0" inputmode="numeric"></div>
+        <div class="row"><label for="qk-pension">Tjänstepension (4,7 % av lönen)</label><input type="checkbox" id="qk-pension" data-q checked></div>
+        <div class="row"><label for="qk-agavg">Arbetsgivaravgift (31,42 %)</label><output id="qk-agavg" data-unit="kr"></output></div>
+        <div class="row"><label for="qk-pensionAmount">Tjänstepension</label><output id="qk-pensionAmount" data-unit="kr"></output></div>
+        <div class="row"><label for="qk-slp">Särskild löneskatt på pension (24,26 %)</label><output id="qk-slp" data-unit="kr"></output></div>
+        <div class="result"><label for="qk-total">→ Kostnad för bolaget per månad</label><output id="qk-total" data-unit="kr"></output></div>
+        <button type="button" class="button primary" data-connect="kostnad">Koppla in i min struktur</button>
+        <p class="muted small">Tar med månadslön och tjänstepension till Lön i strukturen.</p>
+      </section>
+
+      <section class="card quick-card" data-quick-card="motsv" hidden aria-labelledby="hq-motsv">
+        <h2 id="hq-motsv">Motsvarande anställning <span class="badge person">Snabbräknare</span></h2>
+        <p class="kind">Vilken bruttolön som anställd ger samma netto per månad? Siffran att slå vid ett jobberbjudande, eller tvärtom.</p>
+        <div class="row"><label for="qm-net">Netto per månad att matcha</label><input type="number" id="qm-net" data-q value="60000" step="1000" min="0" inputmode="numeric"></div>
+        <div class="row-actions"><button type="button" class="link-button" id="qm-fromStructure">Hämta från min struktur</button></div>
+        <div class="row"><label for="qm-year">Inkomstår</label><input type="number" id="qm-year" data-q value="2026" inputmode="numeric"></div>
+        <div class="row"><label for="qm-yearBorn">Födelseår</label><input type="number" id="qm-yearBorn" data-q value="1985" inputmode="numeric"></div>
+        <div class="row"><label for="qm-kommun">Kommun</label><select id="qm-kommun" data-q data-kommun-select></select></div>
+        <div class="result"><label for="qm-gross">→ Motsvarande månadslön brutto som anställd</label><output id="qm-gross" data-unit="kr"></output></div>
+        <p class="muted small">Jämför också tjänstepension, semester, sjuklön och förmåner. Som egen bestämmer du själv pensionen; i strukturen ingår den inte i nettot.</p>
+      </section>
     </div>
 
-    <p>* exklusive bolagskatt på ej utdelad vinst.</p>
+    <!-- ===================================================================== -->
+    <!-- About                                                                   -->
+    <!-- ===================================================================== -->
+    <section id="about" class="about" aria-labelledby="h-about">
+      <h2 id="h-about">Om kalkylatorn</h2>
+      <div class="about-grid">
+        <div class="card"><h3>Gratis och öppen</h3><p>Byggd av <a href="https://github.com/mikaeltulldahl" rel="noopener">Mikael Tulldahl</a>, egenföretagande konsult, av ren välvilja. Ingen reklam, inga konton och inget att sälja. Koden är <a href="https://github.com/mikaeltulldahl/ConsultingBudgetCalculator" rel="noopener">öppen på GitHub</a>, så vem som helst kan se exakt hur allt räknas.</p></div>
+        <div class="card"><h3>Dina uppgifter stannar hos dig</h3><p>Allt räknas i din webbläsare och det du fyller i sparas bara där. Vi räknar bara antalet besök, utan cookies och utan att spara något som kan kopplas till dig.</p></div>
+        <div class="card"><h3>Kontrollerad mot Skatteverket</h3><p>Inkomstskatten stämmer på kronan mot Skatteverkets egen beräkning i 814 testfall för 2020–2026. Hittar du ändå ett fel? <a href="https://github.com/mikaeltulldahl/ConsultingBudgetCalculator/issues" rel="noopener">Skapa ett ärende på GitHub</a>.</p></div>
+      </div>
+      <p class="muted small">Observera: beräkningen är en uppskattning och förutsätter ett aktiebolag där du äger alla aktier och är enda anställd. Vi tar inte ansvar för några misstag eller fel.</p>
+    </section>
+  </main>
 
-    <h2>Spara, jämför och exportera</h2>
-    <div id="dataSection">
-      <details id="scenarioDetails">
-        <summary style="cursor: pointer;">
-          <span style="font-weight: bold;">Jämför scenarier</span>
-          <span style="margin-left: 5px; font-size: 0.8em;">(klicka för att expandera)</span>
-        </summary>
-        <hr>
-        <label for="scenarioName">Spara det du har fyllt i som:</label>
-        <input type="text" id="scenarioName" maxlength="80" placeholder="t.ex. 850 kr/h">
-        <button type="button" id="saveScenario">Spara scenario</button>
-        <p id="scenarioEmpty">Inga sparade scenarier ännu. Spara ett, ändra något och jämför.</p>
-        <div class="table-scroll"><table id="scenarioTable" hidden></table></div>
-        <hr>
-      </details>
-      <button type="button" id="exportCsv" title="Alla fält och beräknade värden med förklaringar, för Excel">Exportera till Excel (CSV)</button>
-      <button type="button" id="exportJson" title="Spara det du har fyllt i och dina scenarier i en fil">Exportera mina uppgifter</button>
-      <button type="button" id="importJson" title="Läs in en fil som du har exporterat tidigare">Importera från fil</button>
-      <input type="file" id="importFile" accept=".json,application/json" hidden>
-      <p id="dataNotice" role="status"></p>
-    </div>
-
-  </div><br>
+  <div id="popover" class="popover" role="dialog" aria-modal="false" hidden></div>
 
   <script src="https://cdn.amcharts.com/lib/version/5.21.5/index.js"></script>
   <script src="https://cdn.amcharts.com/lib/version/5.21.5/flow.js"></script>
   <script src="https://cdn.amcharts.com/lib/version/5.21.5/themes/Animated.js"></script>
-  <div id="sankeyDiagram" class="chart-container"></div>
-  <br>
-
-  <div class="chart-container">
-    <canvas id="myChart"></canvas>
-  </div>
-  <br>
-
-  <div class="chart-container">
-    <canvas id="percentageChart"></canvas>
-  </div>
-
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.6.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-crosshair@2.0.0/dist/chartjs-plugin-crosshair.min.js"></script>
-
-  <footer>
-    <small>
-      <div class="disclaimer">
-        <p>Om du hittar något fel, vänligen <a href="https://github.com/mikaeltulldahl/ConsultingBudgetCalculator/issues" target="_blank" rel="noopener noreferrer" style="color: #fff;">skapa ett ärende på Github</a></p>
-        <p>Observera: Vi tar inte ansvar för några misstag eller fel.</p>
-
-    </div>
-    </small>
-  </footer>
-
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

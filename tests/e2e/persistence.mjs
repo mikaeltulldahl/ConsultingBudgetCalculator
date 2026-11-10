@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 const root = new URL('../../', import.meta.url);
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png' };
 
 const server = createServer(async (req, res) => {
   try {
@@ -36,8 +36,12 @@ const snapshot = (page) => page.evaluate((ids) => Object.fromEntries(ids.map((id
   const el = document.getElementById(id);
   if (el.type === 'checkbox') return [id, el.checked];
   if (el.tagName === 'SELECT') return [id, el.selectedOptions[0]?.text ?? ''];
+  if (el.tagName === 'OUTPUT') return [id, el.dataset.value ?? ''];
   return [id, el.value];
 })), FIELDS);
+
+// Shows a part of the structure (its card) by clicking it in the map or the phone flow.
+const goto = (p, part) => p.locator(`[data-goto="${part}"] >> visible=true`).first().click();
 
 const settle = (page) => page.waitForTimeout(1500);
 const errors = [];
@@ -57,17 +61,20 @@ try {
   await page.goto(URL_, { waitUntil: 'networkidle' });
 
   // Fill in a scenario, including church membership and a manual billable-hours value.
+  await goto(page, 'person');
   await page.fill('#yearBorn', '1985');
   await page.dispatchEvent('#yearBorn', 'input');
   await page.selectOption('#kommunSelector', { label: 'STOCKHOLM' });
   await page.check('#churchMember');
   await page.waitForFunction(() => document.querySelector('#forsamlingSelector').options.length > 1, null, { timeout: 20000 });
   await page.selectOption('#forsamlingSelector', { label: 'ADOLF FREDRIKS FÖRSAMLING' });
+  await goto(page, 'uppdrag');
   await page.fill('#hourlyRate', '850');
   await page.dispatchEvent('#hourlyRate', 'input');
   await page.click('details:has(#billableHours) summary');
   await page.fill('#billableHours', '1500');
   await page.dispatchEvent('#billableHours', 'input');
+  await goto(page, 'lon');
   await page.uncheck('#usePension');
   await settle(page);
   const filled = await snapshot(page);
@@ -109,7 +116,7 @@ try {
     assert.equal(find('Timpris exkl. moms')[2], '850');
     assert.equal(find('Kommun')[2], 'STOCKHOLM');
     assert.equal(find('Kommunal skatt (%)')[2], '30,55');
-    assert.equal(find('Medlem i kyrkan')[2], 'Ja');
+    assert.equal(find('Medlem i Svenska kyrkan')[2], 'Ja');
     assert.ok(rows.length > 50, `${rows.length} rows`);
   });
 
@@ -117,6 +124,7 @@ try {
     await page.click('#scenarioDetails summary');
     await page.fill('#scenarioName', 'Högt pris');
     await page.click('#saveScenario');
+    await goto(page, 'uppdrag');
     await page.fill('#hourlyRate', '600');
     await page.dispatchEvent('#hourlyRate', 'input');
     await settle(page);
@@ -139,6 +147,71 @@ try {
     await page.reload({ waitUntil: 'networkidle' });
     await settle(page);
     assert.equal(await page.$$eval('#scenarioTable thead th', (ths) => ths.length), 4);
+  });
+
+  await step('the company can use its own invoiced amount', async () => {
+    await goto(page, 'bolag');
+    await page.click('#toggleManualInvoiced');
+    await page.fill('#manualInvoicedAmount', '1000000');
+    await page.dispatchEvent('#manualInvoicedAmount', 'input');
+    await settle(page);
+    assert.equal(await page.getAttribute('#usedInvoicedAmount', 'data-value'), '1000000');
+    assert.equal((await page.textContent('#sumInvoiced')).replace(/\s/g, ' '), '1 000 000 kr');
+    await page.click('#toggleManualInvoiced');
+    await settle(page);
+    assert.equal(await page.getAttribute('#usedInvoicedAmount', 'data-value'), filled.invoicedAmount);
+  });
+
+  await step('explanation popover opens with a source link', async () => {
+    await goto(page, 'person');
+    await page.click('#details-tax-summary, details:has(#grundavdrag) > summary');
+    await page.click('label[for="grundavdrag"] .info');
+    assert.ok(await page.isVisible('#popover'));
+    assert.match(await page.textContent('#popover'), /Grundavdrag/);
+    assert.match(await page.getAttribute('#popover a', 'href'), /lagen\.nu\/1999:1229#K63P3/);
+    await page.keyboard.press('Escape');
+    assert.ok(!(await page.isVisible('#popover')));
+  });
+
+  await step('quick calculator matches Skatteverket and connects to the structure', async () => {
+    await page.click('[data-mode="quick"]');
+    await page.waitForTimeout(500);
+    await page.selectOption('#qp-kommun', 'STOCKHOLM');
+    await page.fill('#qp-income', '660000');
+    await page.dispatchEvent('#qp-income', 'input');
+    await page.waitForTimeout(500);
+    // Skatteverket's calculator: 147 018 kr for 660 000 kr, born 1985, Stockholm, 2026.
+    assert.equal(await page.getAttribute('#qp-incomeTax', 'data-value'), '147018');
+    await page.click('[data-quick="motsv"]');
+    await page.click('#qm-fromStructure');
+    await page.waitForTimeout(300);
+    assert.ok(Number(await page.getAttribute('#qm-gross', 'data-value')) > 0);
+    await page.click('[data-quick="privat"]');
+    await page.click('[data-connect="privat"]');
+    await settle(page);
+    assert.ok(await page.isVisible('#structureMode'));
+    assert.equal(await page.inputValue('#grossSalaryMonth'), '55000');
+    assert.equal(await page.inputValue('#yearBorn'), '1985');
+    // Back to the saved high-price scenario for the next steps.
+    await page.evaluate(() => { document.getElementById('scenarioDetails').open = true; });
+    await page.click('#scenarioTable thead th:nth-child(3) button:has-text("Ladda")');
+    await settle(page);
+  });
+
+  await step('phone layout: flow list, no horizontal scroll, dark mode without errors', async () => {
+    const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, colorScheme: 'dark' });
+    const p = await phone.newPage();
+    const phoneErrors = [];
+    p.on('pageerror', (e) => phoneErrors.push(e.message));
+    await p.goto(URL_, { waitUntil: 'networkidle' });
+    assert.ok(await p.isVisible('#structureTree .flow-list'));
+    assert.ok(!(await p.isVisible('#structureMap svg')));
+    await goto(p, 'utdelning');
+    assert.ok(await p.isVisible('.part[data-part="utdelning"]'));
+    const { docW, vw } = await p.evaluate(() => ({ docW: document.documentElement.scrollWidth, vw: innerWidth }));
+    assert.ok(docW <= vw, `page is ${docW}px wide on a ${vw}px screen`);
+    assert.deepEqual(phoneErrors, []);
+    await phone.close();
   });
 
   await step('scenario table does not widen the page on a phone', async () => {
@@ -168,11 +241,12 @@ try {
     const blockedErrors = [];
     p.on('pageerror', (e) => blockedErrors.push(e.message));
     await p.goto(URL_, { waitUntil: 'networkidle' });
+    await goto(p, 'person');
     await p.fill('#yearBorn', '1985');
     await p.dispatchEvent('#yearBorn', 'input');
     await p.selectOption('#kommunSelector', { label: 'STOCKHOLM' });
     await settle(p);
-    assert.notEqual(await p.inputValue('#netSumMonth'), '');
+    assert.notEqual(await p.getAttribute('#netSumMonth', 'data-value'), '');
     assert.deepEqual(blockedErrors, []);
     await blocked.close();
   });

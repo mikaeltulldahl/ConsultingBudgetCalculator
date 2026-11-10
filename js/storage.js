@@ -29,3 +29,30 @@ export function clearStored() {
     // nothing to clear
   }
 }
+
+// Small page preferences (selected part, mode, closed help box), separate from the data.
+const PREFS_KEY = 'consultingBudgetCalculator.ui';
+
+export function loadPrefs() {
+  try {
+    return JSON.parse(localStorage.getItem(PREFS_KEY)) ?? {};
+  } catch {
+    return {};
+  }
+}
+
+export function savePrefs(prefs) {
+  try {
+    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    // not remembered
+  }
+}
+
+export function clearPrefs() {
+  try {
+    localStorage.removeItem(PREFS_KEY);
+  } catch {
+    // nothing to clear
+  }
+}
