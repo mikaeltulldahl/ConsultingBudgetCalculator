@@ -103,12 +103,19 @@ export function initQuick(ctx) {
     if (kind) calculators[kind]();
   });
 
-  function show(kind) {
-    for (const b of document.querySelectorAll('[data-quick]')) b.setAttribute('aria-pressed', b.dataset.quick === kind);
-    for (const c of document.querySelectorAll('[data-quick-card]')) c.hidden = c.dataset.quickCard !== kind;
-    calculators[kind]();
+  // Accordion: each calculator opens right under its button; one open at a time.
+  function toggle(kind) {
+    const button = document.querySelector(`[data-quick="${kind}"]`);
+    const open = button.getAttribute('aria-expanded') !== 'true';
+    for (const b of document.querySelectorAll('[data-quick]')) b.setAttribute('aria-expanded', open && b === button);
+    for (const c of document.querySelectorAll('[data-quick-card]')) c.hidden = !(open && c.dataset.quickCard === kind);
+    if (open) {
+      calculators[kind]();
+      // Closing a calculator above can move this one up; keep its button in view.
+      button.scrollIntoView({ block: 'nearest' });
+    }
   }
-  for (const b of document.querySelectorAll('[data-quick]')) b.addEventListener('click', () => show(b.dataset.quick));
+  for (const b of document.querySelectorAll('[data-quick]')) b.addEventListener('click', () => toggle(b.dataset.quick));
 
   const values = {
     privat: () => ({ year: num('qp-year'), yearBorn: num('qp-yearBorn'), kommun: $('qp-kommun').value, income: num('qp-income') }),
@@ -131,8 +138,8 @@ export function initQuick(ctx) {
   return {
     refresh() {
       fillKommunSelects();
-      const active = document.querySelector('[data-quick][aria-pressed="true"]')?.dataset.quick ?? 'privat';
-      calculators[active]();
+      const active = document.querySelector('[data-quick][aria-expanded="true"]')?.dataset.quick;
+      if (active) calculators[active]();
     },
   };
 }

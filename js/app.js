@@ -825,13 +825,24 @@ function renderStructure() {
   $('structureTree').innerHTML = renderFlowList(structure, prefs.part);
 }
 
+// Scrolls so the card's heading is just below anything that stays on top of the screen
+// (the summary bar on tablets), and only if the heading is not already in view.
+function scrollToCard(card) {
+  const summary = document.querySelector('.summary');
+  const coveredTop = getComputedStyle(summary).position === 'sticky' ? summary.getBoundingClientRect().bottom : 0;
+  const top = card.getBoundingClientRect().top;
+  const target = top - Math.max(0, coveredTop) - 8;
+  const alreadyVisible = top >= coveredTop && top < window.innerHeight * 0.5;
+  if (!alreadyVisible) window.scrollBy({ top: target, behavior: 'smooth' });
+}
+
 function selectPart(part, { scroll = false } = {}) {
   if (!document.querySelector(`.part[data-part="${part}"]`)) part = 'uppdrag';
   prefs.part = part;
   savePrefs(prefs);
   for (const el of document.querySelectorAll('.part')) el.classList.toggle('active', el.dataset.part === part);
   renderStructure();
-  if (scroll && narrow()) document.querySelector(`.part[data-part="${part}"]`).scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (scroll && narrow()) scrollToCard(document.querySelector(`.part[data-part="${part}"]`));
 }
 
 function setMode(mode) {

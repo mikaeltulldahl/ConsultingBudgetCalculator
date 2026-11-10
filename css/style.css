@@ -318,6 +318,8 @@ h1, h2, h3 { line-height: 1.25; }
 .flow-pair .t-edge { margin-left: 0; }
 
 @media (max-width: 640px) {
+  /* On phones the summary would cover a fifth of the screen if it stayed on top. */
+  .summary { position: static; }
   #structureMap { display: none; }
   #structureTree { display: block; }
   .legend { display: none; }
@@ -359,20 +361,35 @@ h1, h2, h3 { line-height: 1.25; }
 
 /* Quick calculators --------------------------------------------------------- */
 
-.quick-grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); margin: 10px 0 14px; }
-.quick-grid button {
+.quick-list { display: grid; gap: 8px; max-width: 640px; margin: 10px 0 14px; }
+.quick-toggle {
+  width: 100%;
   border: 1px solid var(--line);
   background: var(--surface);
   border-radius: var(--radius);
-  padding: 10px 12px;
+  padding: 10px 40px 10px 12px;
   cursor: pointer;
   text-align: left;
   box-shadow: var(--shadow);
+  position: relative;
 }
-.quick-grid button b { display: block; }
-.quick-grid button small { color: var(--muted); }
-.quick-grid button[aria-pressed="true"] { border-color: var(--accent); outline: 2px solid var(--accent); }
-.quick-card { max-width: 600px; }
+.quick-toggle b { display: block; }
+.quick-toggle small { color: var(--muted); }
+.quick-toggle::after {
+  content: "";
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: translateY(-70%) rotate(45deg);
+  transition: transform .15s;
+}
+.quick-toggle[aria-expanded="true"] { border-color: var(--accent); border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.quick-toggle[aria-expanded="true"]::after { transform: translateY(-30%) rotate(-135deg); }
+.quick-item .quick-card { border-top: none; border-color: var(--accent); border-top-left-radius: 0; border-top-right-radius: 0; }
 
 /* About --------------------------------------------------------------------- */
 
@@ -398,3 +415,6 @@ h1, h2, h3 { line-height: 1.25; }
 .popover h3 { margin: 0 0 6px; font-size: 15px; }
 .popover p { margin: 4px 0; }
 .popover .formula { background: var(--surface-2); padding: 6px 8px; border-radius: 6px; font-size: 13px; }
+
+/* The accordion button already shows the calculator's name. */
+.quick-item .quick-card > h2 { display: none; }

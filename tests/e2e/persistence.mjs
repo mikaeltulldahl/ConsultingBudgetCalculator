@@ -208,6 +208,17 @@ try {
     assert.ok(!(await p.isVisible('#structureMap svg')));
     await goto(p, 'utdelning');
     assert.ok(await p.isVisible('.part[data-part="utdelning"]'));
+    await p.waitForTimeout(800);
+    const headingTop = await p.evaluate(() => document.querySelector('.part[data-part="utdelning"] h2').getBoundingClientRect().top);
+    assert.ok(headingTop >= 0 && headingTop < 200, `card heading should be on screen after tapping, top=${headingTop}`);
+    // Quick calculators open right under their button (accordion).
+    await p.click('[data-mode="quick"]');
+    await p.click('[data-quick="grans"]');
+    const gap = await p.evaluate(() => document.getElementById('qc-grans').getBoundingClientRect().top
+      - document.querySelector('[data-quick="grans"]').getBoundingClientRect().bottom);
+    assert.ok(Math.abs(gap) < 2, `calculator should open under its button, gap=${gap}`);
+    assert.equal(await p.locator('[data-quick-card]:visible').count(), 1);
+    await p.click('[data-mode="structure"]');
     const { docW, vw } = await p.evaluate(() => ({ docW: document.documentElement.scrollWidth, vw: innerWidth }));
     assert.ok(docW <= vw, `page is ${docW}px wide on a ${vw}px screen`);
     assert.deepEqual(phoneErrors, []);
