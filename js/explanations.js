@@ -18,6 +18,9 @@ export const EXPLANATIONS = {
     what: 'Det pris per timme du fakturerar kunden, utan moms.',
     formula: 'Anges av dig.',
   },
+  assignmentName: { what: 'Ett namn på uppdraget, t.ex. kunden. Visas i kartan.', formula: 'Anges av dig.' },
+  startDate: { what: 'Första dagen du fakturerar i uppdraget.', formula: 'Anges av dig.' },
+  endDate: { what: 'Sista dagen du fakturerar i uppdraget.', formula: 'Anges av dig.' },
   billingStartDate: { what: 'Första dagen du fakturerar i uppdraget.', formula: 'Anges av dig.' },
   billingEndDate: { what: 'Sista dagen du fakturerar i uppdraget.', formula: 'Anges av dig.' },
   workingRate: {
@@ -25,12 +28,12 @@ export const EXPLANATIONS = {
     formula: 'Anges av dig.',
   },
   vacationDays: {
-    what: 'Arbetsdagar du är ledig och inte fakturerar. Används också för semesterersättningen.',
+    what: 'Arbetsdagar du är ledig och inte fakturerar, för hela året. Fördelas över alla uppdrag och används också för semesterersättningen.',
     formula: 'Anges av dig.',
   },
   billableHours: {
     what: 'Antal timmar du kan fakturera under perioden.',
-    formula: '8 × arbetstakt × (vardagar mellan start och slut som inte är röda dagar, julafton, midsommarafton eller nyårsafton − semesterdagar). Du kan skriva över värdet.',
+    formula: '8 × arbetstakt × (vardagar mellan start och slut som inte är röda dagar, julafton, midsommarafton eller nyårsafton − semesterdagar). Semesterdagarna fördelas över alla uppdrag efter hur många arbetsdagar de har. Med prisändringar räknas timmarna före och efter ändringen var för sig. Lämna tomt för att räkna fram, eller skriv ett eget antal.',
   },
   invoicedAmount: {
     what: 'Det du fakturerar kunden under året, utan moms. Bolagets huvudsakliga intäkt.',

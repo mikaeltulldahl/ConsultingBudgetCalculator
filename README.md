@@ -7,11 +7,12 @@ Everything is calculated in your browser; nothing you enter is sent anywhere.
 
 ## How the page is organised
 
-- **Min struktur**: a map of your setup (assignment → your company → you). Each box and
-  arrow opens its own calculator card: Uppdrag, Ditt aktiebolag, Lön, Utdelning and Du.
-  On phones the map becomes a vertical flow. Today the structure is one assignment, one
-  company and one person; the map is drawn from a list of parts so more people, companies
-  and income sources can be added later.
+- **Min struktur**: a map of your setup (assignments → your company → you, plus any salary
+  from another employer). Each box and arrow opens its own calculator card: one Uppdrag and
+  one Fakturerat card per assignment (with price changes during the assignment), Ditt
+  aktiebolag, Lön, Tjänstepension, Utdelning, Annan anställning and Du. On phones the map
+  becomes a vertical flow. The map is drawn from a list of parts, so more people and
+  companies can be added later.
 - **Snabbräknare**: five stand-alone calculators (Privat skatt, Fakturerat belopp,
   Utdelningsgräns, Lön ↔ bolagskostnad, Motsvarande anställning). "Koppla in i min
   struktur" copies their values into the structure.
@@ -47,7 +48,8 @@ invariants such as "money is conserved" and "net pay grows with gross pay".
 | `js/engine.js` | All calculations. Pure functions, no DOM or network. |
 | `js/params.js` | Tax parameters per year. |
 | `js/grundavdrag.js`, `js/holidays.js` | Grundavdrag and Swedish holidays. |
-| `js/scenario.js`, `js/storage.js` | Saved data format, export/import, CSV, browser storage. |
+| `js/scenario.js`, `js/storage.js` | Saved data format (version 2; version 1 files are converted), export/import, CSV, browser storage. |
+| `js/assignments.js` | Billable hours and invoiced amount per assignment, with price changes. |
 | `js/structure.js`, `js/quick.js` | Structure map / phone flow, and the quick calculators. |
 | `js/explanations.js` | Explanation texts and sources for every field. |
 | `css/style.css` | Styles, light and dark theme. |

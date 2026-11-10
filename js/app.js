@@ -1,6 +1,7 @@
 // Page logic: reads the form, runs the engine and writes results and charts.
 // All tax maths lives in engine.js; this file only deals with the page.
-import { calculate, salarySweep, billableHours } from './engine.js';
+import { calculate, salarySweep } from './engine.js';
+import { assignmentRevenue, defaultAssignment } from './assignments.js';
 import { EXPLANATIONS } from './explanations.js';
 import { buildStructure, renderMap, renderFlowList } from './structure.js';
 import { initQuick } from './quick.js';
@@ -150,58 +151,136 @@ churchMemberField.addEventListener('change', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Uppdrag: billable hours and invoiced amount
+// Uppdrag: one or more assignments, each with its own Uppdrag and Fakturerat card
 // ---------------------------------------------------------------------------
 
-const billableHoursField = $('billableHours');
+let assignments = [defaultAssignment()];
+let lastRevenue = assignmentRevenue(assignments, 25);
+const assignmentParts = $('assignmentParts');
+const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const assignmentName = (a, i) => a.name.trim() || (assignments.length > 1 ? `Uppdrag ${i + 1}` : 'Uppdrag');
 
-function updateBillableHours() {
-  const start = $('billingStartDate').value;
-  const end = $('billingEndDate').value;
-  const rate = $('workingRate').value;
-  const vacation = $('vacationDays').value;
-  billableHoursField.value = start && end && rate && vacation
-    ? billableHours({ startDate: start, endDate: end, workingRatePercent: parseInt(rate), vacationDays: parseInt(vacation) })
-    : 0;
-  updateInvoicedAmount();
+// Cards are rebuilt only when assignments or price changes are added or removed, so that
+// typing in a field keeps its focus.
+function renderAssignmentCards() {
+  const selected = prefs.part;
+  assignmentParts.innerHTML = assignments.map((a, i) => {
+    const id = a.id;
+    const field = (name, label, type, value, extra = '') =>
+      `<div class="row"><label for="${name}-${id}">${label}</label><input type="${type}" id="${name}-${id}" data-a="${id}" data-field="${name}" data-explain="${name === 'name' ? 'assignmentName' : name}" value="${esc(value)}" ${extra}></div>`;
+    const prices = a.priceChanges.map((c, k) => `
+      <div class="row price-change"><label for="pcFrom-${id}-${k}">Nytt pris från</label>
+        <span class="inline"><input type="date" id="pcFrom-${id}-${k}" data-a="${id}" data-pc="${k}" data-field="from" value="${esc(c.from)}">
+        <input type="number" id="pcRate-${id}-${k}" data-a="${id}" data-pc="${k}" data-field="hourlyRate" value="${esc(c.hourlyRate)}" step="10" min="0" inputmode="numeric" aria-label="Nytt timpris">
+        <button type="button" class="icon-button" data-action="removePrice" data-a="${id}" data-pc="${k}" aria-label="Ta bort prisändringen">✕</button></span></div>`).join('');
+    return `
+      <section class="card part" data-part="uppdrag-${id}" aria-labelledby="h-uppdrag-${id}">
+        <h2 id="h-uppdrag-${id}"><span data-a-title="${id}">${esc(assignmentName(a, i))}</span> <span class="badge source">Uppdrag</span></h2>
+        <p class="kind">Räknare: Fakturerat belopp</p>
+        ${field('name', 'Kund eller namn', 'text', a.name, 'maxlength="60" placeholder="t.ex. Kund A"')}
+        ${field('hourlyRate', 'Timpris exkl. moms', 'number', a.hourlyRate, 'step="10" min="0" inputmode="numeric"')}
+        ${field('startDate', 'Uppdrag start', 'date', a.startDate)}
+        ${field('endDate', 'Uppdrag slut', 'date', a.endDate)}
+        ${prices}
+        <div class="row-actions"><button type="button" class="link-button" data-action="addPrice" data-a="${id}">+ Prisändring under uppdraget</button></div>
+        <details class="details">
+          <summary>Detaljer</summary>
+          ${field('workingRate', 'Arbetstakt (%)', 'number', a.workingRate, 'step="25" min="0" max="100" inputmode="numeric"')}
+          ${field('billableHours', 'Fakturerbara timmar', 'number', a.billableHours ?? '', 'min="0" inputmode="numeric"')}
+        </details>
+        <div class="result"><label for="invoiced-${id}">→ Fakturerat belopp exkl. moms</label><output id="invoiced-${id}" data-unit="kr" data-explain="invoicedAmount"></output>
+          <small>går till <button type="button" class="link-button" data-goto="faktura-${id}">Fakturerat</button> och vidare till bolaget</small></div>
+        ${assignments.length > 1 ? `<div class="row-actions"><button type="button" class="link-button" data-action="removeAssignment" data-a="${id}">Ta bort uppdraget</button></div>` : ''}
+      </section>
+      <section class="card part" data-part="faktura-${id}" aria-labelledby="h-faktura-${id}">
+        <h2 id="h-faktura-${id}">Fakturerat: <span data-a-title="${id}">${esc(assignmentName(a, i))}</span> → bolaget <span class="badge edge">Intäkt</span></h2>
+        <p class="kind">Räknare: Fakturerat belopp till bolaget</p>
+        <div class="row"><label for="fromAssignment-${id}">Räknat i uppdraget <button type="button" class="from ${a.manualAmount !== null ? 'manual' : ''}" data-goto="uppdrag-${id}">från Uppdrag</button></label><output id="fromAssignment-${id}" data-unit="kr" data-explain="fromAssignment"></output></div>
+        <div class="row" ${a.manualAmount === null ? 'hidden' : ''}><label for="manualAmount-${id}">Eget belopp</label><input type="number" id="manualAmount-${id}" data-a="${id}" data-field="manualAmount" data-explain="manualInvoicedAmount" value="${esc(a.manualAmount ?? '')}" step="10000" min="0" inputmode="numeric"></div>
+        <div class="row-actions"><button type="button" class="link-button" data-action="toggleManual" data-a="${id}">${a.manualAmount === null ? 'Ange eget belopp i stället' : 'Använd beloppet från uppdraget igen'}</button></div>
+        <div class="result"><label for="used-${id}">→ Fakturerat till bolaget</label><output id="used-${id}" data-unit="kr" data-explain="usedInvoicedAmount"></output>
+          <small>går till <button type="button" class="link-button" data-goto="bolag">ditt aktiebolag</button></small></div>
+      </section>`;
+  }).join('');
+  addInfoButtons(assignmentParts);
+  for (const el of assignmentParts.querySelectorAll('.part')) el.classList.toggle('active', el.dataset.part === selected);
+  updateAssignmentOutputs();
 }
 
-function updateInvoicedAmount() {
-  const rate = parseInt($('hourlyRate').value);
-  const hours = parseInt(billableHoursField.value);
-  const amount = isNaN(rate) || isNaN(hours) ? 0 : rate * hours;
-  setOutput('invoicedAmount', amount);
-  setOutput('fromAssignment', amount);
+function updateAssignmentOutputs() {
+  lastRevenue = assignmentRevenue(assignments, Number($('vacationDays').value === '' ? NaN : $('vacationDays').value));
+  lastRevenue.assignments.forEach((r, i) => {
+    const id = r.id;
+    if (!$(`invoiced-${id}`)) return;
+    setOutput(`invoiced-${id}`, r.computedAmount);
+    setOutput(`fromAssignment-${id}`, r.computedAmount);
+    setOutput(`used-${id}`, r.amount);
+    $(`billableHours-${id}`).placeholder = `${r.computedHours} (beräknat)`;
+    for (const t of document.querySelectorAll(`[data-a-title="${id}"]`)) t.textContent = assignmentName(assignments[i], i);
+  });
+}
+
+function nextAssignmentId() {
+  for (let n = 1; ; n++) if (!assignments.some((a) => a.id === `a${n}`)) return `a${n}`;
+}
+
+function addAssignment() {
+  const year = Number(yearField.value) || 2026;
+  const a = { ...defaultAssignment(nextAssignmentId(), year), name: '' };
+  assignments.push(a);
+  renderAssignmentCards();
+  selectPart(`uppdrag-${a.id}`, { scroll: true });
+  $(`name-${a.id}`).focus();
   updateAll();
 }
+$('addAssignment').addEventListener('click', addAssignment);
 
-// The company can use its own invoiced amount instead of the one from Uppdrag.
-function syncManualInvoiced() {
-  const manual = $('manualInvoicedAmount').value !== '';
-  $('manualInvoicedRow').hidden = !manual;
-  $('invoicedLink').classList.toggle('manual', manual);
-  $('toggleManualInvoiced').textContent = manual ? 'Använd beloppet från Uppdrag igen' : 'Ange eget belopp i stället';
-}
-$('toggleManualInvoiced').addEventListener('click', () => {
-  const field = $('manualInvoicedAmount');
-  if (field.value === '') {
-    field.value = $('invoicedAmount').dataset.value || 0;
-    syncManualInvoiced();
-    field.focus();
-    field.select();
+const findAssignment = (id) => assignments.find((a) => a.id === id);
+
+assignmentParts.addEventListener('input', (e) => {
+  const el = e.target;
+  const a = findAssignment(el.dataset.a);
+  if (!a || !el.dataset.field) return;
+  const num = (v) => (v === '' || isNaN(Number(v)) ? null : Number(v));
+  if (el.dataset.pc !== undefined) {
+    const c = a.priceChanges[Number(el.dataset.pc)];
+    c[el.dataset.field] = el.dataset.field === 'from' ? el.value : num(el.value);
+  } else if (['name', 'startDate', 'endDate'].includes(el.dataset.field)) {
+    a[el.dataset.field] = el.value;
   } else {
-    field.value = '';
-    syncManualInvoiced();
+    a[el.dataset.field] = num(el.value);
   }
   updateAll();
 });
-$('manualInvoicedAmount').addEventListener('input', updateAll);
 
-for (const id of ['billingStartDate', 'billingEndDate', 'workingRate', 'vacationDays']) {
-  $(id).addEventListener('input', updateBillableHours);
-}
-billableHoursField.addEventListener('input', updateInvoicedAmount);
-$('hourlyRate').addEventListener('input', updateInvoicedAmount);
+assignmentParts.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-action]');
+  if (!b) return;
+  const a = findAssignment(b.dataset.a);
+  if (!a) return;
+  const action = b.dataset.action;
+  if (action === 'addPrice') {
+    const last = a.priceChanges.at(-1);
+    const year = (a.startDate || yearField.value || '2026').slice(0, 4);
+    a.priceChanges.push({ from: last ? last.from : `${year}-04-01`, hourlyRate: (last?.hourlyRate ?? a.hourlyRate ?? 0) + 50 });
+  } else if (action === 'removePrice') {
+    a.priceChanges.splice(Number(b.dataset.pc), 1);
+  } else if (action === 'toggleManual') {
+    const r = lastRevenue.assignments.find((x) => x.id === a.id);
+    a.manualAmount = a.manualAmount === null ? Math.round(r?.computedAmount ?? 0) : null;
+  } else if (action === 'removeAssignment') {
+    if (assignments.length < 2 || !confirm(`Ta bort ${assignmentName(a, assignments.indexOf(a)).toLowerCase() === 'uppdrag' ? 'uppdraget' : `"${assignmentName(a, assignments.indexOf(a))}"`}?`)) return;
+    assignments = assignments.filter((x) => x !== a);
+    prefs.part = `uppdrag-${assignments[0].id}`;
+  }
+  renderAssignmentCards();
+  if (action === 'toggleManual' && a.manualAmount !== null) {
+    $(`manualAmount-${a.id}`).focus();
+    $(`manualAmount-${a.id}`).select();
+  }
+  if (action === 'removeAssignment') selectPart(prefs.part);
+  updateAll();
+});
 
 // ---------------------------------------------------------------------------
 // Main update
@@ -217,6 +296,7 @@ function readState() {
     else if (f.type === 'number') state[f.id] = el.value === '' || isNaN(Number(el.value)) ? null : Number(el.value);
     else state[f.id] = el.value;
   }
+  state.assignments = structuredClone(assignments);
   state.kommun = validKommun() ? kommunSelector.value : '';
   const forsamling = churchMemberField.checked && validForsamling();
   state.forsamling = forsamling ? forsamlingSelector.selectedOptions[0].text : '';
@@ -249,7 +329,6 @@ function writeFields(r) {
     setOutput(id, r?.[id], decimals);
   }
   for (const el of document.querySelectorAll('output[data-mirror]')) setOutput(el, r?.[el.dataset.mirror], 0);
-  setOutput('usedInvoicedAmount', r?.invoicedAmount);
   $('pensionCapWarning').hidden = !(r?.pensionNonDeductible > 0);
   syncOther();
   setOutput('churchSkatt', churchMemberField.checked ? r?.churchSkatt : NaN);
@@ -274,6 +353,7 @@ function updateYearDependentFields() {
 let updateCounter = 0;
 async function updateAll() {
   const id = ++updateCounter;
+  updateAssignmentOutputs();
   const inputs = readInputs();
   let result = null;
   try {
@@ -299,7 +379,7 @@ async function updateAll() {
   scheduleSave();
 }
 
-for (const id of ['yearBorn', 'grossSalaryMonth', 'salaryMonths', 'otherRevenue', 'otherCosts',
+for (const id of ['vacationDays', 'yearBorn', 'grossSalaryMonth', 'salaryMonths', 'otherRevenue', 'otherCosts',
   'grossDividends', 'savedDividends', 'omkostnadsbelopp']) {
   $(id).addEventListener('input', updateAll);
 }
@@ -405,7 +485,13 @@ function updateSankeyChartData(f) {
   const isProfitable = Math.sign(f.profitAfterTax);
   const links = [
     { from: otherRevenueStr, to: revenueStr, value: Math.round(f.otherRevenue), label: 'Övriga intäkter' },
-    { from: invoicedAmountStr, to: revenueStr, value: Math.round(f.invoicedAmount), label: 'Fakturerat belopp' },
+    // One inflow per assignment when there are several.
+    ...(lastRevenue.assignments.length > 1
+      ? lastRevenue.assignments.map((r, i) => ({
+        from: n(`Fakturerat ${assignmentName(assignments[i] ?? { name: '' }, i)}`, r.amount),
+        to: revenueStr, value: Math.round(r.amount), label: `Fakturerat ${assignmentName(assignments[i] ?? { name: '' }, i)}`,
+      }))
+      : [{ from: invoicedAmountStr, to: revenueStr, value: Math.round(f.invoicedAmount), label: 'Fakturerat belopp' }]),
     { from: savingsStr, to: revenueStr, value: loss, label: 'Förlust' },
     { from: revenueStr, to: otherCostsStr, value: Math.round(f.otherCosts), label: 'Övriga kostnader' },
     { from: revenueStr, to: insuranceStr, value: Math.round(f.insurance), label: 'Försäkring' },
@@ -571,11 +657,12 @@ async function applyState(state) {
     if (kommunSelector.selectedIndex < 0) kommunSelector.selectedIndex = 0;
     for (const f of FIELDS) {
       const el = $(f.id);
-      if (!el || ['year', 'kommun', 'forsamling', 'kyrkoavgift', 'billableHours'].includes(f.id)) continue;
+      if (!el || ['year', 'kommun', 'forsamling', 'kyrkoavgift'].includes(f.id)) continue;
       if (f.type === 'boolean') el.checked = state[f.id];
       else el.value = state[f.id] ?? '';
     }
-    syncManualInvoiced();
+    assignments = structuredClone(state.assignments);
+    renderAssignmentCards();
     $('grossSalaryMonth').disabled = state.useMaxGrossSalary;
     syncPensionInputs();
     syncOther();
@@ -586,12 +673,7 @@ async function applyState(state) {
     if (state.churchMember && validKommun()) {
       await populateForsamling({ name: state.forsamling, rate: state.kyrkoavgift });
     }
-    if (state.billableHours === null) {
-      updateBillableHours();
-    } else {
-      billableHoursField.value = state.billableHours;
-      updateInvoicedAmount();
-    }
+    selectPart(prefs.part);
     updateTaxRates();
   } finally {
     restoring = false;
@@ -628,8 +710,8 @@ const KEY_RESULTS = [
   ['profitAfterDividends', 'Årets resultat efter utdelning', 0],
 ];
 const KEY_INPUTS = [
-  ['year', 'Räkenskapsår'],
-  ['hourlyRate', 'Timpris'],
+  [(s) => s.year, 'Räkenskapsår'],
+  [(s) => (s.assignments.length === 1 ? s.assignments[0].hourlyRate : `${s.assignments.length} uppdrag`), 'Timpris'],
 ];
 
 async function resultForState(state) {
@@ -701,8 +783,8 @@ async function renderScenarios() {
       }
     }
   };
-  for (const [key, label] of KEY_INPUTS) {
-    addRow(label, columns.map((c) => ({ text: c.state[key] === null ? '–' : String(c.state[key]) })));
+  for (const [get, label] of KEY_INPUTS) {
+    addRow(label, columns.map((c) => ({ text: get(c.state) === null ? '–' : String(get(c.state)) })));
   }
   for (const [key, label, decimals] of KEY_RESULTS) {
     const base = currentResult?.[key];
@@ -779,7 +861,9 @@ const explanationText = (id) => {
 function pageRows() {
   const rows = [['Allmänt', 'Inkomstår', Number(yearField.value) || null, 'Inmatning', explanationText('year')]];
   for (const part of document.querySelectorAll('#parts .part')) {
-    const section = part.querySelector('h2').firstChild.textContent.trim();
+    const heading = part.querySelector('h2').cloneNode(true);
+    heading.querySelectorAll('.badge').forEach((b) => b.remove());
+    const section = heading.textContent.replace(/\s+/g, ' ').trim();
     for (const label of part.querySelectorAll('label[for]')) {
       const field = $(label.htmlFor);
       if (!field || field.dataset.mirror || field.closest('[hidden]')) continue;
@@ -792,7 +876,7 @@ function pageRows() {
       const text = [...label.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent).join(' ');
       const name = text.replace(/^\s*→\s*/, '').replace(/\s+/g, ' ').trim();
       const calculated = field.tagName === 'OUTPUT' || field.disabled;
-      rows.push([section, name, value, calculated ? 'Beräknat' : 'Inmatning', explanationText(field.id)]);
+      rows.push([section, name, value, calculated ? 'Beräknat' : 'Inmatning', explanationText(field.dataset.explain ?? field.id)]);
     }
   }
   return rows;
@@ -814,7 +898,7 @@ async function exportCsv() {
     const round = (v, d) => (Number.isFinite(v) ? Number(v.toFixed(d)) : null);
     rows.push([], ['Sparade scenarier'], ['Fält', 'Nuvarande', ...scenarios.map((s) => s.name)]);
     const current = readState();
-    for (const [key, label] of KEY_INPUTS) rows.push([label, current[key], ...scenarios.map((s) => s.state[key])]);
+    for (const [get, label] of KEY_INPUTS) rows.push([label, get(current), ...scenarios.map((s) => get(s.state))]);
     for (const [key, label, d] of KEY_RESULTS) {
       rows.push([label, round(currentResult?.[key], d), ...results.map((r) => round(r?.[key], d))]);
     }
@@ -860,9 +944,17 @@ const narrow = () => window.matchMedia('(max-width: 899px)').matches;
 function renderStructure() {
   const r = currentResult ?? {};
   const structure = buildStructure({
-    hourlyRate: Number($('hourlyRate').value === '' ? NaN : $('hourlyRate').value),
-    invoicedAmount: Number.isFinite(r.invoicedAmount) ? r.invoicedAmount : Number($('invoicedAmount').dataset.value),
-    manualInvoiced: $('manualInvoicedAmount').value !== '',
+    assignments: assignments.map((a, i) => {
+      const rev = lastRevenue.assignments.find((x) => x.id === a.id);
+      const rates = [a.hourlyRate, ...a.priceChanges.map((c) => c.hourlyRate)].filter(Number.isFinite);
+      return {
+        id: a.id,
+        name: assignmentName(a, i),
+        rates,
+        amount: rev?.amount,
+        manual: a.manualAmount !== null,
+      };
+    }),
     profitAfterTax: r.profitAfterTax,
     grossSalaryYear: r.grossSalaryYear,
     grossDividends: r.grossDividends,
@@ -887,8 +979,10 @@ function scrollToCard(card) {
 }
 
 function selectPart(part, { scroll = false } = {}) {
+  // "uppdrag" and "faktura" (older links and saved preferences) mean the first assignment.
+  if (part === 'uppdrag' || part === 'faktura') part = `${part}-${assignments[0].id}`;
   const card = document.querySelector(`.part[data-part="${part}"]`);
-  if (!card) part = 'uppdrag';
+  if (!card) part = `uppdrag-${assignments[0].id}`;
   else if (card.hidden) part = 'person';
   prefs.part = part;
   savePrefs(prefs);
@@ -933,9 +1027,8 @@ function closePopover() {
   popover.hidden = true;
   popover.replaceChildren();
 }
-function openPopover(button, id) {
+function openPopover(button, id, label) {
   const e = EXPLANATIONS[id];
-  const label = document.querySelector(`label[for="${id}"]`);
   const title = [...label.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent).join(' ').replace(/^\s*→\s*/, '').trim();
   const h = Object.assign(document.createElement('h3'), { textContent: title });
   const what = Object.assign(document.createElement('p'), { textContent: e.what });
@@ -955,23 +1048,30 @@ function openPopover(button, id) {
   popover.style.left = `${left}px`;
   popover.style.top = `${below ? r.bottom + 8 : Math.max(8, r.top - popover.offsetHeight - 8)}px`;
 }
-for (const label of document.querySelectorAll('label[for]')) {
-  const key = EXPLANATIONS[label.htmlFor] ? label.htmlFor : null;
-  if (!key) continue;
-  const b = Object.assign(document.createElement('button'), { type: 'button', className: 'info', textContent: 'i' });
-  b.setAttribute('aria-label', `Förklaring: ${label.textContent.trim()}`);
-  b.addEventListener('click', (ev) => {
-    ev.preventDefault();
-    ev.stopPropagation();
-    if (!popover.hidden && popover.dataset.for === key) return closePopover();
-    popover.dataset.for = key;
-    openPopover(b, key);
-  });
-  // Put the button right after the label text (before any "från …" chip).
-  const chip = label.querySelector('.from');
-  if (chip) chip.before(b, ' ');
-  else label.append(' ', b);
+// Adds an ⓘ button to every label in `root` whose field has an explanation (looked up by
+// the field's data-explain, or its id).
+function addInfoButtons(root) {
+  for (const label of root.querySelectorAll('label[for]')) {
+    if (label.querySelector('.info')) continue;
+    const field = document.getElementById(label.htmlFor);
+    const key = field?.dataset.explain ?? label.htmlFor;
+    if (!EXPLANATIONS[key]) continue;
+    const b = Object.assign(document.createElement('button'), { type: 'button', className: 'info', textContent: 'i' });
+    b.setAttribute('aria-label', `Förklaring: ${label.textContent.trim()}`);
+    b.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (!popover.hidden && popover.dataset.for === label.htmlFor) return closePopover();
+      popover.dataset.for = label.htmlFor;
+      openPopover(b, key, label);
+    });
+    // Put the button right after the label text (before any "från …" chip).
+    const chip = label.querySelector('.from');
+    if (chip) chip.before(b, ' ');
+    else label.append(' ', b);
+  }
 }
+addInfoButtons(document);
 document.addEventListener('click', (e) => {
   if (!popover.hidden && !popover.contains(e.target) && !e.target.closest('.info')) closePopover();
 });
@@ -998,7 +1098,9 @@ const quick = initQuick({
     const state = readState();
     const parts = { privat: 'person', faktura: 'uppdrag', grans: 'utdelning', kostnad: 'lon' };
     if (kind === 'privat') Object.assign(state, { year: v.year, yearBorn: v.yearBorn, kommun: v.kommun, grossSalaryMonth: Math.round(v.income / 12), salaryMonths: 12, useSemesterersattning: false, useMaxGrossSalary: false });
-    if (kind === 'faktura') Object.assign(state, { hourlyRate: v.hourlyRate, billingStartDate: v.billingStartDate, billingEndDate: v.billingEndDate, vacationDays: v.vacationDays, workingRate: v.workingRate, billableHours: null, manualInvoicedAmount: null });
+    if (kind === 'faktura') {
+      Object.assign(state, { vacationDays: v.vacationDays, assignments: [{ ...defaultAssignment('a1'), hourlyRate: v.hourlyRate, startDate: v.billingStartDate, endDate: v.billingEndDate, workingRate: v.workingRate }] });
+    }
     if (kind === 'grans') Object.assign(state, { year: v.year, omkostnadsbelopp: v.omkostnadsbelopp, savedDividends: v.savedDividends });
     if (kind === 'kostnad') Object.assign(state, { grossSalaryMonth: v.grossSalaryMonth, usePension: v.usePension, pensionPercent: 4.7, useMaxGrossSalary: false });
     for (const [k, val] of Object.entries(state)) if (typeof val === 'number' && !Number.isFinite(val)) state[k] = null;
@@ -1066,7 +1168,9 @@ async function init() {
     await applyState(restored.current);
   } else {
     populateKommunDropdown();
-    updateBillableHours();
+    renderAssignmentCards();
+    selectPart(prefs.part);
+    updateAll();
   }
   setMode(prefs.mode === 'quick' ? 'quick' : 'structure');
 }

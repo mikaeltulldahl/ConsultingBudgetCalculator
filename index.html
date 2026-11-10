@@ -64,47 +64,22 @@
 
       <div class="layout">
         <section class="card map-card" aria-label="Struktur">
-          <div class="card-head"><h2>Din struktur</h2><span class="muted small">Klicka på en ruta eller pil</span></div>
+          <div class="card-head"><h2>Din struktur</h2><span class="muted small">Klicka på en ruta eller pil · <button type="button" class="link-button" id="addAssignment">+ Uppdrag</button></span></div>
           <div id="structureMap"></div>
           <div id="structureTree"></div>
           <div class="legend"><span><i class="lg-source"></i>Inkomstkälla</span><span><i class="lg-bolag"></i>Bolag</span><span><i class="lg-person"></i>Person</span><span>Pilar: pengar som flödar</span></div>
         </section>
 
         <div class="side" id="parts">
-          <!-- Uppdrag -------------------------------------------------------- -->
-          <section class="card part" data-part="uppdrag" aria-labelledby="h-uppdrag">
-            <h2 id="h-uppdrag">Uppdrag <span class="badge source">Inkomstkälla</span></h2>
-            <p class="kind">Räknare: Fakturerat belopp</p>
-            <div class="row"><label for="hourlyRate">Timpris exkl. moms</label><input type="number" step="10" id="hourlyRate" min="0" value="700" inputmode="numeric"></div>
-            <div class="row"><label for="billingStartDate">Uppdrag start</label><input type="date" id="billingStartDate" value="2026-01-01"></div>
-            <div class="row"><label for="billingEndDate">Uppdrag slut</label><input type="date" id="billingEndDate" value="2026-12-31"></div>
-            <details class="details">
-              <summary>Detaljer</summary>
-              <div class="row"><label for="workingRate">Arbetstakt (%)</label><input type="number" step="25" id="workingRate" min="0" max="100" value="100" inputmode="numeric"></div>
-              <div class="row"><label for="vacationDays">Semesterdagar</label><input type="number" id="vacationDays" min="0" value="25" inputmode="numeric"></div>
-              <div class="row"><label for="billableHours">Fakturerbara timmar</label><input type="number" id="billableHours" min="0" inputmode="numeric"></div>
-            </details>
-            <div class="result"><label for="invoicedAmount">→ Fakturerat belopp exkl. moms</label><output id="invoicedAmount" data-unit="kr"></output>
-              <small>går till <button type="button" class="link-button" data-goto="faktura">Fakturerat</button> och vidare till bolaget</small></div>
-          </section>
-
-          <!-- Fakturerat (uppdrag -> bolag) ---------------------------------- -->
-          <section class="card part" data-part="faktura" aria-labelledby="h-faktura">
-            <h2 id="h-faktura">Fakturerat: uppdraget → bolaget <span class="badge edge">Intäkt</span></h2>
-            <p class="kind">Räknare: Fakturerat belopp till bolaget</p>
-            <div class="row"><label for="fromAssignment">Räknat i Uppdrag <button type="button" class="from" id="invoicedLink" data-goto="uppdrag">från Uppdrag</button></label><output id="fromAssignment" data-unit="kr"></output></div>
-            <div class="row" id="manualInvoicedRow" hidden><label for="manualInvoicedAmount">Eget belopp</label><input type="number" step="10000" id="manualInvoicedAmount" min="0" inputmode="numeric"></div>
-            <div class="row-actions"><button type="button" class="link-button" id="toggleManualInvoiced">Ange eget belopp i stället</button></div>
-            <div class="result"><label for="usedInvoicedAmount">→ Fakturerat till bolaget</label><output id="usedInvoicedAmount" data-unit="kr"></output>
-              <small>går till <button type="button" class="link-button" data-goto="bolag">ditt aktiebolag</button></small></div>
-          </section>
+          <!-- Uppdrag and Fakturerat cards, one pair per assignment, are added here by js/app.js. -->
+          <div id="assignmentParts"></div>
 
           <!-- Bolag ---------------------------------------------------------- -->
           <section class="card part" data-part="bolag" aria-labelledby="h-bolag">
             <h2 id="h-bolag">Ditt aktiebolag <span class="badge bolag">Bolag</span></h2>
             <p class="kind">Räknare: Bolagets resultat</p>
             <div class="group-title">Intäkter</div>
-            <div class="row"><label for="companyInvoiced">Fakturerat <button type="button" class="from" data-goto="faktura">från Fakturerat</button></label><output id="companyInvoiced" data-mirror="invoicedAmount" data-unit="kr"></output></div>
+            <div class="row"><label for="companyInvoiced">Fakturerat <button type="button" class="from" data-goto="faktura" id="companyInvoicedLink">från Fakturerat</button></label><output id="companyInvoiced" data-mirror="invoicedAmount" data-unit="kr"></output></div>
             <div class="row"><label for="otherRevenue">Övriga intäkter exkl. moms</label><input type="number" step="10000" id="otherRevenue" value="0" min="0" inputmode="numeric"></div>
             <div class="group-title">Kostnader</div>
             <div class="row"><label for="companySalary">Lön till dig <button type="button" class="from" data-goto="lon">från Lön</button></label><output id="companySalary" data-mirror="grossSalaryYear" data-unit="kr"></output></div>
@@ -131,6 +106,7 @@
             <div class="row"><label for="useMaxGrossSalary">Lön upp till brytpunkt för statlig skatt</label><input type="checkbox" id="useMaxGrossSalary"></div>
             <div class="row"><label for="grossSalaryMonth">Månadslön brutto</label><input type="number" step="1000" id="grossSalaryMonth" min="0" value="55000" inputmode="numeric"></div>
             <div class="row"><label for="salaryMonths">Månader med lön</label><input type="number" id="salaryMonths" min="0" max="12" value="12" inputmode="numeric"></div>
+            <div class="row"><label for="vacationDays">Semesterdagar</label><input type="number" id="vacationDays" min="0" value="25" inputmode="numeric"></div>
             <div class="row"><label for="useSemesterersattning">Ta ut semesterersättning</label><input type="checkbox" id="useSemesterersattning" checked></div>
             <details class="details">
               <summary>Detaljer</summary>

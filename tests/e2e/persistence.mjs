@@ -25,8 +25,8 @@ const server = createServer(async (req, res) => {
 await new Promise((r) => server.listen(0, r));
 const URL_ = `http://localhost:${server.address().port}/`;
 
-const FIELDS = ['year', 'hourlyRate', 'billingStartDate', 'billingEndDate', 'workingRate', 'vacationDays',
-  'billableHours', 'invoicedAmount', 'otherRevenue', 'yearBorn', 'kommunSelector', 'churchMember',
+const FIELDS = ['year', 'hourlyRate-a1', 'startDate-a1', 'endDate-a1', 'workingRate-a1', 'vacationDays',
+  'billableHours-a1', 'used-a1', 'otherRevenue', 'yearBorn', 'kommunSelector', 'churchMember',
   'forsamlingSelector', 'kommunalSkattPercent', 'churchSkattPercent', 'grossSalaryMonth', 'salaryMonths',
   'useSemesterersattning', 'usePension', 'otherCosts', 'omkostnadsbelopp', 'savedDividends', 'maxDividend',
   'grossDividends', 'incomeTax', 'netSalaryMonth', 'totalCost', 'dividendsLimit', 'netDividends',
@@ -74,17 +74,17 @@ try {
   await page.check('#churchMember');
   await page.waitForFunction(() => document.querySelector('#forsamlingSelector').options.length > 1, null, { timeout: 20000 });
   await page.selectOption('#forsamlingSelector', { label: 'ADOLF FREDRIKS FÖRSAMLING' });
-  await goto(page, 'uppdrag');
-  await page.fill('#hourlyRate', '850');
-  await page.dispatchEvent('#hourlyRate', 'input');
-  await page.click('details:has(#billableHours) summary');
-  await page.fill('#billableHours', '1500');
-  await page.dispatchEvent('#billableHours', 'input');
+  await goto(page, 'uppdrag-a1');
+  await page.fill('#hourlyRate-a1', '850');
+  await page.dispatchEvent('#hourlyRate-a1', 'input');
+  await page.click('details:has(#billableHours-a1) summary');
+  await page.fill('#billableHours-a1', '1500');
+  await page.dispatchEvent('#billableHours-a1', 'input');
   await goto(page, 'pension');
   await page.uncheck('#usePension');
   await settle(page);
   const filled = await snapshot(page);
-  assert.equal(filled.invoicedAmount, '1275000');
+  assert.equal(filled['used-a1'], '1275000');
   assert.notEqual(filled.netSumMonth, '');
 
   await step('everything is remembered after reloading', async () => {
@@ -102,7 +102,7 @@ try {
     const cleared = await snapshot(page);
     assert.equal(cleared.yearBorn, '');
     assert.equal(cleared.netSumMonth, '');
-    assert.equal(cleared.hourlyRate, '700');
+    assert.equal(cleared['hourlyRate-a1'], '700');
     assert.equal(await page.evaluate(() => localStorage.length), 0, 'nothing stored after clearing');
     await page.setInputFiles('#importFile', exported);
     await settle(page);
@@ -130,9 +130,9 @@ try {
     await page.click('#scenarioDetails summary');
     await page.fill('#scenarioName', 'Högt pris');
     await page.click('#saveScenario');
-    await goto(page, 'uppdrag');
-    await page.fill('#hourlyRate', '600');
-    await page.dispatchEvent('#hourlyRate', 'input');
+    await goto(page, 'uppdrag-a1');
+    await page.fill('#hourlyRate-a1', '600');
+    await page.dispatchEvent('#hourlyRate-a1', 'input');
     await settle(page);
     const low = await snapshot(page);
     await page.fill('#scenarioName', 'Lågt pris');
@@ -156,17 +156,48 @@ try {
   });
 
   await step('the company can use its own invoiced amount', async () => {
-    await goto(page, 'faktura');
-    assert.ok(await page.isVisible('#structureMap g.edge.selected[data-goto="faktura"]'), 'Fakturerat arrow is highlighted');
-    await page.click('#toggleManualInvoiced');
-    await page.fill('#manualInvoicedAmount', '1000000');
-    await page.dispatchEvent('#manualInvoicedAmount', 'input');
+    await goto(page, 'faktura-a1');
+    assert.ok(await page.isVisible('#structureMap g.edge.selected[data-goto="faktura-a1"]'), 'Fakturerat arrow is highlighted');
+    await page.click('[data-action="toggleManual"][data-a="a1"]');
+    await page.fill('#manualAmount-a1', '1000000');
+    await page.dispatchEvent('#manualAmount-a1', 'input');
     await settle(page);
-    assert.equal(await page.getAttribute('#usedInvoicedAmount', 'data-value'), '1000000');
+    assert.equal(await page.getAttribute('#used-a1', 'data-value'), '1000000');
     assert.equal((await page.textContent('#sumInvoiced')).replace(/\s/g, ' '), '1 000 000 kr');
-    await page.click('#toggleManualInvoiced');
+    await page.click('[data-action="toggleManual"][data-a="a1"]');
     await settle(page);
-    assert.equal(await page.getAttribute('#usedInvoicedAmount', 'data-value'), filled.invoicedAmount);
+    assert.equal(await page.getAttribute('#used-a1', 'data-value'), filled['used-a1']);
+  });
+
+  await step('a second assignment with a price change adds up and is remembered', async () => {
+    await page.click('#addAssignment');
+    assert.ok(await page.isVisible('.part[data-part="uppdrag-a2"]'));
+    await page.fill('#name-a2', 'Kund B');
+    await page.fill('#startDate-a2', '2026-01-01');
+    await page.dispatchEvent('#startDate-a2', 'input');
+    await page.fill('#hourlyRate-a2', '1000');
+    await page.dispatchEvent('#hourlyRate-a2', 'input');
+    await page.click('[data-action="addPrice"][data-a="a2"]');
+    await page.fill('#pcFrom-a2-0', '2026-07-01');
+    await page.dispatchEvent('#pcFrom-a2-0', 'input');
+    await page.fill('#pcRate-a2-0', '1100');
+    await page.dispatchEvent('#pcRate-a2-0', 'input');
+    await settle(page);
+    const map = (await page.textContent('#structureMap')).replace(/\s/g, ' ');
+    assert.match(map, /Kund B/);
+    assert.match(map, /1 000–1 100 kr\/h/);
+    const a1 = Number(await page.getAttribute('#used-a1', 'data-value'));
+    const a2 = Number(await page.getAttribute('#used-a2', 'data-value'));
+    assert.ok(a2 > 1000 * 900, `second assignment ${a2}`);
+    assert.equal(Number(await page.getAttribute('#companyInvoiced', 'data-value')), a1 + a2);
+    await page.reload({ waitUntil: 'networkidle' });
+    await settle(page);
+    assert.equal(await page.inputValue('#pcRate-a2-0'), '1100', 'price change remembered');
+    await goto(page, 'uppdrag-a2');
+    await page.click('[data-action="removeAssignment"][data-a="a2"]');
+    await settle(page);
+    assert.equal(await page.locator('.part[data-part="uppdrag-a2"]').count(), 0);
+    assert.equal(await page.getAttribute('#companyInvoiced', 'data-value'), filled['used-a1']);
   });
 
   await step('pension level is set on the Pension arrow', async () => {

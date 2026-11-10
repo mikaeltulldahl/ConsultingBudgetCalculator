@@ -1,23 +1,32 @@
 // Draws the structure: a map (wide screens) and a vertical flow list (phones).
 // Every box and arrow carries data-goto="<part>" so the page can show that part's card.
 //
-// For now the structure is fixed: one assignment, one company, one person. The drawing
-// works from a list of nodes and edges so more people, companies and income sources can be
-// added later without changing how it is drawn.
+// The structure: one or more assignments, one company, one person and optionally another
+// employment. The drawing works from a list of nodes and edges, so more people and
+// companies can be added later without changing how it is drawn.
 
 const fmt = (v) => (Number.isFinite(v) ? Math.round(v).toLocaleString('sv-SE') : '–');
 
+// v.assignments: [{ id, name, rates: [hourly rates], amount, manual }]
 export function buildStructure(v) {
+  const n = v.assignments.length;
+  const middle = (n - 1) / 2; // the company and the person sit level with the middle assignment
+  const rateText = (rates) => {
+    if (!rates.length) return 'timpris saknas';
+    const lo = Math.min(...rates);
+    const hi = Math.max(...rates);
+    return lo === hi ? `${fmt(lo)} kr/h` : `${fmt(lo)}–${fmt(hi)} kr/h`;
+  };
   return {
     columns: ['Inkomstkällor', 'Bolag', 'Personer'],
     nodes: [
-      { id: 'uppdrag', type: 'source', name: 'Uppdrag', sub: Number.isFinite(v.hourlyRate) ? `${fmt(v.hourlyRate)} kr/h` : 'timpris saknas', col: 0, row: 0 },
-      { id: 'bolag', type: 'bolag', name: 'Ditt aktiebolag', sub: `resultat ${fmt(v.profitAfterTax)}`, col: 1, row: 0 },
-      ...(v.otherEmployer ? [{ id: 'annan', type: 'source', name: v.otherEmployer, sub: `lön ${fmt(v.otherSalaryYear)}/år`, col: 0, row: 1 }] : []),
-      { id: 'person', type: 'person', name: 'Du', sub: Number.isFinite(v.netSumMonth) ? `${fmt(v.netSumMonth)} kr/mån` : 'fyll i dina uppgifter', col: 2, row: 0 },
+      ...v.assignments.map((a, i) => ({ id: `uppdrag-${a.id}`, type: 'source', name: a.name, sub: rateText(a.rates), col: 0, row: i })),
+      { id: 'bolag', type: 'bolag', name: 'Ditt aktiebolag', sub: `resultat ${fmt(v.profitAfterTax)}`, col: 1, row: middle },
+      ...(v.otherEmployer ? [{ id: 'annan', type: 'source', name: v.otherEmployer, sub: `lön ${fmt(v.otherSalaryYear)}/år`, col: 0, row: n }] : []),
+      { id: 'person', type: 'person', name: 'Du', sub: Number.isFinite(v.netSumMonth) ? `${fmt(v.netSumMonth)} kr/mån` : 'fyll i dina uppgifter', col: 2, row: middle },
     ],
     edges: [
-      { goto: 'faktura', from: 'uppdrag', to: 'bolag', label: `${fmt(v.invoicedAmount)}`, title: 'Fakturerat', manual: v.manualInvoiced },
+      ...v.assignments.map((a) => ({ goto: `faktura-${a.id}`, from: `uppdrag-${a.id}`, to: 'bolag', label: `${fmt(a.amount)}`, title: 'Fakturerat', manual: a.manual })),
       { goto: 'lon', from: 'bolag', to: 'person', label: `lön ${fmt(v.grossSalaryYear)}`, title: 'Lön', offset: -0.42 },
       { goto: 'pension', from: 'bolag', to: 'person', label: `pension ${fmt(v.pension)}`, title: 'Pension', offset: 0 },
       { goto: 'utdelning', from: 'bolag', to: 'person', label: `utdelning ${fmt(v.grossDividends)}`, title: 'Utdelning', offset: 0.42 },
@@ -92,5 +101,7 @@ export function renderFlowList(structure, selected) {
     const ed = edge(title);
     return btn(ed.goto, 't-edge', title, ed.label.replace(/^(lön|pension|utdelning) /, ''), selected === ed.goto);
   };
-  return `<div class="flow-list">${n('uppdrag')}${e('Fakturerat')}${n('bolag')}<div class="flow-trio">${e('Lön')}${e('Pension')}${e('Utdelning')}</div>${node('annan') ? n('annan') + e('Annan lön') : ''}${n('person')}</div>`;
+  const assignmentRows = structure.edges.filter((ed) => ed.title === 'Fakturerat').map((ed) =>
+    n(ed.from) + btn(ed.goto, 't-edge', 'Fakturerat', ed.label, selected === ed.goto)).join('');
+  return `<div class="flow-list">${assignmentRows}${n('bolag')}<div class="flow-trio">${e('Lön')}${e('Pension')}${e('Utdelning')}</div>${node('annan') ? n('annan') + e('Annan lön') : ''}${n('person')}</div>`;
 }

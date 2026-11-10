@@ -3,26 +3,27 @@
 //
 // Document:
 //   { app, version, savedAt, current: <state>, scenarios: [{ name, savedAt, state }] }
-// State: the value of every editable field on the page, keyed by element id.
+// State: the value of every editable field on the page, keyed by element id, plus
+// `assignments` (a list, see assignments.js).
+//
+// Version 2 (current): assignments as a list with price changes.
+// Version 1: one assignment as separate fields (hourlyRate, billingStartDate, ...);
+// converted to version 2 when read.
 
-import { billableHours as computeBillableHours } from './engine.js';
 import { LAST_YEAR } from './params.js';
+import { assignmentRevenue, defaultAssignment } from './assignments.js';
 
 export const APP_ID = 'ConsultingBudgetCalculator';
-export const VERSION = 1;
+export const VERSION = 2;
+const MAX_ASSIGNMENTS = 20;
+const MAX_PRICE_CHANGES = 24;
 const MAX_NAME = 80;
 const MAX_SCENARIOS = 50;
 
 // type: 'number' (number or null for an empty field), 'date' ('YYYY-MM-DD'), 'text', 'boolean'
 export const FIELDS = [
   { id: 'year', type: 'number', default: 2026 },
-  { id: 'hourlyRate', type: 'number', default: 700 },
-  { id: 'billingStartDate', type: 'date', default: '2026-01-01' },
-  { id: 'billingEndDate', type: 'date', default: '2026-12-31' },
-  { id: 'workingRate', type: 'number', default: 100 },
   { id: 'vacationDays', type: 'number', default: 25 },
-  { id: 'billableHours', type: 'number', default: null }, // null = computed from the dates
-  { id: 'manualInvoicedAmount', type: 'number', default: null }, // null = from the assignment
   { id: 'otherRevenue', type: 'number', default: 0 },
   { id: 'yearBorn', type: 'number', default: null },
   { id: 'otherEmployer', type: 'text', default: '' },
@@ -47,7 +48,7 @@ export const FIELDS = [
 ];
 
 export function defaultState() {
-  return Object.fromEntries(FIELDS.map((f) => [f.id, f.default]));
+  return { ...Object.fromEntries(FIELDS.map((f) => [f.id, f.default])), assignments: [defaultAssignment()] };
 }
 
 function validValue(type, v) {
@@ -60,8 +61,43 @@ function validValue(type, v) {
   }
 }
 
+const ASSIGNMENT_FIELDS = [
+  ['name', 'text'], ['hourlyRate', 'number'], ['startDate', 'date'], ['endDate', 'date'],
+  ['workingRate', 'number'], ['billableHours', 'number'], ['manualAmount', 'number'],
+];
+
+// Returns { assignment, invalid }.
+function validateAssignment(obj, id) {
+  const a = defaultAssignment(id);
+  let invalid = 0;
+  if (!obj || typeof obj !== 'object') return { assignment: a, invalid: 1 };
+  for (const [key, type] of ASSIGNMENT_FIELDS) {
+    if (!(key in obj)) continue;
+    if (validValue(type, obj[key]) && !(key === 'name' && obj[key].length > 60)) a[key] = obj[key];
+    else invalid++;
+  }
+  if (Array.isArray(obj.priceChanges)) {
+    for (const c of obj.priceChanges.slice(0, MAX_PRICE_CHANGES)) {
+      if (validValue('date', c?.from) && typeof c?.hourlyRate === 'number' && Number.isFinite(c.hourlyRate)) {
+        a.priceChanges.push({ from: c.from, hourlyRate: c.hourlyRate });
+      } else {
+        invalid++;
+      }
+    }
+  }
+  return { assignment: a, invalid };
+}
+
+// Version 1 kept one assignment as separate fields.
+function legacyAssignment(obj) {
+  const keys = { hourlyRate: 'hourlyRate', billingStartDate: 'startDate', billingEndDate: 'endDate',
+    workingRate: 'workingRate', billableHours: 'billableHours', manualInvoicedAmount: 'manualAmount' };
+  if (!Object.keys(keys).some((k) => k in obj)) return null;
+  return Object.fromEntries(Object.entries(keys).filter(([k]) => k in obj).map(([k, v]) => [v, obj[k]]));
+}
+
 // Returns { state, invalid } where invalid counts values that were replaced by defaults.
-// Unknown keys are dropped.
+// Unknown keys are dropped. Accepts both version 1 and version 2 states.
 export function validateState(obj) {
   const state = defaultState();
   let invalid = 0;
@@ -70,6 +106,18 @@ export function validateState(obj) {
     if (!(f.id in obj)) continue;
     if (validValue(f.type, obj[f.id])) state[f.id] = obj[f.id];
     else invalid++;
+  }
+  const list = Array.isArray(obj.assignments) ? obj.assignments.slice(0, MAX_ASSIGNMENTS) : [legacyAssignment(obj)].filter(Boolean);
+  if (list.length) {
+    const used = new Set();
+    state.assignments = list.map((a, i) => {
+      let id = typeof a?.id === 'string' && /^[a-z0-9]{1,12}$/.test(a.id) && !used.has(a.id) ? a.id : null;
+      for (let n = i + 1; !id; n++) if (!used.has(`a${n}`)) id = `a${n}`;
+      used.add(id);
+      const v = validateAssignment(a, id);
+      invalid += v.invalid;
+      return v.assignment;
+    });
   }
   return { state, invalid };
 }
@@ -133,29 +181,23 @@ export function parseDocument(input) {
 export function isPristine(state) {
   const d = defaultState();
   for (const f of FIELDS) {
-    if (f.id === 'billableHours') continue;
     if (state[f.id] !== d[f.id]) return false;
   }
-  return state.billableHours === null || state.billableHours === billableHoursFromDates(state);
-}
-
-function billableHoursFromDates(s) {
-  if (!s.billingStartDate || !s.billingEndDate || s.workingRate === null || s.vacationDays === null) return 0;
-  return computeBillableHours({
-    startDate: s.billingStartDate,
-    endDate: s.billingEndDate,
-    workingRatePercent: s.workingRate,
-    vacationDays: s.vacationDays,
-  });
+  if (state.assignments?.length !== 1) return false;
+  const a = state.assignments[0];
+  const def = d.assignments[0];
+  for (const key of ['id', 'name', 'hourlyRate', 'startDate', 'endDate', 'workingRate', 'manualAmount']) {
+    if (a[key] !== def[key]) return false;
+  }
+  if (a.priceChanges.length) return false;
+  return a.billableHours === null || a.billableHours === assignmentRevenue([{ ...a, billableHours: null }], state.vacationDays).totalHours;
 }
 
 // Converts a state to engine inputs. kommunRates: { year: { KOMMUN: [skattesats, begravning] } }
 export function toEngineInputs(state, kommunRates) {
   const num = (v) => (v === null || v === undefined ? NaN : v);
   const rates = (kommunRates[state.year] ?? kommunRates[LAST_YEAR] ?? {})[state.kommun];
-  const hours = state.billableHours ?? billableHoursFromDates(state);
-  const fromAssignment = state.hourlyRate === null || hours === null ? 0 : state.hourlyRate * hours;
-  const invoiced = state.manualInvoicedAmount ?? fromAssignment;
+  const invoiced = assignmentRevenue(state.assignments ?? [], num(state.vacationDays)).total;
   return {
     year: num(state.year),
     yearBorn: num(state.yearBorn),
