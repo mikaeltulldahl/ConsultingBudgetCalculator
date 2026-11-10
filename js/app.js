@@ -956,7 +956,8 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', app
 
 // Visitor statistics: GoatCounter counts page views without cookies or personal data.
 // Fill in the site code (from goatcounter.com) to turn it on. No other events are sent.
-const GOATCOUNTER_CODE = null;
+// Statistics: https://mikaeltulldahl.goatcounter.com
+const GOATCOUNTER_CODE = 'mikaeltulldahl';
 if (GOATCOUNTER_CODE && !['localhost', '127.0.0.1'].includes(location.hostname)) {
   const script = document.createElement('script');
   script.async = true;

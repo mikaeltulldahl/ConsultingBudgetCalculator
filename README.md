@@ -110,6 +110,7 @@ Behind an HTTP proxy, run the Node scripts with `NODE_USE_ENV_PROXY=1`.
 
 ## Visitor statistics
 
-The page can count page views with [GoatCounter](https://www.goatcounter.com) (no cookies,
-no personal data, no other events). It is off until a site code is filled in:
-set `GOATCOUNTER_CODE` in `js/app.js` to the code of your GoatCounter site.
+The page counts page views with [GoatCounter](https://www.goatcounter.com): no cookies,
+no personal data, no other events (nothing about what people type or export). Statistics
+are at https://mikaeltulldahl.goatcounter.com. The site code is `GOATCOUNTER_CODE` in
+`js/app.js`; visits from localhost are not counted.
