@@ -36,6 +36,14 @@ export const EXPLANATIONS = {
     what: 'Det du fakturerar kunden under året, utan moms. Bolagets huvudsakliga intäkt.',
     formula: 'Timpris × fakturerbara timmar.',
   },
+  fromAssignment: {
+    what: 'Fakturerat belopp som räknas fram i Uppdrag.',
+    formula: 'Timpris × fakturerbara timmar.',
+  },
+  pensionPercent: {
+    what: 'Hur stor tjänstepension bolaget betalar, i procent av din bruttolön.',
+    formula: 'Anges av dig; 4,7 % är kalkylatorns standardvärde. Bolagets avdrag för pensionskostnader är begränsat, vilket kalkylatorn ännu inte räknar med.',
+  },
   usedInvoicedAmount: {
     what: 'Det fakturerade belopp som bolaget räknar med.',
     formula: 'Hämtas från Uppdrag, eller ett eget belopp om du har valt det.',
@@ -139,7 +147,7 @@ export const EXPLANATIONS = {
   otherCosts: { what: 'Bolagets andra kostnader, utan moms: dator, telefon, försäkringar, redovisning m.m.', formula: 'Anges av dig.' },
   pension: {
     what: 'Tjänstepension som bolaget betalar.',
-    formula: '4,7 % × årslön brutto (antagande, i nivå med ITP1).',
+    formula: 'Tjänstepension i % × årslön brutto.',
   },
   insurance: {
     what: 'Trygghetsförsäkring vid arbetsskada (TFA).',

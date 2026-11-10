@@ -44,3 +44,15 @@ test('equivalentEmployeeSalary finds the lowest salary reaching the net target',
   }
   assert.ok(Number.isNaN(equivalentEmployeeSalary({ targetNetMonth: 0, ...person }, fixtureData).grossSalaryMonth));
 });
+
+test('pension level: 4.7 % is the default and other levels flow through the company', () => {
+  const base = calculate(BASE_INPUT, fixtureData);
+  assert.deepEqual(calculate({ ...BASE_INPUT, pensionPercent: 4.7 }, fixtureData), base);
+  const none = calculate({ ...BASE_INPUT, pensionPercent: 0 }, fixtureData);
+  const ten = calculate({ ...BASE_INPUT, pensionPercent: 10 }, fixtureData);
+  assert.equal(none.pension, 0);
+  assert.equal(ten.pension, 0.1 * ten.grossSalaryYear);
+  assert.equal(ten.slp, 0.2426 * (ten.pension + ten.insurance));
+  assert.ok(ten.profitBeforeTax < base.profitBeforeTax && base.profitBeforeTax < none.profitBeforeTax);
+  assert.equal(calculate({ ...BASE_INPUT, usePension: false, pensionPercent: 10 }, fixtureData).pension, 0);
+});

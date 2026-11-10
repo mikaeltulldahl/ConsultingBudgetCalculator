@@ -74,7 +74,7 @@ try {
   await page.click('details:has(#billableHours) summary');
   await page.fill('#billableHours', '1500');
   await page.dispatchEvent('#billableHours', 'input');
-  await goto(page, 'lon');
+  await goto(page, 'pension');
   await page.uncheck('#usePension');
   await settle(page);
   const filled = await snapshot(page);
@@ -150,7 +150,8 @@ try {
   });
 
   await step('the company can use its own invoiced amount', async () => {
-    await goto(page, 'bolag');
+    await goto(page, 'faktura');
+    assert.ok(await page.isVisible('#structureMap g.edge.selected[data-goto="faktura"]'), 'Fakturerat arrow is highlighted');
     await page.click('#toggleManualInvoiced');
     await page.fill('#manualInvoicedAmount', '1000000');
     await page.dispatchEvent('#manualInvoicedAmount', 'input');
@@ -162,13 +163,31 @@ try {
     assert.equal(await page.getAttribute('#usedInvoicedAmount', 'data-value'), filled.invoicedAmount);
   });
 
+  await step('pension level is set on the Pension arrow', async () => {
+    await goto(page, 'pension');
+    assert.ok(await page.isDisabled('#pensionPercent'), 'level is disabled while pension is off');
+    await page.check('#usePension');
+    await page.fill('#pensionPercent', '10');
+    await page.dispatchEvent('#pensionPercent', 'input');
+    await settle(page);
+    const gross = Number(await page.getAttribute('#grossSalaryYear', 'data-value'));
+    assert.equal(Number(await page.getAttribute('#pension', 'data-value')), Math.round(0.1 * gross));
+    assert.equal(await page.getAttribute('#companyPension', 'data-value'), await page.getAttribute('#pension', 'data-value'));
+    assert.match(await page.textContent('#structureMap'), /pension/);
+    await page.fill('#pensionPercent', '4.7');
+    await page.uncheck('#usePension');
+    await settle(page);
+    assert.equal(await page.getAttribute('#totalCost', 'data-value'), filled.totalCost);
+  });
+
   await step('explanation popover opens with a source link', async () => {
     await goto(page, 'person');
     await page.click('#details-tax-summary, details:has(#grundavdrag) > summary');
     await page.click('label[for="grundavdrag"] .info');
     assert.ok(await page.isVisible('#popover'));
     assert.match(await page.textContent('#popover'), /Grundavdrag/);
-    assert.match(await page.getAttribute('#popover a', 'href'), /lagen\.nu\/1999:1229#K63P3/);
+    const popHtml = await page.innerHTML('#popover');
+    assert.match(popHtml, /href="https:\/\/lagen\.nu\/1999:1229#K63P3"/, popHtml);
     await page.keyboard.press('Escape');
     assert.ok(!(await page.isVisible('#popover')));
   });

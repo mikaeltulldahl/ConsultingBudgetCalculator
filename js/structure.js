@@ -13,12 +13,13 @@ export function buildStructure(v) {
     nodes: [
       { id: 'uppdrag', type: 'source', name: 'Uppdrag', sub: Number.isFinite(v.hourlyRate) ? `${fmt(v.hourlyRate)} kr/h` : 'timpris saknas', col: 0, row: 0 },
       { id: 'bolag', type: 'bolag', name: 'Ditt aktiebolag', sub: `resultat ${fmt(v.profitAfterTax)}`, col: 1, row: 0 },
-      { id: 'person', type: 'person', name: 'Du', sub: Number.isFinite(v.netSumMonth) ? `${fmt(v.netSumMonth)} kr/mån` : 'fyll i födelseår, kommun', col: 2, row: 0 },
+      { id: 'person', type: 'person', name: 'Du', sub: Number.isFinite(v.netSumMonth) ? `${fmt(v.netSumMonth)} kr/mån` : 'fyll i dina uppgifter', col: 2, row: 0 },
     ],
     edges: [
-      { goto: v.manualInvoiced ? 'bolag' : 'uppdrag', from: 'uppdrag', to: 'bolag', label: `${fmt(v.invoicedAmount)}`, title: 'Fakturerat', manual: v.manualInvoiced },
-      { goto: 'lon', from: 'bolag', to: 'person', label: `lön ${fmt(v.grossSalaryYear)}`, title: 'Lön', offset: -0.3 },
-      { goto: 'utdelning', from: 'bolag', to: 'person', label: `utdelning ${fmt(v.grossDividends)}`, title: 'Utdelning', offset: 0.3 },
+      { goto: 'faktura', from: 'uppdrag', to: 'bolag', label: `${fmt(v.invoicedAmount)}`, title: 'Fakturerat', manual: v.manualInvoiced },
+      { goto: 'lon', from: 'bolag', to: 'person', label: `lön ${fmt(v.grossSalaryYear)}`, title: 'Lön', offset: -0.42 },
+      { goto: 'pension', from: 'bolag', to: 'person', label: `pension ${fmt(v.pension)}`, title: 'Pension', offset: 0 },
+      { goto: 'utdelning', from: 'bolag', to: 'person', label: `utdelning ${fmt(v.grossDividends)}`, title: 'Utdelning', offset: 0.42 },
     ],
   };
 }
@@ -26,7 +27,7 @@ export function buildStructure(v) {
 const COL_W = 290;
 const NODE_W = 140;
 const NODE_H = 50;
-const ROW_H = 120;
+const ROW_H = 130;
 const TOP = 30;
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -49,8 +50,8 @@ export function renderMap(structure, selected) {
     const mx = (x1 + x2) / 2;
     const d = `M${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
     const lw = e.label.length * 6 + 14;
-    const ly = (y1 + y2) / 2 + (e.offset ?? 0) * 26;
-    return `<g class="edge ${e.goto === selected && e.title !== 'Fakturerat' ? 'selected' : ''}" data-goto="${e.goto}" role="button" tabindex="0" aria-label="${esc(`${e.title}: ${e.label}`)}">
+    const ly = (y1 + y2) / 2 + (e.offset ?? 0) * 30;
+    return `<g class="edge ${e.goto === selected ? 'selected' : ''}" data-goto="${e.goto}" role="button" tabindex="0" aria-label="${esc(`${e.title}: ${e.label}`)}">
       <path class="line" d="${d}" marker-end="url(#arrowhead)" ${e.manual ? 'stroke-dasharray="4 4"' : ''}/><path class="hit" d="${d}"/>
       <rect x="${mx - lw / 2}" y="${ly - 10}" width="${lw}" height="20" rx="10"/>
       <text x="${mx}" y="${ly + 4}" font-size="11" text-anchor="middle" fill="currentColor">${esc(e.label)}</text></g>`;
@@ -79,7 +80,7 @@ export function renderFlowList(structure, selected) {
   const n = (id) => btn(id, `t-${node(id).type}`, node(id).name, node(id).sub, selected === id);
   const e = (title) => {
     const ed = edge(title);
-    return btn(ed.goto, 't-edge', title, ed.label.replace(/^(lön|utdelning) /, ''), selected === ed.goto && title !== 'Fakturerat');
+    return btn(ed.goto, 't-edge', title, ed.label.replace(/^(lön|pension|utdelning) /, ''), selected === ed.goto);
   };
-  return `<div class="flow-list">${n('uppdrag')}${e('Fakturerat')}${n('bolag')}<div class="flow-pair">${e('Lön')}${e('Utdelning')}</div>${n('person')}</div>`;
+  return `<div class="flow-list">${n('uppdrag')}${e('Fakturerat')}${n('bolag')}<div class="flow-trio">${e('Lön')}${e('Pension')}${e('Utdelning')}</div>${n('person')}</div>`;
 }

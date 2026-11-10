@@ -46,7 +46,7 @@ const COMPUTED = [
 //   year, yearBorn,
 //   kommunalSkattPercent, burialSkattPercent, churchMember, churchSkattPercent  (in %),
 //   useMaxGrossSalary, grossSalaryMonth, salaryMonths, useSemesterersattning, vacationDays,
-//   usePension, otherCosts, otherRevenue, invoicedAmount,
+//   usePension, pensionPercent (default 4.7), otherCosts, otherRevenue, invoicedAmount,
 //   maxDividend, grossDividends, savedDividends, omkostnadsbelopp
 function initFields(inp) {
   const f = {
@@ -61,6 +61,7 @@ function initFields(inp) {
     useSemesterersattning: inp.useSemesterersattning,
     vacationDays: inp.vacationDays,
     usePension: inp.usePension,
+    pensionRate: inp.pensionPercent === undefined || inp.pensionPercent === null ? RATES.pensionPremium : inp.pensionPercent / 100,
     otherCosts: inp.otherCosts,
     otherRevenue: inp.otherRevenue,
     invoicedAmount: inp.invoicedAmount,
@@ -263,7 +264,7 @@ function company(f, p) {
   if (isNaN(f.otherCosts) || isNaN(f.grossSalaryYear) || isNaN(f.otherRevenue) || isNaN(f.invoicedAmount)) {
     return;
   }
-  f.pension = f.usePension ? RATES.pensionPremium * f.grossSalaryYear : 0;
+  f.pension = f.usePension ? f.pensionRate * f.grossSalaryYear : 0;
   f.insurance = RATES.arbetsskadeforsakring;
   f.slp = RATES.sarskildLoneskatt * (f.pension + f.insurance);
   f.arbetsgivaravgift = RATES.arbetsgivaravgift * f.grossSalaryYear;
@@ -426,7 +427,8 @@ export function salarySweep(result, data, step = 500) {
   if (isNaN(result.totalTaxPercentage)) return null;
 
   const totalRevenue = result.invoicedAmount + result.otherRevenue - result.otherCosts;
-  const probableMaxGrossSalary = 10000 + totalRevenue / (1 + RATES.arbetsgivaravgift + RATES.pensionPremium * (1 + RATES.sarskildLoneskatt));
+  const pensionRate = result.usePension ? result.pensionRate ?? RATES.pensionPremium : RATES.pensionPremium;
+  const probableMaxGrossSalary = 10000 + totalRevenue / (1 + RATES.arbetsgivaravgift + pensionRate * (1 + RATES.sarskildLoneskatt));
   const count = Math.floor(probableMaxGrossSalary / step) + 1;
 
   let prevTotalTax = 0;

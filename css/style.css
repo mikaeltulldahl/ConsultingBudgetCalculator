@@ -314,8 +314,8 @@ h1, h2, h3 { line-height: 1.25; }
 .flow-list .t-source { border-left: 5px solid var(--source); }
 .flow-list .t-edge { border-style: dashed; margin-left: 18px; font-size: 14px; }
 .flow-list .t-edge::before { content: "↓ "; color: var(--muted); }
-.flow-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
-.flow-pair .t-edge { margin-left: 0; }
+.flow-trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.flow-trio .t-edge { margin-left: 0; flex-direction: column; gap: 0; font-size: 13px; padding: 6px 8px; }
 
 @media (max-width: 640px) {
   /* On phones the summary would cover a fifth of the screen if it stayed on top. */

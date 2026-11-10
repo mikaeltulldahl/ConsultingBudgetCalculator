@@ -169,7 +169,9 @@ function updateBillableHours() {
 function updateInvoicedAmount() {
   const rate = parseInt($('hourlyRate').value);
   const hours = parseInt(billableHoursField.value);
-  setOutput('invoicedAmount', isNaN(rate) || isNaN(hours) ? 0 : rate * hours);
+  const amount = isNaN(rate) || isNaN(hours) ? 0 : rate * hours;
+  setOutput('invoicedAmount', amount);
+  setOutput('fromAssignment', amount);
   updateAll();
 }
 
@@ -298,6 +300,8 @@ for (const id of ['yearBorn', 'grossSalaryMonth', 'salaryMonths', 'otherRevenue'
   'grossDividends', 'savedDividends', 'omkostnadsbelopp']) {
   $(id).addEventListener('input', updateAll);
 }
+$('usePension').addEventListener('change', () => { $('pensionPercent').disabled = !$('usePension').checked; });
+$('pensionPercent').addEventListener('input', updateAll);
 for (const id of ['useSemesterersattning', 'usePension']) {
   $(id).addEventListener('change', updateAll);
 }
@@ -532,6 +536,7 @@ async function applyState(state) {
     }
     syncManualInvoiced();
     $('grossSalaryMonth').disabled = state.useMaxGrossSalary;
+    $('pensionPercent').disabled = !state.usePension;
     $('grossDividends').disabled = state.maxDividend;
     $('forsamling').hidden = !state.churchMember;
     forsamlingSelector.innerHTML = '';
@@ -819,6 +824,7 @@ function renderStructure() {
     profitAfterTax: r.profitAfterTax,
     grossSalaryYear: r.grossSalaryYear,
     grossDividends: r.grossDividends,
+    pension: r.pension,
     netSumMonth: r.netSumMonth,
   });
   $('structureMap').innerHTML = renderMap(structure, prefs.part);
@@ -896,6 +902,7 @@ function openPopover(button, id) {
     popover.append(p);
   }
   popover.hidden = false;
+  popoverScrollY = window.scrollY;
   const r = button.getBoundingClientRect();
   const left = Math.min(window.innerWidth - popover.offsetWidth - 8, Math.max(8, r.left - 20));
   const below = r.bottom + 8 + popover.offsetHeight <= window.innerHeight;
@@ -923,7 +930,11 @@ document.addEventListener('click', (e) => {
   if (!popover.hidden && !popover.contains(e.target) && !e.target.closest('.info')) closePopover();
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePopover(); });
-window.addEventListener('scroll', closePopover, { passive: true });
+// Close when the page has really moved, not on a small scroll that is still settling.
+let popoverScrollY = 0;
+window.addEventListener('scroll', () => {
+  if (!popover.hidden && Math.abs(window.scrollY - popoverScrollY) > 40) closePopover();
+}, { passive: true });
 
 // Quick calculators.
 const quick = initQuick({
@@ -943,7 +954,7 @@ const quick = initQuick({
     if (kind === 'privat') Object.assign(state, { year: v.year, yearBorn: v.yearBorn, kommun: v.kommun, grossSalaryMonth: Math.round(v.income / 12), salaryMonths: 12, useSemesterersattning: false, useMaxGrossSalary: false });
     if (kind === 'faktura') Object.assign(state, { hourlyRate: v.hourlyRate, billingStartDate: v.billingStartDate, billingEndDate: v.billingEndDate, vacationDays: v.vacationDays, workingRate: v.workingRate, billableHours: null, manualInvoicedAmount: null });
     if (kind === 'grans') Object.assign(state, { year: v.year, omkostnadsbelopp: v.omkostnadsbelopp, savedDividends: v.savedDividends });
-    if (kind === 'kostnad') Object.assign(state, { grossSalaryMonth: v.grossSalaryMonth, usePension: v.usePension, useMaxGrossSalary: false });
+    if (kind === 'kostnad') Object.assign(state, { grossSalaryMonth: v.grossSalaryMonth, usePension: v.usePension, pensionPercent: 4.7, useMaxGrossSalary: false });
     for (const [k, val] of Object.entries(state)) if (typeof val === 'number' && !Number.isFinite(val)) state[k] = null;
     if (state.kommun !== (kommunSelector.value || '')) { state.forsamling = ''; state.kyrkoavgift = null; }
     setMode('structure');

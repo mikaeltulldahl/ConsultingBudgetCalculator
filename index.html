@@ -85,6 +85,17 @@
               <div class="row"><label for="billableHours">Fakturerbara timmar</label><input type="number" id="billableHours" min="0" inputmode="numeric"></div>
             </details>
             <div class="result"><label for="invoicedAmount">→ Fakturerat belopp exkl. moms</label><output id="invoicedAmount" data-unit="kr"></output>
+              <small>går till <button type="button" class="link-button" data-goto="faktura">Fakturerat</button> och vidare till bolaget</small></div>
+          </section>
+
+          <!-- Fakturerat (uppdrag -> bolag) ---------------------------------- -->
+          <section class="card part" data-part="faktura" aria-labelledby="h-faktura">
+            <h2 id="h-faktura">Fakturerat: uppdraget → bolaget <span class="badge edge">Intäkt</span></h2>
+            <p class="kind">Räknare: Fakturerat belopp till bolaget</p>
+            <div class="row"><label for="fromAssignment">Räknat i Uppdrag <button type="button" class="from" id="invoicedLink" data-goto="uppdrag">från Uppdrag</button></label><output id="fromAssignment" data-unit="kr"></output></div>
+            <div class="row" id="manualInvoicedRow" hidden><label for="manualInvoicedAmount">Eget belopp</label><input type="number" step="10000" id="manualInvoicedAmount" min="0" inputmode="numeric"></div>
+            <div class="row-actions"><button type="button" class="link-button" id="toggleManualInvoiced">Ange eget belopp i stället</button></div>
+            <div class="result"><label for="usedInvoicedAmount">→ Fakturerat till bolaget</label><output id="usedInvoicedAmount" data-unit="kr"></output>
               <small>går till <button type="button" class="link-button" data-goto="bolag">ditt aktiebolag</button></small></div>
           </section>
 
@@ -93,21 +104,15 @@
             <h2 id="h-bolag">Ditt aktiebolag <span class="badge bolag">Bolag</span></h2>
             <p class="kind">Räknare: Bolagets resultat</p>
             <div class="group-title">Intäkter</div>
-            <div class="row">
-              <label for="usedInvoicedAmount">Fakturerat
-                <button type="button" class="from" id="invoicedLink" data-goto="uppdrag">från Uppdrag</button></label>
-              <output id="usedInvoicedAmount" data-unit="kr"></output>
-            </div>
-            <div class="row" id="manualInvoicedRow" hidden><label for="manualInvoicedAmount">Eget belopp</label><input type="number" step="10000" id="manualInvoicedAmount" min="0" inputmode="numeric"></div>
-            <div class="row-actions"><button type="button" class="link-button" id="toggleManualInvoiced">Ange eget belopp i stället</button></div>
+            <div class="row"><label for="companyInvoiced">Fakturerat <button type="button" class="from" data-goto="faktura">från Fakturerat</button></label><output id="companyInvoiced" data-mirror="invoicedAmount" data-unit="kr"></output></div>
             <div class="row"><label for="otherRevenue">Övriga intäkter exkl. moms</label><input type="number" step="10000" id="otherRevenue" value="0" min="0" inputmode="numeric"></div>
             <div class="group-title">Kostnader</div>
             <div class="row"><label for="companySalary">Lön till dig <button type="button" class="from" data-goto="lon">från Lön</button></label><output id="companySalary" data-mirror="grossSalaryYear" data-unit="kr"></output></div>
+            <div class="row"><label for="companyPension">Tjänstepension till dig <button type="button" class="from" data-goto="pension">från Pension</button></label><output id="companyPension" data-mirror="pension" data-unit="kr"></output></div>
             <div class="row"><label for="otherCosts">Övriga kostnader exkl. moms</label><input type="number" step="10000" min="0" id="otherCosts" value="20000" inputmode="numeric"></div>
             <details class="details">
               <summary>Detaljer</summary>
               <div class="row"><label for="arbetsgivaravgift">Arbetsgivaravgift</label><output id="arbetsgivaravgift" data-unit="kr"></output></div>
-              <div class="row"><label for="pension">Tjänstepension</label><output id="pension" data-unit="kr"></output></div>
               <div class="row"><label for="insurance">Trygghetsförsäkring vid arbetsskada</label><output id="insurance" data-unit="kr"></output></div>
               <div class="row"><label for="slp">Särskild löneskatt (SLP)</label><output id="slp" data-unit="kr"></output></div>
               <div class="row"><label for="totalCost">Totalkostnad</label><output id="totalCost" data-unit="kr"></output></div>
@@ -122,19 +127,32 @@
           <!-- Lön ------------------------------------------------------------ -->
           <section class="card part" data-part="lon" aria-labelledby="h-lon">
             <h2 id="h-lon">Lön: bolaget → du <span class="badge edge">Anställning</span></h2>
-            <p class="kind">Räknare: Lön och pension</p>
+            <p class="kind">Räknare: Lön</p>
             <div class="row"><label for="useMaxGrossSalary">Lön upp till brytpunkt för statlig skatt</label><input type="checkbox" id="useMaxGrossSalary"></div>
             <div class="row"><label for="grossSalaryMonth">Månadslön brutto</label><input type="number" step="1000" id="grossSalaryMonth" min="0" value="55000" inputmode="numeric"></div>
             <div class="row"><label for="salaryMonths">Månader med lön</label><input type="number" id="salaryMonths" min="0" max="12" value="12" inputmode="numeric"></div>
             <div class="row"><label for="useSemesterersattning">Ta ut semesterersättning</label><input type="checkbox" id="useSemesterersattning" checked></div>
-            <div class="row"><label for="usePension">Ta ut tjänstepension</label><input type="checkbox" id="usePension" checked></div>
             <details class="details">
               <summary>Detaljer</summary>
               <div class="row"><label for="grossSemesterersattning">Semesterersättning brutto</label><output id="grossSemesterersattning" data-unit="kr"></output></div>
-              <div class="row"><label for="lonPension">Tjänstepension per år</label><output id="lonPension" data-mirror="pension" data-unit="kr"></output></div>
             </details>
             <div class="result"><label for="grossSalaryYear">→ Årslön brutto</label><output id="grossSalaryYear" data-unit="kr"></output>
               <small>går till <button type="button" class="link-button" data-goto="person">din privata skatt</button> och är en kostnad i <button type="button" class="link-button" data-goto="bolag">bolaget</button></small></div>
+          </section>
+
+          <!-- Pension ------------------------------------------------------- -->
+          <section class="card part" data-part="pension" aria-labelledby="h-pension">
+            <h2 id="h-pension">Tjänstepension: bolaget → du <span class="badge edge">Pension</span></h2>
+            <p class="kind">Räknare: Tjänstepension</p>
+            <div class="row"><label for="usePension">Ta ut tjänstepension</label><input type="checkbox" id="usePension" checked></div>
+            <div class="row"><label for="pensionPercent">Tjänstepension (% av lönen)</label><input type="number" id="pensionPercent" value="4.7" step="0.1" min="0" inputmode="decimal"></div>
+            <div class="row"><label for="pensionSalaryBase">Årslön brutto <button type="button" class="from" data-goto="lon">från Lön</button></label><output id="pensionSalaryBase" data-mirror="grossSalaryYear" data-unit="kr"></output></div>
+            <details class="details">
+              <summary>Detaljer</summary>
+              <div class="row"><label for="pensionSlp">Särskild löneskatt som bolaget betalar</label><output id="pensionSlp" data-mirror="slp" data-unit="kr"></output></div>
+            </details>
+            <div class="result"><label for="pension">→ Tjänstepension per år</label><output id="pension" data-unit="kr"></output>
+              <small>går till din pension och är en kostnad i <button type="button" class="link-button" data-goto="bolag">bolaget</button>. Skatt betalas först när pensionen betalas ut.</small></div>
           </section>
 
           <!-- Utdelning ------------------------------------------------------ -->
