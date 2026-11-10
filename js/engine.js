@@ -280,33 +280,53 @@ function company(f, p) {
 // Assumptions: aktiebolag, fåmansföretag, you own 100 % of the shares, you are the only
 // employee, no salary from other sources, no qualified shares in other companies.
 
-function dividends(f, p) {
-  if (isNaN(f.grossSalaryYear) || isNaN(f.profitAfterTax) || isNaN(f.savedDividends) || isNaN(f.omkostnadsbelopp)) {
-    return;
-  }
-  const stockOwnerPercentage = 1;
-  const stockOwnerShipInOtherCompanies = 0;
-  const totalStockOwnership = stockOwnerPercentage + stockOwnerShipInOtherCompanies;
-  const totalSalary = f.grossSalaryYear; // all employees
-  // The dividend rules are based on the previous year's inkomstbasbelopp.
-  if (f.year <= 2025) {
-    const canUseSalaryBase = f.grossSalaryYear >= 9.60 * f.prevIBB || f.grossSalaryYear >= (6 * f.prevIBB + 0.05 * totalSalary);
-    f.salaryBasedLimit = stockOwnerPercentage * 0.5 * totalSalary;
-    f.dividendsLimitForenklingsregeln = stockOwnerPercentage * 2.75 * f.prevIBB;
-    f.omkostnadsbeloppInterest = p.klyvningsranta * f.omkostnadsbelopp;
-    f.dividendsLimitHuvudregeln = f.omkostnadsbeloppInterest + canUseSalaryBase * Math.min(f.salaryBasedLimit, 50 * f.grossSalaryYear);
-    f.dividendsLimit = Math.floor(Math.max(f.dividendsLimitForenklingsregeln, f.dividendsLimitHuvudregeln)) + f.savedDividends;
+// 3:12 gränsbelopp (utdelningsgräns) for one owner. Uses the previous year's
+// inkomstbasbelopp. ownership: share of the company (0-1). totalSalary: all salaries paid by
+// the company; ownSalary: the owner's own salary from the company.
+export function dividendLimit({ year, ownSalary, totalSalary = ownSalary, ownership = 1, ownershipInOtherCompanies = 0, omkostnadsbelopp, savedDividends = 0 }) {
+  const p = getYearParams(year);
+  const prevIBB = getInkomstbasbelopp(year - 1) || getInkomstbasbelopp(year);
+  const r = {
+    salaryBasedLimit: NaN, forenklingsregeln: NaN, huvudregeln: NaN, grundbelopp: NaN,
+    omkostnadsbeloppInterest: NaN, limit: NaN,
+  };
+  if (year <= 2025) {
+    const canUseSalaryBase = ownSalary >= 9.60 * prevIBB || ownSalary >= (6 * prevIBB + 0.05 * totalSalary);
+    r.salaryBasedLimit = ownership * 0.5 * totalSalary;
+    r.forenklingsregeln = ownership * 2.75 * prevIBB;
+    r.omkostnadsbeloppInterest = p.klyvningsranta * omkostnadsbelopp;
+    r.huvudregeln = r.omkostnadsbeloppInterest + canUseSalaryBase * Math.min(r.salaryBasedLimit, 50 * ownSalary);
+    r.limit = Math.floor(Math.max(r.forenklingsregeln, r.huvudregeln)) + savedDividends;
   } else {
     // New 3:12 rules from 2026:
     // https://www.skatteverket.se/foretag/drivaforetag/foretagsformer/famansforetag/andradereglerinforinkomstdeklarationen2027.4.4a54dc8b19aa6175a152359.html
-    // https://youtu.be/m6xlQ2f1EEk
-    f.dividendsLimitForenklingsregeln = NaN; // not applicable anymore
-    f.dividendsLimitHuvudregeln = NaN; // not applicable anymore
-    f.grundbelopp = stockOwnerPercentage / Math.min(1, totalStockOwnership) * 4 * f.prevIBB;
-    f.salaryBasedLimit = 0.5 * Math.min(Math.max(0, stockOwnerPercentage * totalSalary - 8 * f.prevIBB), 50 * f.grossSalaryYear);
-    f.omkostnadsbeloppInterest = p.klyvningsranta * Math.max(0, f.omkostnadsbelopp - 100000);
-    f.dividendsLimit = Math.floor(f.omkostnadsbeloppInterest + f.grundbelopp + f.salaryBasedLimit) + f.savedDividends;
+    const totalOwnership = ownership + ownershipInOtherCompanies;
+    r.grundbelopp = ownership / Math.min(1, totalOwnership) * 4 * prevIBB;
+    r.salaryBasedLimit = 0.5 * Math.min(Math.max(0, ownership * totalSalary - 8 * prevIBB), 50 * ownSalary);
+    r.omkostnadsbeloppInterest = p.klyvningsranta * Math.max(0, omkostnadsbelopp - 100000);
+    r.limit = Math.floor(r.omkostnadsbeloppInterest + r.grundbelopp + r.salaryBasedLimit) + savedDividends;
   }
+  return r;
+}
+
+// Assumptions: aktiebolag, fåmansföretag, you own 100 % of the shares, you are the only
+// employee, no salary from other sources, no qualified shares in other companies.
+function dividends(f) {
+  if (isNaN(f.grossSalaryYear) || isNaN(f.profitAfterTax) || isNaN(f.savedDividends) || isNaN(f.omkostnadsbelopp)) {
+    return;
+  }
+  const d = dividendLimit({
+    year: f.year,
+    ownSalary: f.grossSalaryYear,
+    omkostnadsbelopp: f.omkostnadsbelopp,
+    savedDividends: f.savedDividends,
+  });
+  f.salaryBasedLimit = d.salaryBasedLimit;
+  f.dividendsLimitForenklingsregeln = d.forenklingsregeln;
+  f.dividendsLimitHuvudregeln = d.huvudregeln;
+  f.grundbelopp = d.grundbelopp;
+  f.omkostnadsbeloppInterest = d.omkostnadsbeloppInterest;
+  f.dividendsLimit = d.limit;
   if (f.maxDividend) {
     f.grossDividends = Math.max(0, Math.min(f.dividendsLimit, f.profitAfterTax));
   } else if (f.grossDividends > f.dividendsLimit) {
@@ -353,7 +373,7 @@ function summary(f, p) {
 function run(f, p, data) {
   salary(f, p, data);
   company(f, p);
-  dividends(f, p);
+  dividends(f);
   summary(f, p);
   return f;
 }
@@ -361,6 +381,36 @@ function run(f, p, data) {
 export function calculate(inputs, data) {
   const p = getYearParams(inputs.year);
   return run(initFields(inputs), p, data);
+}
+
+// What a monthly salary costs the company per month (excluding the small flat
+// arbetsskadeförsäkring): salary + arbetsgivaravgift + tjänstepension + särskild löneskatt.
+export function employerCost({ grossSalaryMonth, usePension = true, pensionRate = RATES.pensionPremium }) {
+  const arbetsgivaravgift = RATES.arbetsgivaravgift * grossSalaryMonth;
+  const pension = usePension ? pensionRate * grossSalaryMonth : 0;
+  const slp = RATES.sarskildLoneskatt * pension;
+  return { arbetsgivaravgift, pension, slp, total: grossSalaryMonth + arbetsgivaravgift + pension + slp };
+}
+
+// The monthly gross salary an employee would need to get `targetNetMonth` after tax
+// (12 equal months, no other income). person: { year, yearBorn, kommunalSkattPercent,
+// burialSkattPercent, churchSkattPercent }. Returns the lowest whole-krona salary that
+// reaches the target.
+export function equivalentEmployeeSalary({ targetNetMonth, ...person }, data) {
+  const netMonth = (grossMonth) => {
+    const t = privateIncomeTax({ ...person, income: 12 * grossMonth }, data);
+    return (12 * grossMonth - t.incomeTax) / 12;
+  };
+  if (!(targetNetMonth > 0) || isNaN(netMonth(0))) return { grossSalaryMonth: NaN, netSalaryMonth: NaN };
+  let lo = 0;
+  let hi = 10000;
+  while (netMonth(hi) < targetNetMonth && hi < 1e8) hi *= 2;
+  while (hi - lo > 1) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (netMonth(mid) >= targetNetMonth) hi = mid;
+    else lo = mid;
+  }
+  return { grossSalaryMonth: hi, netSalaryMonth: netMonth(hi) };
 }
 
 // Recalculates `result` for monthly gross salaries 0, 500, 1000, ... up to the point where
