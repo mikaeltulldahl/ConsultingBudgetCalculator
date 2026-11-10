@@ -186,6 +186,21 @@
               <small>går till <button type="button" class="link-button" data-goto="person">dig</button></small></div>
           </section>
 
+          <!-- Annan anställning -------------------------------------------- -->
+          <section class="card part" data-part="annan" id="annanCard" aria-labelledby="h-annan" hidden>
+            <h2 id="h-annan">Annan anställning → du <span class="badge source">Inkomstkälla</span></h2>
+            <p class="kind">Räknare: Lön från annan arbetsgivare</p>
+            <div class="row"><label for="otherEmployer">Arbetsgivare</label><input type="text" id="otherEmployer" maxlength="60" placeholder="t.ex. Kund C"></div>
+            <div class="row"><label for="otherSalaryYear">Lön brutto per år</label><input type="number" id="otherSalaryYear" value="0" step="10000" min="0" inputmode="numeric"></div>
+            <details class="details">
+              <summary>Detaljer</summary>
+              <div class="row"><label for="otherIncomeTax">Skatt på den här lönen</label><output id="otherIncomeTax" data-unit="kr"></output></div>
+            </details>
+            <div class="result"><label for="otherNetYear">→ Lön netto per år</label><output id="otherNetYear" data-unit="kr"></output>
+              <small>går till <button type="button" class="link-button" data-goto="person">dig</button> och räknas ihop med lönen från ditt AB i din privata skatt.</small></div>
+            <div class="row-actions"><button type="button" class="link-button" id="removeOther">Ta bort annan anställning</button></div>
+          </section>
+
           <!-- Du ------------------------------------------------------------- -->
           <section class="card part" data-part="person" aria-labelledby="h-person">
             <h2 id="h-person">Du <span class="badge person">Person</span></h2>
@@ -197,6 +212,8 @@
             <div class="group-title">Inkomster</div>
             <div class="row"><label for="personSalary">Lön <button type="button" class="from" data-goto="lon">från Lön</button></label><output id="personSalary" data-mirror="grossSalaryYear" data-unit="kr"></output></div>
             <div class="row"><label for="personDividend">Utdelning <button type="button" class="from" data-goto="utdelning">från Utdelning</button></label><output id="personDividend" data-mirror="grossDividends" data-unit="kr"></output></div>
+            <div class="row" id="otherIncomeRow" hidden><label for="personOtherSalary">Lön från annan arbetsgivare <button type="button" class="from" data-goto="annan">från Annan anställning</button></label><output id="personOtherSalary" data-mirror="otherSalaryYear" data-unit="kr"></output></div>
+            <div class="row-actions"><button type="button" class="link-button" id="addOther">+ Annan inkomst (lön från annan arbetsgivare)</button></div>
             <details class="details">
               <summary>Detaljer: privat skatt</summary>
               <div class="row"><label for="kommunalSkattPercent">Kommunal skatt (%)</label><output id="kommunalSkattPercent" data-unit="%" data-decimals="raw"></output></div>
@@ -210,13 +227,16 @@
               <div class="row"><label for="publicServiceSkatt">Public service-avgift</label><output id="publicServiceSkatt" data-unit="kr"></output></div>
               <div class="row"><label for="jobbskatteavdrag">Jobbskatteavdrag</label><output id="jobbskatteavdrag" data-unit="kr"></output></div>
               <div class="row"><label for="skattereduktionForvarvsinkomst">Skattereduktion för förvärvsinkomst</label><output id="skattereduktionForvarvsinkomst" data-unit="kr"></output></div>
-              <div class="row"><label for="incomeTax">Total inkomstskatt</label><output id="incomeTax" data-unit="kr"></output></div>
+              <div class="row"><label for="personIncomeTax">Total inkomstskatt</label><output id="personIncomeTax" data-unit="kr"></output></div>
+              <div class="row"><label for="incomeTax">varav på lönen från ditt AB</label><output id="incomeTax" data-unit="kr"></output></div>
+              <div class="row" id="otherTaxRow" hidden><label for="personOtherTax">varav på annan lön</label><output id="personOtherTax" data-mirror="otherIncomeTax" data-unit="kr"></output></div>
               <div class="row"><label for="incomeTaxPercentage">Total inkomstskatt (%)</label><output id="incomeTaxPercentage" data-unit="%"></output></div>
               <div class="row"><label for="netSalaryYear">Årslön netto</label><output id="netSalaryYear" data-unit="kr"></output></div>
               <div class="row"><label for="netSemesterersattning">Semesterersättning netto</label><output id="netSemesterersattning" data-unit="kr"></output></div>
             </details>
             <div class="group-title">Vad du får ut</div>
             <div class="row"><label for="netSalaryMonth">Månadslön netto</label><output id="netSalaryMonth" data-unit="kr"></output></div>
+            <div class="row" id="otherNetRow" hidden><label for="personOtherNet">Annan lön netto per år</label><output id="personOtherNet" data-mirror="otherNetYear" data-unit="kr"></output></div>
             <div class="row"><label for="personNetDividend">Årsutdelning netto</label><output id="personNetDividend" data-mirror="netDividends" data-unit="kr"></output></div>
             <div class="result"><label for="netSumMonth">→ Månadssumma (lön + utdelning) netto</label><output id="netSumMonth" data-unit="kr"></output></div>
             <details class="details">

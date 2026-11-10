@@ -56,3 +56,26 @@ test('pension level: 4.7 % is the default and other levels flow through the comp
   assert.ok(ten.profitBeforeTax < base.profitBeforeTax && base.profitBeforeTax < none.profitBeforeTax);
   assert.equal(calculate({ ...BASE_INPUT, usePension: false, pensionPercent: 10 }, fixtureData).pension, 0);
 });
+
+test('other salary is taxed together with the salary from the company', () => {
+  const input = { ...BASE_INPUT, useSemesterersattning: false, grossSalaryMonth: 40000, otherSalaryYear: 300000 };
+  const r = calculate(input, fixtureData);
+  const person = { year: 2026, yearBorn: 1985, kommunalSkattPercent: 30.55, burialSkattPercent: 0.07 };
+  const total = privateIncomeTax({ ...person, income: 480000 + 300000 }, fixtureData);
+  const alone = privateIncomeTax({ ...person, income: 300000 }, fixtureData);
+  assert.equal(r.personIncomeTax, total.incomeTax);
+  assert.equal(r.otherIncomeTax, alone.incomeTax);
+  assert.equal(r.incomeTax, total.incomeTax - alone.incomeTax);
+  assert.equal(r.otherNetYear, 300000 - alone.incomeTax);
+  const withoutOther = calculate({ ...input, otherSalaryYear: 0 }, fixtureData);
+  assert.ok(r.incomeTax > withoutOther.incomeTax, 'the company salary is taxed higher on top of another salary');
+  assert.ok(Math.abs(r.netSumMonth - (withoutOther.netSumMonth - (withoutOther.netSalaryMonth - r.netSalaryMonth) + r.otherNetYear / 12)) < 1e-6);
+  // 3:12 uses only the salary from the company.
+  assert.equal(r.dividendsLimit, withoutOther.dividendsLimit);
+});
+
+test('"lön upp till brytpunkt" counts the other salary', () => {
+  const r = calculate({ ...BASE_INPUT, useMaxGrossSalary: true, useSemesterersattning: false, otherSalaryYear: 200000 }, fixtureData);
+  assert.ok(r.grossSalaryYear + 200000 <= 660400 && r.grossSalaryYear + 200000 > 660400 - 12);
+  assert.equal(r.statligSkatt, 0);
+});

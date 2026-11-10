@@ -230,7 +230,7 @@ function readInputs() {
 
 // Output field id -> decimals.
 const OUTPUTS = {
-  pensionDeductible: 0, pensionNonDeductible: 0,
+  pensionDeductible: 0, pensionNonDeductible: 0, personIncomeTax: 0, otherIncomeTax: 0, otherNetYear: 0,
   grossSemesterersattning: 0, grossSalaryYear: 0, grundavdrag: 0, kommunalSkatt: 0, statligSkatt: 0,
   burialSkatt: 0, publicServiceSkatt: 0, jobbskatteavdrag: 0, skattereduktionForvarvsinkomst: 0,
   incomeTax: 0, netSalaryYear: 0, netSemesterersattning: 0, netSalaryMonth: 0, incomeTaxPercentage: 1,
@@ -251,6 +251,7 @@ function writeFields(r) {
   for (const el of document.querySelectorAll('output[data-mirror]')) setOutput(el, r?.[el.dataset.mirror], 0);
   setOutput('usedInvoicedAmount', r?.invoicedAmount);
   $('pensionCapWarning').hidden = !(r?.pensionNonDeductible > 0);
+  syncOther();
   setOutput('churchSkatt', churchMemberField.checked ? r?.churchSkatt : NaN);
   $('grossDividends').value = format(r?.grossDividends, 0);
   if ($('useMaxGrossSalary').checked) $('grossSalaryMonth').value = format(r?.grossSalaryMonth, 0);
@@ -316,6 +317,32 @@ $('usePension').addEventListener('change', syncPensionInputs);
 $('pensionMode').addEventListener('change', () => { syncPensionInputs(); updateAll(); });
 $('pensionPercent').addEventListener('input', updateAll);
 $('pensionAmount').addEventListener('input', updateAll);
+
+// Other employment: shown when it has a name or a salary.
+const otherActive = () => $('otherEmployer').value.trim() !== '' || Number($('otherSalaryYear').value) > 0;
+function syncOther() {
+  const active = otherActive();
+  $('annanCard').hidden = !active;
+  for (const id of ['otherIncomeRow', 'otherTaxRow', 'otherNetRow']) $(id).hidden = !active;
+  $('addOther').parentElement.hidden = active;
+}
+$('otherEmployer').addEventListener('input', updateAll);
+$('otherSalaryYear').addEventListener('input', updateAll);
+$('addOther').addEventListener('click', () => {
+  if (!otherActive()) $('otherEmployer').value = 'Annan arbetsgivare';
+  syncOther();
+  selectPart('annan', { scroll: true });
+  $('otherSalaryYear').focus();
+  $('otherSalaryYear').select();
+  updateAll();
+});
+$('removeOther').addEventListener('click', () => {
+  $('otherEmployer').value = '';
+  $('otherSalaryYear').value = 0;
+  syncOther();
+  selectPart('person', { scroll: true });
+  updateAll();
+});
 for (const id of ['useSemesterersattning', 'usePension']) {
   $(id).addEventListener('change', updateAll);
 }
@@ -551,6 +578,7 @@ async function applyState(state) {
     syncManualInvoiced();
     $('grossSalaryMonth').disabled = state.useMaxGrossSalary;
     syncPensionInputs();
+    syncOther();
     $('grossDividends').disabled = state.maxDividend;
     $('forsamling').hidden = !state.churchMember;
     forsamlingSelector.innerHTML = '';
@@ -839,6 +867,8 @@ function renderStructure() {
     grossSalaryYear: r.grossSalaryYear,
     grossDividends: r.grossDividends,
     pension: r.pension,
+    otherEmployer: otherActive() ? $('otherEmployer').value.trim() || 'Annan anställning' : null,
+    otherSalaryYear: Number($('otherSalaryYear').value) || 0,
     netSumMonth: r.netSumMonth,
   });
   $('structureMap').innerHTML = renderMap(structure, prefs.part);
@@ -857,7 +887,9 @@ function scrollToCard(card) {
 }
 
 function selectPart(part, { scroll = false } = {}) {
-  if (!document.querySelector(`.part[data-part="${part}"]`)) part = 'uppdrag';
+  const card = document.querySelector(`.part[data-part="${part}"]`);
+  if (!card) part = 'uppdrag';
+  else if (card.hidden) part = 'person';
   prefs.part = part;
   savePrefs(prefs);
   for (const el of document.querySelectorAll('.part')) el.classList.toggle('active', el.dataset.part === part);

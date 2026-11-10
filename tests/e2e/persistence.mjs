@@ -41,7 +41,13 @@ const snapshot = (page) => page.evaluate((ids) => Object.fromEntries(ids.map((id
 })), FIELDS);
 
 // Shows a part of the structure (its card) by clicking it in the map or the phone flow.
-const goto = (p, part) => p.locator(`[data-goto="${part}"] >> visible=true`).first().click();
+// Prefers boxes in the map and buttons in the phone flow; a curved arrow's bounding box can
+// have empty space in the middle, where a click lands on nothing.
+const goto = async (p, part) => {
+  const preferred = p.locator(`#structureMap g.node[data-goto="${part}"], #structureTree button[data-goto="${part}"]`).locator('visible=true');
+  if (await preferred.count()) return preferred.first().click();
+  return p.locator(`[data-goto="${part}"] >> visible=true`).first().click();
+};
 
 const settle = (page) => page.waitForTimeout(1500);
 const errors = [];
@@ -186,6 +192,30 @@ try {
     await page.uncheck('#usePension');
     await settle(page);
     assert.equal(await page.getAttribute('#totalCost', 'data-value'), filled.totalCost);
+  });
+
+  await step('other employment is taxed together and shown in the map', async () => {
+    await goto(page, 'person');
+    const before = Number(await page.getAttribute('#netSumMonth', 'data-value'));
+    await page.click('#addOther');
+    assert.ok(await page.isVisible('.part[data-part="annan"]'));
+    await page.fill('#otherEmployer', 'Kund C');
+    await page.fill('#otherSalaryYear', '200000');
+    await page.dispatchEvent('#otherSalaryYear', 'input');
+    await settle(page);
+    assert.match(await page.textContent('#structureMap'), /Kund C/);
+    const after = Number(await page.getAttribute('#netSumMonth', 'data-value'));
+    const otherNet = Number(await page.getAttribute('#otherNetYear', 'data-value'));
+    assert.ok(otherNet > 0 && otherNet < 200000);
+    assert.ok(after > before && after < before + otherNet / 12, 'net per month includes the other job, and the AB salary pays more tax');
+    await page.reload({ waitUntil: 'networkidle' });
+    await settle(page);
+    assert.equal(await page.inputValue('#otherSalaryYear'), '200000', 'remembered after reload');
+    await goto(page, 'annan');
+    await page.click('#removeOther');
+    await settle(page);
+    assert.ok(!(await page.isVisible('.part[data-part="annan"]')));
+    assert.equal(Number(await page.getAttribute('#netSumMonth', 'data-value')), before);
   });
 
   await step('explanation popover opens with a source link', async () => {

@@ -40,6 +40,7 @@ const COMPUTED = [
   'salaryBasedLimit', 'grundbelopp', 'dividendsLimitForenklingsregeln',
   'dividendsLimitHuvudregeln', 'dividendsLimit', 'netDividends', 'profitAfterDividends',
   'netSumMonth', 'totalTax', 'bolagsTaxExclDividends', 'totalTaxPercentage',
+  'personIncomeTax', 'otherIncomeTax', 'otherNetYear',
 ];
 
 // inputs:
@@ -61,6 +62,8 @@ function initFields(inp) {
     useSemesterersattning: inp.useSemesterersattning,
     vacationDays: inp.vacationDays,
     usePension: inp.usePension,
+    // Salary from other employers (gross per year), taxed together with the salary from the company.
+    otherSalaryYear: Number.isFinite(inp.otherSalaryYear) ? inp.otherSalaryYear : 0,
     pensionRate: inp.pensionPercent === undefined || inp.pensionPercent === null ? RATES.pensionPremium : inp.pensionPercent / 100,
     pensionMode: inp.pensionMode === 'amount' ? 'amount' : 'percent',
     pensionAmount: inp.pensionAmount ?? 0,
@@ -87,23 +90,37 @@ function salary(f, p, data) {
   }
   f.vacationMonths = f.useSemesterersattning ? RATES.semesterersattningPerDay * f.vacationDays : 0;
   const monthMultiplier = f.vacationMonths + f.salaryMonths;
+  const other = f.otherSalaryYear ?? 0;
   if (f.useMaxGrossSalary && monthMultiplier > 0) {
+    // All salaries together up to the brytpunkt.
     const brytpunkt = getBrytpunkt(f.year, grundavdragGroup(f.age, p.forhojtGrundavdragAge), data);
-    f.grossSalaryMonth = Math.floor(brytpunkt / monthMultiplier);
+    f.grossSalaryMonth = Math.floor(Math.max(0, brytpunkt - other) / monthMultiplier);
   }
   f.grossSemesterersattning = Math.floor(f.vacationMonths * f.grossSalaryMonth);
   f.grossSalaryYear = Math.floor(monthMultiplier * f.grossSalaryMonth);
-  // Fastställd förvärvsinkomst is rounded down to whole hundreds.
-  f.grossSalaryYearRough = Math.floor(f.grossSalaryYear / 100) * 100;
+  // Fastställd förvärvsinkomst (all salaries together) is rounded down to whole hundreds.
+  f.grossSalaryYearRough = Math.floor((f.grossSalaryYear + other) / 100) * 100;
 
   incomeTax(f, p, data);
   if (isNaN(f.grundavdrag)) {
     return;
   }
+  // The tax is on all salaries together. The other salary is charged the tax it would have
+  // on its own; the salary from the company carries the rest (the extra tax it causes).
+  f.personIncomeTax = f.incomeTax;
+  f.otherIncomeTax = 0;
+  if (other > 0) {
+    const alone = { year: f.year, age: f.age, kommunalSkattPercent: f.kommunalSkattPercent, burialSkattPercent: f.burialSkattPercent,
+      churchSkattPercent: f.churchSkattPercent, grossSalaryYearRough: Math.floor(other / 100) * 100 };
+    incomeTax(alone, p, data);
+    f.otherIncomeTax = alone.incomeTax;
+    f.incomeTax = f.personIncomeTax - f.otherIncomeTax;
+  }
+  f.otherNetYear = other - f.otherIncomeTax;
   f.netSalaryYear = f.grossSalaryYear - f.incomeTax;
   f.netSalaryMonth = monthMultiplier > 0 ? f.netSalaryYear / monthMultiplier : 0;
   f.netSemesterersattning = f.vacationMonths * f.netSalaryMonth;
-  f.incomeTaxPercentage = 100 * f.incomeTax / f.grossSalaryYear;
+  f.incomeTaxPercentage = 100 * f.personIncomeTax / (f.grossSalaryYear + other);
 }
 
 // Slutlig skatt on income from employment. Needs f.year, f.age, the tax rates (as
@@ -397,9 +414,11 @@ function summary(f, p) {
   f.totalTax = f.incomeTax + f.slp + f.arbetsgivaravgift + f.bolagsTaxOnDividends + f.dividendTax;
   // Dividends are spread over the months with regular salary (not semesterersättning),
   // or over 12 months if there is no salary.
-  f.netSumMonth = f.salaryMonths > 0
+  // Everything the person gets per month: salaries from the company and other employers,
+  // and dividends.
+  f.netSumMonth = (f.otherNetYear ?? 0) / 12 + (f.salaryMonths > 0
     ? f.netSalaryMonth + f.netDividends / f.salaryMonths
-    : f.netDividends / 12;
+    : f.netDividends / 12);
   f.totalTaxPercentage = 100 * f.totalTax / (f.invoicedAmount + f.otherRevenue);
 }
 

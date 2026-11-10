@@ -25,6 +25,8 @@ export const FIELDS = [
   { id: 'manualInvoicedAmount', type: 'number', default: null }, // null = from the assignment
   { id: 'otherRevenue', type: 'number', default: 0 },
   { id: 'yearBorn', type: 'number', default: null },
+  { id: 'otherEmployer', type: 'text', default: '' },
+  { id: 'otherSalaryYear', type: 'number', default: 0 },
   { id: 'kommun', type: 'text', default: '' },
   { id: 'churchMember', type: 'boolean', default: false },
   { id: 'forsamling', type: 'text', default: '' },
@@ -168,6 +170,7 @@ export function toEngineInputs(state, kommunRates) {
     vacationDays: num(state.vacationDays),
     usePension: state.usePension,
     pensionPercent: num(state.pensionPercent),
+    otherSalaryYear: num(state.otherSalaryYear),
     pensionMode: state.pensionMode,
     pensionAmount: num(state.pensionAmount),
     otherCosts: num(state.otherCosts),

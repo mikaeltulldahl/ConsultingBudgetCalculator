@@ -13,6 +13,7 @@ export function buildStructure(v) {
     nodes: [
       { id: 'uppdrag', type: 'source', name: 'Uppdrag', sub: Number.isFinite(v.hourlyRate) ? `${fmt(v.hourlyRate)} kr/h` : 'timpris saknas', col: 0, row: 0 },
       { id: 'bolag', type: 'bolag', name: 'Ditt aktiebolag', sub: `resultat ${fmt(v.profitAfterTax)}`, col: 1, row: 0 },
+      ...(v.otherEmployer ? [{ id: 'annan', type: 'source', name: v.otherEmployer, sub: `lön ${fmt(v.otherSalaryYear)}/år`, col: 0, row: 1 }] : []),
       { id: 'person', type: 'person', name: 'Du', sub: Number.isFinite(v.netSumMonth) ? `${fmt(v.netSumMonth)} kr/mån` : 'fyll i dina uppgifter', col: 2, row: 0 },
     ],
     edges: [
@@ -20,6 +21,7 @@ export function buildStructure(v) {
       { goto: 'lon', from: 'bolag', to: 'person', label: `lön ${fmt(v.grossSalaryYear)}`, title: 'Lön', offset: -0.42 },
       { goto: 'pension', from: 'bolag', to: 'person', label: `pension ${fmt(v.pension)}`, title: 'Pension', offset: 0 },
       { goto: 'utdelning', from: 'bolag', to: 'person', label: `utdelning ${fmt(v.grossDividends)}`, title: 'Utdelning', offset: 0.42 },
+      ...(v.otherEmployer ? [{ goto: 'annan', from: 'annan', to: 'person', label: `lön ${fmt(v.otherSalaryYear)}`, title: 'Annan lön', enterFromBelow: true }] : []),
     ],
   };
 }
@@ -47,10 +49,18 @@ export function renderMap(structure, selected) {
     const y1 = a.y + NODE_H / 2 + off;
     const x2 = b.x - 8;
     const y2 = b.y + NODE_H / 2 + off;
-    const mx = (x1 + x2) / 2;
-    const d = `M${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+    let mx = (x1 + x2) / 2;
+    let d = `M${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+    let ly = (y1 + y2) / 2 + (e.offset ?? 0) * 30;
+    if (e.enterFromBelow) {
+      // Into the bottom of the target box, so it does not cross the arrows from the side.
+      const bx = b.x + NODE_W / 2;
+      const by = b.y + NODE_H + 8;
+      d = `M${x1} ${y1} C ${bx} ${y1}, ${bx} ${y1}, ${bx} ${by}`;
+      mx = (x1 + bx) / 2;
+      ly = y1;
+    }
     const lw = e.label.length * 6 + 14;
-    const ly = (y1 + y2) / 2 + (e.offset ?? 0) * 30;
     return `<g class="edge ${e.goto === selected ? 'selected' : ''}" data-goto="${e.goto}" role="button" tabindex="0" aria-label="${esc(`${e.title}: ${e.label}`)}">
       <path class="line" d="${d}" marker-end="url(#arrowhead)" ${e.manual ? 'stroke-dasharray="4 4"' : ''}/><path class="hit" d="${d}"/>
       <rect x="${mx - lw / 2}" y="${ly - 10}" width="${lw}" height="20" rx="10"/>
@@ -82,5 +92,5 @@ export function renderFlowList(structure, selected) {
     const ed = edge(title);
     return btn(ed.goto, 't-edge', title, ed.label.replace(/^(lön|pension|utdelning) /, ''), selected === ed.goto);
   };
-  return `<div class="flow-list">${n('uppdrag')}${e('Fakturerat')}${n('bolag')}<div class="flow-trio">${e('Lön')}${e('Pension')}${e('Utdelning')}</div>${n('person')}</div>`;
+  return `<div class="flow-list">${n('uppdrag')}${e('Fakturerat')}${n('bolag')}<div class="flow-trio">${e('Lön')}${e('Pension')}${e('Utdelning')}</div>${node('annan') ? n('annan') + e('Annan lön') : ''}${n('person')}</div>`;
 }

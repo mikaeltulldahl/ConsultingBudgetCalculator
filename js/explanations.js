@@ -40,6 +40,21 @@ export const EXPLANATIONS = {
     what: 'Fakturerat belopp som räknas fram i Uppdrag.',
     formula: 'Timpris × fakturerbara timmar.',
   },
+  otherEmployer: { what: 'Namnet på den andra arbetsgivaren.', formula: 'Anges av dig.' },
+  otherSalaryYear: {
+    what: 'Lön från en annan arbetsgivare, före skatt, för hela året.',
+    formula: 'Anges av dig. Beskattas tillsammans med lönen från ditt AB, så att grundavdrag, statlig skatt och jobbskatteavdrag blir rätt.',
+  },
+  otherIncomeTax: {
+    what: 'Skatten på lönen från den andra arbetsgivaren.',
+    formula: 'Skatten som den lönen skulle ha om den vore din enda inkomst. Lönen från ditt AB bär resten, alltså den extra skatt den orsakar.',
+  },
+  otherNetYear: { what: 'Lönen från den andra arbetsgivaren efter skatt.', formula: 'Lön brutto − skatt på den här lönen.' },
+  personIncomeTax: {
+    what: 'All skatt på dina löner: slutlig skatt. Stämmer på kronan mot Skatteverkets beräkning.',
+    formula: 'Kommunal + statlig skatt + avgifter − skattereduktioner, på alla löner tillsammans.',
+    source: ['Skatteverket: Räkna ut din skatt', SKV_RAKNA],
+  },
   pensionMode: {
     what: 'Om tjänstepensionen anges som en andel av lönen eller som ett fast belopp per år.',
     formula: 'Anges av dig.',
@@ -150,9 +165,8 @@ export const EXPLANATIONS = {
     formula: '0,75 % × (beskattningsbar inkomst − 40 000 kr), högst 1 500 kr, och högst den skatt som är kvar.',
   },
   incomeTax: {
-    what: 'All skatt på lönen: slutlig skatt. Stämmer på kronan mot Skatteverkets beräkning i 814 testfall.',
-    formula: 'Kommunal + statlig skatt + begravnings- och kyrkoavgift + public service-avgift + allmän pensionsavgift − skattereduktioner.',
-    source: ['Skatteverket: Räkna ut din skatt', SKV_RAKNA],
+    what: 'Den del av inkomstskatten som hör till lönen från ditt AB. Utan annan lön är det all inkomstskatt.',
+    formula: 'Total inkomstskatt − skatt på annan lön.',
   },
   netSalaryYear: { what: 'Lön efter skatt för hela året.', formula: 'Årslön brutto − total inkomstskatt.' },
   netSemesterersattning: { what: 'Semesterersättning efter skatt.', formula: 'Semesterdagar × 0,43 % × månadslön netto.' },
@@ -242,7 +256,7 @@ export const EXPLANATIONS = {
   profitAfterDividends: { what: 'Det som blir kvar i bolaget efter utdelningen.', formula: 'Resultat efter skatt − utdelning.' },
   netSumMonth: {
     what: 'Vad du får ut per månad: lön efter skatt plus utdelning efter skatt.',
-    formula: 'Månadslön netto + årsutdelning netto / månader med lön.',
+    formula: 'Månadslön netto + årsutdelning netto / månader med lön + annan lön netto / 12.',
   },
   totalTax: {
     what: 'All skatt på det du tar ut, utom bolagsskatten på vinst som blir kvar i bolaget.',
