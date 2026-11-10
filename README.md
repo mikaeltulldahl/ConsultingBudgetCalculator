@@ -5,6 +5,17 @@ https://mikaeltulldahl.github.io/ConsultingBudgetCalculator/
 
 Everything is calculated in your browser; nothing you enter is sent anywhere.
 
+## Your data
+
+- What you fill in is remembered in your own browser (localStorage) until you click
+  "Rensa mina uppgifter". It is never sent anywhere.
+- "Exportera mina uppgifter" saves everything, including saved scenarios, to a JSON file
+  that can be imported again, e.g. on another computer.
+- "Exportera till Excel (CSV)" downloads every field and calculated value, in page order,
+  with the explanation of how each value is calculated. The file uses semicolons and
+  decimal commas, as Swedish Excel expects.
+- Scenarios can be saved under a name and compared side by side.
+
 ## How the calculations are verified
 
 The private income tax is tested against Skatteverket's own calculator
@@ -23,6 +34,7 @@ invariants such as "money is conserved" and "net pay grows with gross pay".
 | `js/engine.js` | All calculations. Pure functions, no DOM or network. |
 | `js/params.js` | Tax parameters per year. |
 | `js/grundavdrag.js`, `js/holidays.js` | Grundavdrag and Swedish holidays. |
+| `js/scenario.js`, `js/storage.js` | Saved data format, export/import, CSV, browser storage. |
 | `data/` | Kommun tax rates and förhöjt grundavdrag tables, served with the page. |
 | `tests/` | Tests (`node --test`, no dependencies). |
 | `tools/` | Scripts that download data and reference cases. |
@@ -44,6 +56,13 @@ Requires Node.js 22 or later.
 
 ```bash
 npm test
+```
+
+Browser test of remembering data, export/import, CSV and scenarios (needs Playwright with
+Chromium and network access; not run in CI):
+
+```bash
+npm run test:e2e
 ```
 
 `tests/regression/snapshot.json` stores the engine output for a fixed set of inputs. After

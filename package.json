@@ -6,6 +6,7 @@
   "scripts": {
     "test": "node --test \"tests/**/*.test.mjs\"",
     "update-snapshots": "node tools/update-snapshots.mjs",
-    "fetch-skatteverket-cases": "node tools/skatteverket/fetch-cases.mjs"
+    "fetch-skatteverket-cases": "node tools/skatteverket/fetch-cases.mjs",
+    "test:e2e": "node tests/e2e/persistence.mjs"
   }
 }

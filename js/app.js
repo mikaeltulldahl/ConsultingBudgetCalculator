@@ -3,6 +3,10 @@
 import { calculate, salarySweep, billableHours } from './engine.js';
 import { FIRST_YEAR, LAST_YEAR, UnsupportedYearError, getYearParams } from './params.js';
 import { grundavdragGroup } from './grundavdrag.js';
+import {
+  FIELDS, defaultState, makeDocument, parseDocument, isPristine, toEngineInputs, toCsv,
+} from './scenario.js';
+import { loadStored, saveStored, clearStored } from './storage.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -72,9 +76,11 @@ function validForsamling() {
   return forsamlingSelector.selectedIndex > 0;
 }
 
-async function populateForsamling() {
+// preferred: { name, rate } to select (used when restoring saved data). If the live lookup
+// fails, the preferred församling is still offered with its stored rate.
+async function populateForsamling(preferred = null) {
   if (!churchMemberField.checked || !validKommun()) return;
-  const selected = forsamlingSelector.selectedOptions[0]?.text;
+  const selected = preferred?.name ?? forsamlingSelector.selectedOptions[0]?.text;
   forsamlingSelector.innerHTML = '';
   const placeholder = new Option('--- VÄLJ FÖRSAMLING---', '', true, true);
   placeholder.disabled = true;
@@ -91,6 +97,9 @@ async function populateForsamling() {
   } catch (error) {
     console.error(error);
     setStatus('forsamling', 'Kunde inte hämta församlingar från Skatteverket. Försök igen senare.');
+    if (preferred?.name && preferred.rate !== null) {
+      forsamlingSelector.add(new Option(preferred.name, preferred.rate, false, true));
+    }
   }
   updateTaxRates();
 }
@@ -149,30 +158,25 @@ $('hourlyRate').addEventListener('input', updateInvoicedAmount);
 // Main update
 // ---------------------------------------------------------------------------
 
+// The value of every editable field (see FIELDS in scenario.js).
+function readState() {
+  const state = {};
+  for (const f of FIELDS) {
+    const el = $(f.id);
+    if (!el || ['kommun', 'forsamling', 'kyrkoavgift'].includes(f.id)) continue;
+    if (f.type === 'boolean') state[f.id] = el.checked;
+    else if (f.type === 'number') state[f.id] = el.value === '' || isNaN(Number(el.value)) ? null : Number(el.value);
+    else state[f.id] = el.value;
+  }
+  state.kommun = validKommun() ? kommunSelector.value : '';
+  const forsamling = churchMemberField.checked && validForsamling();
+  state.forsamling = forsamling ? forsamlingSelector.selectedOptions[0].text : '';
+  state.kyrkoavgift = forsamling ? parseFloat(forsamlingSelector.value) : null;
+  return state;
+}
+
 function readInputs() {
-  const int = (id) => parseInt($(id).value);
-  const float = (id) => parseFloat($(id).value);
-  return {
-    year: int('year'),
-    yearBorn: int('yearBorn'),
-    kommunalSkattPercent: float('kommunalSkattPercent'),
-    burialSkattPercent: float('burialSkattPercent'),
-    churchMember: churchMemberField.checked,
-    churchSkattPercent: float('churchSkattPercent'),
-    useMaxGrossSalary: $('useMaxGrossSalary').checked,
-    grossSalaryMonth: int('grossSalaryMonth'),
-    salaryMonths: int('salaryMonths'),
-    useSemesterersattning: $('useSemesterersattning').checked,
-    vacationDays: int('vacationDays'),
-    usePension: $('usePension').checked,
-    otherCosts: int('otherCosts'),
-    otherRevenue: int('otherRevenue'),
-    invoicedAmount: int('invoicedAmount'),
-    maxDividend: $('maxDividend').checked,
-    grossDividends: int('grossDividends'),
-    savedDividends: int('savedDividends'),
-    omkostnadsbelopp: int('omkostnadsbelopp'),
-  };
+  return toEngineInputs(readState(), kommunRates);
 }
 
 // Output field id -> decimals.
@@ -226,6 +230,9 @@ async function updateAll() {
   writeFields(result);
   updateCharts(result);
   updateSankeyChartData(result ?? {});
+  currentResult = result;
+  renderScenarios();
+  scheduleSave();
 }
 
 for (const id of ['yearBorn', 'grossSalaryMonth', 'salaryMonths', 'otherRevenue', 'otherCosts',
@@ -427,6 +434,304 @@ function updateCharts(result) {
 }
 
 // ---------------------------------------------------------------------------
+// Remembering data, saved scenarios, export and import
+// ---------------------------------------------------------------------------
+
+let scenarios = []; // [{ name, savedAt, state }]
+let currentResult = null;
+let restoring = false; // true while applyState fills the form
+let saveTimer = null;
+
+// Saves the current form and the scenarios in this browser (nothing is sent anywhere).
+// A page with only default values and no scenarios leaves nothing stored.
+function scheduleSave() {
+  if (restoring) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveNow, 300);
+}
+
+function saveNow() {
+  const state = readState();
+  if (isPristine(state) && scenarios.length === 0) clearStored();
+  else saveStored(makeDocument(state, scenarios));
+}
+
+// Fills the form from a state, in dependency order, then recalculates once.
+async function applyState(state) {
+  restoring = true;
+  try {
+    yearField.value = state.year ?? '';
+    updateYearDependentFields();
+    populateKommunDropdown();
+    kommunSelector.value = state.kommun;
+    if (kommunSelector.selectedIndex < 0) kommunSelector.selectedIndex = 0;
+    for (const f of FIELDS) {
+      const el = $(f.id);
+      if (!el || ['year', 'kommun', 'forsamling', 'kyrkoavgift', 'billableHours'].includes(f.id)) continue;
+      if (f.type === 'boolean') el.checked = state[f.id];
+      else el.value = state[f.id] ?? '';
+    }
+    $('grossSalaryMonth').disabled = state.useMaxGrossSalary;
+    $('grossDividends').disabled = state.maxDividend;
+    $('forsamling').hidden = !state.churchMember;
+    forsamlingSelector.innerHTML = '';
+    forsamlingSelector.add(new Option('--- VÄLJ FÖRSAMLING---', '', true, true));
+    if (state.churchMember && validKommun()) {
+      await populateForsamling({ name: state.forsamling, rate: state.kyrkoavgift });
+    }
+    if (state.billableHours === null) {
+      updateBillableHours();
+    } else {
+      billableHoursField.value = state.billableHours;
+      updateInvoicedAmount();
+    }
+    updateTaxRates();
+  } finally {
+    restoring = false;
+  }
+}
+
+function download(filename, content, type) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+const today = () => new Date().toISOString().slice(0, 10);
+
+function showNotice(message) {
+  $('dataNotice').textContent = message;
+}
+
+// Key results shown in the scenario table and the CSV scenario block.
+const KEY_RESULTS = [
+  ['invoicedAmount', 'Fakturerat belopp', 0],
+  ['grossSalaryMonth', 'Månadslön brutto', 0],
+  ['netSalaryMonth', 'Månadslön netto', 0],
+  ['pension', 'Tjänstepension per år', 0],
+  ['netDividends', 'Årsutdelning netto', 0],
+  ['netSumMonth', 'Månadssumma (lön + utdelning) netto', 0],
+  ['totalTax', 'Total skatt*', 0],
+  ['totalTaxPercentage', 'Total skatt* (%)', 1],
+  ['profitAfterDividends', 'Årets resultat efter utdelning', 0],
+];
+const KEY_INPUTS = [
+  ['year', 'Räkenskapsår'],
+  ['hourlyRate', 'Timpris'],
+];
+
+async function resultForState(state) {
+  try {
+    const inputs = toEngineInputs(state, kommunRates);
+    const p = getYearParams(inputs.year);
+    const age = inputs.year - inputs.yearBorn - 1;
+    if (!isNaN(age)) await ensureGrundavdragTable(inputs.year, grundavdragGroup(age, p.forhojtGrundavdragAge));
+    return calculate(inputs, engineData);
+  } catch {
+    return null;
+  }
+}
+
+const sv = (value, decimals = 0) => (Number.isFinite(value)
+  ? value.toLocaleString('sv-SE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+  : '–');
+
+let renderCounter = 0;
+async function renderScenarios() {
+  const id = ++renderCounter;
+  const results = await Promise.all(scenarios.map((s) => resultForState(s.state)));
+  if (id !== renderCounter) return;
+  const table = $('scenarioTable');
+  table.replaceChildren();
+  $('scenarioEmpty').hidden = scenarios.length > 0;
+  table.hidden = scenarios.length === 0;
+  if (!scenarios.length) return;
+
+  const current = readState();
+  const columns = [{ name: 'Nuvarande', state: current, result: currentResult }, ...scenarios.map((s, i) => ({ ...s, result: results[i], index: i }))];
+
+  const head = table.createTHead().insertRow();
+  head.append(document.createElement('th'));
+  for (const col of columns) {
+    const th = document.createElement('th');
+    th.scope = 'col';
+    const name = document.createElement('div');
+    name.textContent = col.name;
+    th.append(name);
+    if (col.index !== undefined) {
+      const load = document.createElement('button');
+      load.type = 'button';
+      load.textContent = 'Ladda';
+      load.addEventListener('click', () => loadScenario(col.index));
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = 'Ta bort';
+      remove.addEventListener('click', () => removeScenario(col.index));
+      th.append(load, ' ', remove);
+    }
+    head.append(th);
+  }
+  const body = table.createTBody();
+  const addRow = (label, cells) => {
+    const tr = body.insertRow();
+    const th = document.createElement('th');
+    th.scope = 'row';
+    th.textContent = label;
+    tr.append(th);
+    for (const c of cells) {
+      const td = tr.insertCell();
+      td.textContent = c.text;
+      if (c.diff) {
+        const small = document.createElement('small');
+        small.className = 'diff';
+        small.textContent = c.diff;
+        td.append(document.createElement('br'), small);
+      }
+    }
+  };
+  for (const [key, label] of KEY_INPUTS) {
+    addRow(label, columns.map((c) => ({ text: c.state[key] === null ? '–' : String(c.state[key]) })));
+  }
+  for (const [key, label, decimals] of KEY_RESULTS) {
+    const base = currentResult?.[key];
+    addRow(label, columns.map((c, i) => {
+      const v = c.result?.[key];
+      const d = v - base;
+      const diff = i > 0 && Number.isFinite(d) && Math.abs(d) >= 0.5 * 10 ** -decimals
+        ? `${d > 0 ? '+' : '−'}${sv(Math.abs(d), decimals)}`
+        : '';
+      return { text: sv(v, decimals), diff };
+    }));
+  }
+}
+
+function saveScenario() {
+  const input = $('scenarioName');
+  const name = input.value.trim().slice(0, 80) || `Scenario ${scenarios.length + 1}`;
+  const entry = { name, savedAt: new Date().toISOString(), state: readState() };
+  const existing = scenarios.findIndex((s) => s.name === name);
+  if (existing >= 0) {
+    if (!confirm(`Det finns redan ett scenario som heter "${name}". Vill du ersätta det?`)) return;
+    scenarios[existing] = entry;
+  } else {
+    scenarios.push(entry);
+  }
+  input.value = '';
+  showNotice(`Sparade scenariot "${name}".`);
+  renderScenarios();
+  saveNow();
+}
+
+async function loadScenario(index) {
+  const s = scenarios[index];
+  await applyState(s.state);
+  showNotice(`Laddade scenariot "${s.name}".`);
+  saveNow();
+}
+
+function removeScenario(index) {
+  const s = scenarios[index];
+  if (!confirm(`Ta bort scenariot "${s.name}"?`)) return;
+  scenarios.splice(index, 1);
+  showNotice(`Tog bort scenariot "${s.name}".`);
+  renderScenarios();
+  saveNow();
+}
+
+function exportJson() {
+  const json = JSON.stringify(makeDocument(readState(), scenarios), null, 2);
+  download(`budgetkalkyl-${today()}.json`, json, 'application/json');
+  showNotice('Dina uppgifter har exporterats till en fil.');
+}
+
+async function importJson(file) {
+  try {
+    const { current, scenarios: imported, invalid } = parseDocument(await file.text());
+    const what = imported.length ? ` och ${imported.length} sparade scenarier` : '';
+    if (!confirm(`Ersätta det du har fyllt i nu med uppgifterna i filen${what}?`)) return;
+    scenarios = imported;
+    await applyState(current);
+    saveNow();
+    showNotice(`Uppgifterna har importerats${invalid ? ` (${invalid} ogiltiga värden ersattes med standardvärden)` : ''}.`);
+  } catch (error) {
+    showNotice(error.name === 'ScenarioFormatError' ? error.message : 'Filen kunde inte läsas.');
+  }
+}
+
+// One row per field on the page, in page order, with its explanation (the mouse-over text).
+function pageRows() {
+  const rows = [];
+  let section = '';
+  for (const el of document.querySelectorAll('.wrapper h2, .wrapper label')) {
+    if (el.tagName === 'H2') {
+      section = el.textContent.trim();
+      continue;
+    }
+    const field = el.htmlFor ? $(el.htmlFor) : el.parentElement.querySelector('select');
+    if (!field || field.closest('[hidden]') || field.closest('#dataSection')) continue;
+    let value;
+    if (field.type === 'checkbox') value = field.checked ? 'Ja' : 'Nej';
+    else if (field.tagName === 'SELECT') value = field.selectedIndex > 0 ? field.selectedOptions[0].text : '';
+    else if (field.type === 'number') value = field.value === '' ? null : Number(field.value);
+    else value = field.value;
+    const label = el.textContent.trim().replace(/:$/, '');
+    rows.push([section, label, value, field.disabled ? 'Beräknat' : 'Inmatning', field.title || '']);
+  }
+  return rows;
+}
+
+async function exportCsv() {
+  const rows = [
+    ['Budgetkalkylator för konsulter'],
+    ['Källa', location.origin + location.pathname],
+    ['Exporterad', new Date().toLocaleString('sv-SE')],
+    ['Uppgifterna exporterades från din webbläsare. Inget har skickats någonstans.'],
+    ['Observera: beräkningen är en uppskattning. Vi tar inte ansvar för några misstag eller fel.'],
+    [],
+    ['Avsnitt', 'Fält', 'Värde', 'Typ', 'Förklaring'],
+    ...pageRows(),
+  ];
+  if (scenarios.length) {
+    const results = await Promise.all(scenarios.map((s) => resultForState(s.state)));
+    const round = (v, d) => (Number.isFinite(v) ? Number(v.toFixed(d)) : null);
+    rows.push([], ['Sparade scenarier'], ['Fält', 'Nuvarande', ...scenarios.map((s) => s.name)]);
+    const current = readState();
+    for (const [key, label] of KEY_INPUTS) rows.push([label, current[key], ...scenarios.map((s) => s.state[key])]);
+    for (const [key, label, d] of KEY_RESULTS) {
+      rows.push([label, round(currentResult?.[key], d), ...results.map((r) => round(r?.[key], d))]);
+    }
+  }
+  download(`budgetkalkyl-${today()}.csv`, toCsv(rows), 'text/csv;charset=utf-8');
+  showNotice('Beräkningen har exporterats till en CSV-fil som kan öppnas i Excel.');
+}
+
+async function clearData() {
+  if (!confirm('Rensa allt du har fyllt i och alla sparade scenarier från den här webbläsaren?')) return;
+  scenarios = [];
+  clearStored();
+  await applyState(defaultState());
+  clearStored();
+  showNotice('Dina uppgifter har rensats från den här webbläsaren.');
+}
+
+$('saveScenario').addEventListener('click', saveScenario);
+$('scenarioName').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveScenario(); });
+$('exportJson').addEventListener('click', exportJson);
+$('exportCsv').addEventListener('click', exportCsv);
+$('importJson').addEventListener('click', () => $('importFile').click());
+$('importFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (file) importJson(file);
+});
+$('clearData').addEventListener('click', clearData);
+
+// ---------------------------------------------------------------------------
 // Start
 // ---------------------------------------------------------------------------
 
@@ -441,7 +746,21 @@ async function init() {
     console.error(error);
     setStatus('kommuner', 'Kunde inte läsa in kommunernas skattesatser. Ladda om sidan.');
   }
-  populateKommunDropdown();
-  updateBillableHours();
+  let restored = null;
+  const stored = loadStored();
+  if (stored) {
+    try {
+      restored = parseDocument(stored);
+    } catch {
+      clearStored(); // unreadable data from an older or broken version
+    }
+  }
+  if (restored) {
+    scenarios = restored.scenarios;
+    await applyState(restored.current);
+  } else {
+    populateKommunDropdown();
+    updateBillableHours();
+  }
 }
 init();
