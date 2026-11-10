@@ -130,6 +130,65 @@ export const RATES = {
   skattereduktionForvarvsinkomst: { threshold: 40000, rate: 0.0075, max: 1500 },
 };
 
+// Arbetsgivaravgift by the employee's birth year, from Skatteverket's "Belopp och procent"
+// pages for each year (https://www.skatteverket.se/privat/skatter/beloppochprocent.4.18e1b10334ebe8bc80004109.html).
+// bands: rate for people born up to and including `bornTo` (checked in order).
+// reductions: temporary lower rate on salary up to `capMonth` kr per month, for people born
+// `bornFrom`–`bornTo` (null = everyone), on salaries paid in the listed months (1-12).
+const FULL = 0.3142;
+const PENSION_ONLY = 0.1021;
+const ALL_MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+export const ARBETSGIVARAVGIFT = {
+  2020: {
+    bands: [{ bornTo: 1937, rate: 0 }, { bornTo: 1954, rate: PENSION_ONLY }, { bornTo: Infinity, rate: FULL }],
+    reductions: [
+      // Ungdomar 15-17 år vid årets ingång.
+      { bornFrom: 2002, bornTo: 2004, rate: PENSION_ONLY, capMonth: 25000, months: ALL_MONTHS },
+      // Coronasänkning för utbetalningar 1 mars-30 juni 2020 (högst 30 anställda).
+      { bornFrom: null, bornTo: null, rate: PENSION_ONLY, capMonth: 25000, months: [3, 4, 5, 6] },
+    ],
+  },
+  2021: {
+    bands: [{ bornTo: 1937, rate: 0 }, { bornTo: 1955, rate: PENSION_ONLY }, { bornTo: Infinity, rate: FULL }],
+    reductions: [
+      { bornFrom: 1998, bornTo: 2002, rate: 0.1973, capMonth: 25000, months: [1, 2, 3, 4, 5, 9, 10, 11, 12] },
+      { bornFrom: 1998, bornTo: 2002, rate: PENSION_ONLY, capMonth: 25000, months: [6, 7, 8] },
+      { bornFrom: 2003, bornTo: 2005, rate: PENSION_ONLY, capMonth: 25000, months: ALL_MONTHS },
+    ],
+  },
+  2022: {
+    bands: [{ bornTo: 1937, rate: 0 }, { bornTo: 1956, rate: PENSION_ONLY }, { bornTo: Infinity, rate: FULL }],
+    reductions: [
+      { bornFrom: 1999, bornTo: 2003, rate: 0.1973, capMonth: 25000, months: [1, 2, 3, 4, 5, 9, 10, 11, 12] },
+      { bornFrom: 1999, bornTo: 2003, rate: PENSION_ONLY, capMonth: 25000, months: [6, 7, 8] },
+      { bornFrom: 2004, bornTo: 2006, rate: PENSION_ONLY, capMonth: 25000, months: ALL_MONTHS },
+    ],
+  },
+  2023: {
+    bands: [{ bornTo: 1937, rate: 0 }, { bornTo: 1956, rate: PENSION_ONLY }, { bornTo: Infinity, rate: FULL }],
+    // The 2022 page says the 19-23 reduction lasted until March 2023, but the 2023 page does
+    // not list it, so it is not applied here.
+    reductions: [
+      { bornFrom: 2005, bornTo: 2007, rate: PENSION_ONLY, capMonth: 25000, months: ALL_MONTHS },
+    ],
+  },
+  2024: {
+    bands: [{ bornTo: 1937, rate: 0 }, { bornTo: 1957, rate: PENSION_ONLY }, { bornTo: Infinity, rate: FULL }],
+    reductions: [],
+  },
+  2025: {
+    bands: [{ bornTo: 1937, rate: 0 }, { bornTo: 1958, rate: PENSION_ONLY }, { bornTo: Infinity, rate: FULL }],
+    reductions: [],
+  },
+  2026: {
+    bands: [{ bornTo: 1937, rate: 0 }, { bornTo: 1958, rate: PENSION_ONLY }, { bornTo: Infinity, rate: FULL }],
+    reductions: [
+      // Tillfälligt sänkt för 19-23 år, 1 april 2026-30 september 2027.
+      { bornFrom: 2003, bornTo: 2007, rate: 0.2081, capMonth: 25000, months: [4, 5, 6, 7, 8, 9, 10, 11, 12] },
+    ],
+  },
+};
+
 export const FIRST_YEAR = Math.min(...Object.keys(YEARS).map(Number));
 export const LAST_YEAR = Math.max(...Object.keys(YEARS).map(Number));
 

@@ -40,6 +40,24 @@ export const EXPLANATIONS = {
     what: 'Fakturerat belopp som räknas fram i Uppdrag.',
     formula: 'Timpris × fakturerbara timmar.',
   },
+  pensionMode: {
+    what: 'Om tjänstepensionen anges som en andel av lönen eller som ett fast belopp per år.',
+    formula: 'Anges av dig.',
+  },
+  pensionAmount: {
+    what: 'Tjänstepension som bolaget betalar per år, som fast belopp.',
+    formula: 'Anges av dig.',
+  },
+  pensionDeductible: {
+    what: 'Den del av pensionskostnaden som bolaget får dra av.',
+    formula: 'Högst 35 % av lönen och högst 10 prisbasbelopp (huvudregeln). Lagen tillåter även förra årets lön som underlag och har en kompletteringsregel för särskilda fall; kalkylatorn räknar med årets lön och huvudregeln.',
+    source: ['Inkomstskattelagen 28 kap. 5 §', 'https://lagen.nu/1999:1229#K28P5'],
+  },
+  pensionNonDeductible: {
+    what: 'Pensionskostnad över avdragstaket. Den ökar bolagets beskattningsbara vinst.',
+    formula: 'Tjänstepension − avdragsgill del.',
+    source: ['Inkomstskattelagen 28 kap. 5 §', 'https://lagen.nu/1999:1229#K28P5'],
+  },
   pensionPercent: {
     what: 'Hur stor tjänstepension bolaget betalar, i procent av din bruttolön.',
     formula: 'Anges av dig; 4,7 % är kalkylatorns standardvärde. Bolagets avdrag för pensionskostnader är begränsat, vilket kalkylatorn ännu inte räknar med.',
@@ -159,8 +177,8 @@ export const EXPLANATIONS = {
     source: ['Lag om särskild löneskatt på pensionskostnader', 'https://lagen.nu/1990:659'],
   },
   arbetsgivaravgift: {
-    what: 'Avgift som bolaget betalar ovanpå din bruttolön. Gör att varje krona i lön kostar bolaget 1,31 kr.',
-    formula: '31,42 % × årslön brutto.',
+    what: 'Avgift som bolaget betalar ovanpå din bruttolön. Normalt 31,42 %, så att varje krona i lön kostar bolaget 1,31 kr. Lägre för äldre och ibland tillfälligt för unga.',
+    formula: 'Beror på födelseår: 2026 betalas 0 % för födda 1937 eller tidigare, 10,21 % för födda 1938–1958, och för födda 2003–2007 20,81 % på lön upp till 25 000 kr/mån från april. Övriga 31,42 %.',
     source: ['Skatteverket: Arbetsgivaravgifter', SKV_AGAVG],
   },
   totalCost: {

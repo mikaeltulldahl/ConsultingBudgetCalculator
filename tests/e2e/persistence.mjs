@@ -174,6 +174,14 @@ try {
     assert.equal(Number(await page.getAttribute('#pension', 'data-value')), Math.round(0.1 * gross));
     assert.equal(await page.getAttribute('#companyPension', 'data-value'), await page.getAttribute('#pension', 'data-value'));
     assert.match(await page.textContent('#structureMap'), /pension/);
+    // A fixed amount above the cap (35 % of salary) shows the warning.
+    await page.selectOption('#pensionMode', 'amount');
+    await page.fill('#pensionAmount', String(Math.round(0.5 * gross)));
+    await page.dispatchEvent('#pensionAmount', 'input');
+    await settle(page);
+    assert.ok(await page.isVisible('#pensionCapWarning'), 'warning over the deduction cap');
+    assert.ok(Number(await page.getAttribute('#pensionNonDeductible', 'data-value')) > 0);
+    await page.selectOption('#pensionMode', 'percent');
     await page.fill('#pensionPercent', '4.7');
     await page.uncheck('#usePension');
     await settle(page);

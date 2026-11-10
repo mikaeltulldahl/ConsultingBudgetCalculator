@@ -230,6 +230,7 @@ function readInputs() {
 
 // Output field id -> decimals.
 const OUTPUTS = {
+  pensionDeductible: 0, pensionNonDeductible: 0,
   grossSemesterersattning: 0, grossSalaryYear: 0, grundavdrag: 0, kommunalSkatt: 0, statligSkatt: 0,
   burialSkatt: 0, publicServiceSkatt: 0, jobbskatteavdrag: 0, skattereduktionForvarvsinkomst: 0,
   incomeTax: 0, netSalaryYear: 0, netSemesterersattning: 0, netSalaryMonth: 0, incomeTaxPercentage: 1,
@@ -249,6 +250,7 @@ function writeFields(r) {
   }
   for (const el of document.querySelectorAll('output[data-mirror]')) setOutput(el, r?.[el.dataset.mirror], 0);
   setOutput('usedInvoicedAmount', r?.invoicedAmount);
+  $('pensionCapWarning').hidden = !(r?.pensionNonDeductible > 0);
   setOutput('churchSkatt', churchMemberField.checked ? r?.churchSkatt : NaN);
   $('grossDividends').value = format(r?.grossDividends, 0);
   if ($('useMaxGrossSalary').checked) $('grossSalaryMonth').value = format(r?.grossSalaryMonth, 0);
@@ -300,8 +302,20 @@ for (const id of ['yearBorn', 'grossSalaryMonth', 'salaryMonths', 'otherRevenue'
   'grossDividends', 'savedDividends', 'omkostnadsbelopp']) {
   $(id).addEventListener('input', updateAll);
 }
-$('usePension').addEventListener('change', () => { $('pensionPercent').disabled = !$('usePension').checked; });
+// Pension: % of salary or a fixed amount; the inputs follow the on/off setting.
+function syncPensionInputs() {
+  const on = $('usePension').checked;
+  const amount = $('pensionMode').value === 'amount';
+  $('pensionMode').disabled = !on;
+  $('pensionPercent').disabled = !on;
+  $('pensionAmount').disabled = !on;
+  $('pensionPercentRow').hidden = amount;
+  $('pensionAmountRow').hidden = !amount;
+}
+$('usePension').addEventListener('change', syncPensionInputs);
+$('pensionMode').addEventListener('change', () => { syncPensionInputs(); updateAll(); });
 $('pensionPercent').addEventListener('input', updateAll);
+$('pensionAmount').addEventListener('input', updateAll);
 for (const id of ['useSemesterersattning', 'usePension']) {
   $(id).addEventListener('change', updateAll);
 }
@@ -536,7 +550,7 @@ async function applyState(state) {
     }
     syncManualInvoiced();
     $('grossSalaryMonth').disabled = state.useMaxGrossSalary;
-    $('pensionPercent').disabled = !state.usePension;
+    syncPensionInputs();
     $('grossDividends').disabled = state.maxDividend;
     $('forsamling').hidden = !state.churchMember;
     forsamlingSelector.innerHTML = '';

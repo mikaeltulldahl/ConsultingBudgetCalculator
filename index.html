@@ -145,12 +145,17 @@
             <h2 id="h-pension">Tjänstepension: bolaget → du <span class="badge edge">Pension</span></h2>
             <p class="kind">Räknare: Tjänstepension</p>
             <div class="row"><label for="usePension">Ta ut tjänstepension</label><input type="checkbox" id="usePension" checked></div>
-            <div class="row"><label for="pensionPercent">Tjänstepension (% av lönen)</label><input type="number" id="pensionPercent" value="4.7" step="0.1" min="0" inputmode="decimal"></div>
+            <div class="row"><label for="pensionMode">Räkna pensionen som</label><select id="pensionMode"><option value="percent">% av lönen</option><option value="amount">Fast belopp per år</option></select></div>
+            <div class="row" id="pensionPercentRow"><label for="pensionPercent">Tjänstepension (% av lönen)</label><input type="number" id="pensionPercent" value="4.7" step="0.1" min="0" inputmode="decimal"></div>
+            <div class="row" id="pensionAmountRow" hidden><label for="pensionAmount">Tjänstepension per år</label><input type="number" id="pensionAmount" value="0" step="10000" min="0" inputmode="numeric"></div>
             <div class="row"><label for="pensionSalaryBase">Årslön brutto <button type="button" class="from" data-goto="lon">från Lön</button></label><output id="pensionSalaryBase" data-mirror="grossSalaryYear" data-unit="kr"></output></div>
             <details class="details">
               <summary>Detaljer</summary>
               <div class="row"><label for="pensionSlp">Särskild löneskatt som bolaget betalar</label><output id="pensionSlp" data-mirror="slp" data-unit="kr"></output></div>
+              <div class="row"><label for="pensionDeductible">Avdragsgill pensionskostnad</label><output id="pensionDeductible" data-unit="kr"></output></div>
+              <div class="row"><label for="pensionNonDeductible">Ej avdragsgill pensionskostnad</label><output id="pensionNonDeductible" data-unit="kr"></output></div>
             </details>
+            <p id="pensionCapWarning" class="status" hidden>Pensionen är högre än bolaget får dra av (35 % av lönen, högst 10 prisbasbelopp). Den överskjutande delen beskattas med bolagsskatt.</p>
             <div class="result"><label for="pension">→ Tjänstepension per år</label><output id="pension" data-unit="kr"></output>
               <small>går till din pension och är en kostnad i <button type="button" class="link-button" data-goto="bolag">bolaget</button>. Skatt betalas först när pensionen betalas ut.</small></div>
           </section>

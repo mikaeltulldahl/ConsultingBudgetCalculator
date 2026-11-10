@@ -8,7 +8,7 @@
 // data.grundavdragTable(year, 'forhojt') must return Skatteverket's table of förhöjt
 // grundavdrag for the year (only consulted for older people), see grundavdrag.js.
 
-import { getYearParams, getInkomstbasbelopp, RATES } from './params.js';
+import { getYearParams, getInkomstbasbelopp, RATES, ARBETSGIVARAVGIFT } from './params.js';
 import { grundavdrag, grundavdragGroup } from './grundavdrag.js';
 import { businessDays } from './holidays.js';
 
@@ -62,6 +62,8 @@ function initFields(inp) {
     vacationDays: inp.vacationDays,
     usePension: inp.usePension,
     pensionRate: inp.pensionPercent === undefined || inp.pensionPercent === null ? RATES.pensionPremium : inp.pensionPercent / 100,
+    pensionMode: inp.pensionMode === 'amount' ? 'amount' : 'percent',
+    pensionAmount: inp.pensionAmount ?? 0,
     otherCosts: inp.otherCosts,
     otherRevenue: inp.otherRevenue,
     invoicedAmount: inp.invoicedAmount,
@@ -260,18 +262,52 @@ function jobbskatteavdrag(f, p) {
 // Bolag (resultat)
 // ---------------------------------------------------------------------------
 
+// Arbetsgivaravgift for a salary, by the employee's birth year (see ARBETSGIVARAVGIFT in
+// params.js). Temporary reductions apply to the part of the monthly salary up to the cap,
+// for the months they cover; salary months are assumed to be spread evenly over the year
+// and semesterersättning is charged at the normal rate.
+export function arbetsgivaravgift({ year, yearBorn, grossSalaryYear, grossSalaryMonth, salaryMonths }) {
+  const rules = ARBETSGIVARAVGIFT[year];
+  const band = rules.bands.find((b) => yearBorn <= b.bornTo);
+  let avgift = band.rate * grossSalaryYear;
+  for (const r of rules.reductions) {
+    const applies = r.bornFrom === null || (yearBorn >= r.bornFrom && yearBorn <= r.bornTo);
+    if (!applies || r.rate >= band.rate) continue;
+    const reducedMonths = salaryMonths * r.months.length / 12;
+    avgift -= reducedMonths * Math.min(grossSalaryMonth, r.capMonth) * (band.rate - r.rate);
+  }
+  return avgift;
+}
+
+// Pension cost the company may deduct (inkomstskattelagen 28 kap. 5 §): at most 35 % of the
+// salary and at most 10 prisbasbelopp per employee.
+export function pensionDeductionCap(salary, prisbasbelopp) {
+  return Math.min(0.35 * salary, 10 * prisbasbelopp);
+}
+
 function company(f, p) {
   if (isNaN(f.otherCosts) || isNaN(f.grossSalaryYear) || isNaN(f.otherRevenue) || isNaN(f.invoicedAmount)) {
     return;
   }
-  f.pension = f.usePension ? f.pensionRate * f.grossSalaryYear : 0;
+  if (!f.usePension) f.pension = 0;
+  else if (f.pensionMode === 'amount') f.pension = f.pensionAmount;
+  else f.pension = f.pensionRate * f.grossSalaryYear;
+  f.pensionDeductible = Math.min(f.pension, pensionDeductionCap(f.grossSalaryYear, p.prisbasbelopp));
+  f.pensionNonDeductible = f.pension - f.pensionDeductible;
   f.insurance = RATES.arbetsskadeforsakring;
   f.slp = RATES.sarskildLoneskatt * (f.pension + f.insurance);
-  f.arbetsgivaravgift = RATES.arbetsgivaravgift * f.grossSalaryYear;
+  f.arbetsgivaravgift = arbetsgivaravgift({
+    year: f.year,
+    yearBorn: f.year - f.age - 1,
+    grossSalaryYear: f.grossSalaryYear,
+    grossSalaryMonth: f.grossSalaryMonth,
+    salaryMonths: f.salaryMonths,
+  });
   f.totalCost = f.otherCosts + f.grossSalaryYear + f.pension + f.insurance + f.slp + f.arbetsgivaravgift;
   f.profitBeforeTax = f.invoicedAmount + f.otherRevenue - f.totalCost;
-  // A loss gives no tax back this year (it can only be carried forward), so no bolagsskatt.
-  f.bolagsTax = Math.max(0, f.profitBeforeTax) * p.bolagsskatt;
+  // Bolagsskatt on the taxable profit: the profit plus pension cost that may not be
+  // deducted. A loss gives no tax back this year (it can only be carried forward).
+  f.bolagsTax = Math.max(0, f.profitBeforeTax + f.pensionNonDeductible) * p.bolagsskatt;
   f.profitAfterTax = f.profitBeforeTax - f.bolagsTax;
 }
 
