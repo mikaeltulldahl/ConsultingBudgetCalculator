@@ -51,11 +51,12 @@ export function buildStructure(v) {
       ]),
     ],
   };
-  // Several people: the arrows leave the company spread over its box, and their labels sit
-  // near the person they go to, so they do not cross each other's labels.
+  // Several people: the company box grows so that every arrow leaving it starts at its own
+  // height. The labels sit in the middle of the arrows and then do not overlap.
   if (several) {
     const out = structure.edges.filter((e) => e.from === 'bolag');
     out.forEach((e, k) => { e.fan = { k, count: out.length }; });
+    structure.nodes.find((x) => x.id === 'bolag').h = Math.max(NODE_H, FAN_STEP * (out.length + 1));
   }
   return structure;
 }
@@ -65,6 +66,7 @@ const NODE_W = 140;
 const NODE_H = 50;
 const ROW_H = 130;
 const TOP = 30;
+const FAN_STEP = 26; // distance between arrows leaving a tall company box
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -72,37 +74,45 @@ export function renderMap(structure, selected) {
   const { columns, nodes, edges } = structure;
   const W = COL_W * columns.length;
   const rows = Math.max(...nodes.map((n) => n.row)) + 1;
-  const H = TOP + rows * ROW_H - 20;
-  const pos = Object.fromEntries(nodes.map((n) => [n.id, { x: COL_W * n.col + (COL_W - NODE_W) / 2, y: TOP + n.row * ROW_H }]));
+  // Boxes are centred on their row; a taller box (the company with several people) grows
+  // both ways, and everything moves down if it would reach the column headings.
+  const pos = Object.fromEntries(nodes.map((n) => {
+    const h = n.h ?? NODE_H;
+    return [n.id, { x: COL_W * n.col + (COL_W - NODE_W) / 2, y: TOP + n.row * ROW_H + (NODE_H - h) / 2, h }];
+  }));
+  const shift = Math.max(0, TOP - Math.min(...Object.values(pos).map((p) => p.y)));
+  for (const p of Object.values(pos)) p.y += shift;
+  let H = Math.max(TOP + shift + rows * ROW_H - 20, ...Object.values(pos).map((p) => p.y + p.h + 20));
+  const bolag = pos.bolag;
 
   const edgeSvg = edges.map((e) => {
     const a = pos[e.from];
     const b = pos[e.to];
     const off = (e.offset ?? 0) * NODE_H;
     const x1 = a.x + NODE_W;
-    const y1 = a.y + NODE_H / 2 + off;
+    const y1 = (e.fan ? a.y + a.h * (e.fan.k + 1) / (e.fan.count + 1) : a.y + a.h / 2 + off);
     const x2 = b.x - 8;
-    const y2 = b.y + NODE_H / 2 + off;
+    const y2 = b.y + b.h / 2 + off;
     let mx = (x1 + x2) / 2;
     let d = `M${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
-    let ly = (y1 + y2) / 2 + (e.offset ?? 0) * 30;
+    // In the middle of the arrow (with one person, the three labels are pulled apart).
+    let ly = (y1 + y2) / 2 + (e.fan ? 0 : (e.offset ?? 0) * 30);
     let lx = mx;
-    if (e.fan) {
-      const fy1 = a.y + NODE_H * (e.fan.k + 1) / (e.fan.count + 1);
-      d = `M${x1} ${fy1} C ${mx} ${fy1}, ${mx} ${y2}, ${x2} ${y2}`;
-      // The point on the curve at t = 0.8.
-      const t = 0.8;
-      const b = [(1 - t) ** 3, 3 * (1 - t) ** 2 * t, 3 * (1 - t) * t ** 2, t ** 3];
-      lx = b[0] * x1 + (b[1] + b[2]) * mx + b[3] * x2;
-      ly = (b[0] + b[1]) * fy1 + (b[2] + b[3]) * y2;
-    }
     if (e.enterFromBelow) {
       // Into the bottom of the target box, so it does not cross the arrows from the side.
       const bx = b.x + NODE_W / 2;
-      const by = b.y + NODE_H + 8;
+      const by = b.y + b.h + 8;
       d = `M${x1} ${y1} C ${bx} ${y1}, ${bx} ${y1}, ${bx} ${by}`;
       lx = (x1 + bx) / 2;
       ly = y1;
+      if (bolag && y1 > bolag.y - 14 && y1 < bolag.y + bolag.h + 14) {
+        // The company box is in the way: go under it.
+        const lane = Math.max(bolag.y + bolag.h + 24, by + 16);
+        d = `M${x1} ${y1} C ${x1 + 50} ${y1}, ${x1 + 50} ${lane}, ${x1 + 100} ${lane} L ${bx - 50} ${lane} C ${bx} ${lane}, ${bx} ${lane}, ${bx} ${by}`;
+        lx = bolag.x + NODE_W / 2;
+        ly = lane;
+        H = Math.max(H, lane + 20);
+      }
     }
     const lw = e.label.length * 6 + 14;
     return `<g class="edge ${e.goto === selected ? 'selected' : ''}" data-goto="${e.goto}" role="button" tabindex="0" aria-label="${esc(`${e.title}: ${e.label}`)}">
@@ -114,9 +124,9 @@ export function renderMap(structure, selected) {
   const nodeSvg = nodes.map((n) => {
     const p = pos[n.id];
     return `<g class="node ${n.type} ${n.id === selected ? 'selected' : ''}" data-goto="${n.id}" role="button" tabindex="0" aria-label="${esc(`${n.name}: ${n.sub}`)}">
-      <rect x="${p.x}" y="${p.y}" width="${NODE_W}" height="${NODE_H}" rx="10"/>
-      <text x="${p.x + 12}" y="${p.y + 21}" font-size="14" font-weight="600" fill="currentColor">${esc(n.name)}</text>
-      <text x="${p.x + 12}" y="${p.y + 39}" font-size="12" fill="currentColor" opacity=".7">${esc(n.sub)}</text></g>`;
+      <rect x="${p.x}" y="${p.y}" width="${NODE_W}" height="${p.h}" rx="10"/>
+      <text x="${p.x + 12}" y="${p.y + p.h / 2 - 4}" font-size="14" font-weight="600" fill="currentColor">${esc(n.name)}</text>
+      <text x="${p.x + 12}" y="${p.y + p.h / 2 + 14}" font-size="12" fill="currentColor" opacity=".7">${esc(n.sub)}</text></g>`;
   }).join('');
 
   const heads = columns.map((c, i) => `<text class="colhead" x="${COL_W * i + COL_W / 2}" y="14" text-anchor="middle">${esc(c)}</text>`).join('');
