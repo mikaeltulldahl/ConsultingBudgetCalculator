@@ -14,15 +14,18 @@ test('dividendLimit gives the same limit as the full calculation', () => {
   }
 });
 
-// From 2026 each owner has one grundbelopp (4 x inkomstbasbelopp) in total, split over the
-// companies that person owns in proportion to ownership.
-test('dividendLimit: grundbelopp is per owner, split over their companies (2026)', () => {
-  const full = dividendLimit({ year: 2026, ownSalary: 500000, omkostnadsbelopp: 25000 });
-  const halfOwnerOnlyCompany = dividendLimit({ year: 2026, ownSalary: 500000, ownership: 0.5, omkostnadsbelopp: 25000 });
-  const halfHereHalfElsewhere = dividendLimit({ year: 2026, ownSalary: 500000, ownership: 0.5, ownershipInOtherCompanies: 0.5, omkostnadsbelopp: 25000 });
-  assert.equal(full.grundbelopp, 322400);
-  assert.equal(halfOwnerOnlyCompany.grundbelopp, 322400);
-  assert.equal(halfHereHalfElsewhere.grundbelopp, 161200);
+// From 2026 the grundbelopp (4 x inkomstbasbelopp) is split equally per share in each
+// company, and one person gets at most one grundbelopp over all companies (Skatteverket's
+// examples: 50/50 owners get 161 200 each; 25 % + 75 % + 100 % gives 40 300, 120 900, 161 200).
+test('dividendLimit: grundbelopp per share, at most one per person (2026)', () => {
+  const g = (ownership, ownershipInOtherCompanies = 0) =>
+    dividendLimit({ year: 2026, ownSalary: 500000, ownership, ownershipInOtherCompanies, omkostnadsbelopp: 25000 }).grundbelopp;
+  assert.equal(g(1), 322400);
+  assert.equal(g(0.5), 161200);
+  assert.equal(g(0.5, 0.5), 161200);
+  assert.equal(g(0.25, 1.75), 40300);
+  assert.equal(g(0.75, 1.25), 120900);
+  assert.equal(g(1, 1), 161200);
 });
 
 test('employerCost adds arbetsgivaravgift, pension and särskild löneskatt', () => {

@@ -233,8 +233,8 @@ export const EXPLANATIONS = {
     source: ['Skatteverket: Belopp och procentsatser för fåmansföretag', SKV_FAMANS],
   },
   grundbelopp: {
-    what: 'Grundbelopp enligt 2026 års regler. Varje ägare har ett grundbelopp, som fördelas på de bolag ägaren äger.',
-    formula: '4 × föregående års inkomstbasbelopp.',
+    what: 'Grundbelopp enligt 2026 års regler. Bolagets grundbelopp fördelas lika per aktie, så en ägare med 50 % får halva. En person får högst ett helt grundbelopp sammanlagt för alla bolag.',
+    formula: 'Ägarandel × 4 × föregående års inkomstbasbelopp.',
     source: ['Skatteverket: Ändrade regler för fåmansföretag', SKV_312_2026],
   },
   savedDividends: {

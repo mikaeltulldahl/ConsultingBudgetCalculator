@@ -302,16 +302,15 @@ export function pensionDeductionCap(salary, prisbasbelopp) {
   return Math.min(0.35 * salary, 10 * prisbasbelopp);
 }
 
-function company(f, p) {
-  if (isNaN(f.otherCosts) || isNaN(f.grossSalaryYear) || isNaN(f.otherRevenue) || isNaN(f.invoicedAmount)) {
-    return;
-  }
+// What one employee costs the company besides the salary: pension (with the deductible
+// part), arbetsskadeförsäkring, särskild löneskatt and arbetsgivaravgift.
+function employment(f, p, employed = true) {
   if (!f.usePension) f.pension = 0;
   else if (f.pensionMode === 'amount') f.pension = f.pensionAmount;
   else f.pension = f.pensionRate * f.grossSalaryYear;
   f.pensionDeductible = Math.min(f.pension, pensionDeductionCap(f.grossSalaryYear, p.prisbasbelopp));
   f.pensionNonDeductible = f.pension - f.pensionDeductible;
-  f.insurance = RATES.arbetsskadeforsakring;
+  f.insurance = employed ? RATES.arbetsskadeforsakring : 0;
   f.slp = RATES.sarskildLoneskatt * (f.pension + f.insurance);
   f.arbetsgivaravgift = arbetsgivaravgift({
     year: f.year,
@@ -320,6 +319,13 @@ function company(f, p) {
     grossSalaryMonth: f.grossSalaryMonth,
     salaryMonths: f.salaryMonths,
   });
+}
+
+function company(f, p) {
+  if (isNaN(f.otherCosts) || isNaN(f.grossSalaryYear) || isNaN(f.otherRevenue) || isNaN(f.invoicedAmount)) {
+    return;
+  }
+  employment(f, p);
   f.totalCost = f.otherCosts + f.grossSalaryYear + f.pension + f.insurance + f.slp + f.arbetsgivaravgift;
   f.profitBeforeTax = f.invoicedAmount + f.otherRevenue - f.totalCost;
   // Bolagsskatt on the taxable profit: the profit plus pension cost that may not be
@@ -355,7 +361,10 @@ export function dividendLimit({ year, ownSalary, totalSalary = ownSalary, owners
     // New 3:12 rules from 2026:
     // https://www.skatteverket.se/foretag/drivaforetag/foretagsformer/famansforetag/andradereglerinforinkomstdeklarationen2027.4.4a54dc8b19aa6175a152359.html
     const totalOwnership = ownership + ownershipInOtherCompanies;
-    r.grundbelopp = ownership / Math.min(1, totalOwnership) * 4 * prevIBB;
+    // Grundbelopp: 4 inkomstbasbelopp per company, split equally per share. One person gets
+    // at most one grundbelopp in total; if their shares in all companies add up to more than
+    // 100 %, each company's part is scaled down in proportion.
+    r.grundbelopp = ownership * 4 * prevIBB / Math.max(1, totalOwnership);
     r.salaryBasedLimit = 0.5 * Math.min(Math.max(0, ownership * totalSalary - 8 * prevIBB), 50 * ownSalary);
     r.omkostnadsbeloppInterest = p.klyvningsranta * Math.max(0, omkostnadsbelopp - 100000);
     r.limit = Math.floor(r.omkostnadsbeloppInterest + r.grundbelopp + r.salaryBasedLimit) + savedDividends;
@@ -439,6 +448,142 @@ export function calculate(inputs, data) {
   return run(initFields(inputs), p, data);
 }
 
+// ---------------------------------------------------------------------------
+// A company with several people (owners and/or employees)
+// ---------------------------------------------------------------------------
+//
+// calculateCompany({ year, company, people }, data)
+//   company: { invoicedAmount, otherRevenue, otherCosts, maxDividend, grossDividends (total) }
+//   people:  [{ id, yearBorn, kommunalSkattPercent, burialSkattPercent, churchMember,
+//               churchSkattPercent, ownershipPercent (0-100), employed, useMaxGrossSalary,
+//               grossSalaryMonth, salaryMonths, useSemesterersattning, vacationDays, usePension,
+//               pensionPercent, pensionMode, pensionAmount, omkostnadsbelopp, savedDividends,
+//               otherSalaryYear }]
+// Returns { company: {...}, people: [one object per person, with the same field names as
+// calculate() for that person's salary, employment costs, 3:12 limit and dividend] }.
+//
+// Dividends are paid per share. "Maximal utdelning" is the largest total where no owner
+// goes above their own gränsbelopp (so everything is taxed at 20 %), and at most the
+// profit after tax. A manual total is capped the same way. Ownership must add up to 100 %;
+// otherwise no dividend is calculated (company.ownershipSum says by how much it is off).
+export function calculateCompany({ year, company: c, people }, data) {
+  const p = getYearParams(year);
+  const co = {
+    year,
+    invoicedAmount: c.invoicedAmount, otherRevenue: c.otherRevenue, otherCosts: c.otherCosts,
+    maxDividend: c.maxDividend,
+    grossSalaryYear: NaN, pension: NaN, insurance: NaN, slp: NaN, arbetsgivaravgift: NaN,
+    totalCost: NaN, profitBeforeTax: NaN, bolagsTax: NaN, profitAfterTax: NaN,
+    ownershipSum: NaN, dividendCap: NaN, limitingOwner: null, grossDividends: NaN,
+    netDividends: NaN, profitAfterDividends: NaN, incomeTax: NaN, dividendTax: NaN,
+    bolagsTaxOnDividends: NaN, bolagsTaxExclDividends: NaN, totalTax: NaN, totalTaxPercentage: NaN,
+  };
+  const ps = people.map((person) => {
+    const employed = person.employed !== false;
+    const f = initFields({
+      ...person,
+      year,
+      ...(employed ? {} : { useMaxGrossSalary: false, grossSalaryMonth: 0, salaryMonths: 0, useSemesterersattning: false, usePension: false }),
+    });
+    f.id = person.id;
+    f.employed = employed;
+    f.ownership = Number.isFinite(person.ownershipPercent) ? person.ownershipPercent / 100 : NaN;
+    salary(f, p, data);
+    if (!isNaN(f.grossSalaryYear)) employment(f, p, employed);
+    return f;
+  });
+  const sum = (key) => ps.reduce((acc, f) => acc + f[key], 0);
+  co.ownershipSum = sum('ownership');
+
+  if (!isNaN(co.otherCosts) && !isNaN(co.otherRevenue) && !isNaN(co.invoicedAmount) && ps.every((f) => !isNaN(f.arbetsgivaravgift))) {
+    for (const k of ['grossSalaryYear', 'pension', 'insurance', 'slp', 'arbetsgivaravgift']) co[k] = sum(k);
+    co.totalCost = co.otherCosts + co.grossSalaryYear + co.pension + co.insurance + co.slp + co.arbetsgivaravgift;
+    co.profitBeforeTax = co.invoicedAmount + co.otherRevenue - co.totalCost;
+    co.bolagsTax = Math.max(0, co.profitBeforeTax + sum('pensionNonDeductible')) * p.bolagsskatt;
+    co.profitAfterTax = co.profitBeforeTax - co.bolagsTax;
+  }
+
+  // 3:12 per owner, then the total dividend.
+  const owners = ps.filter((f) => f.ownership > 0);
+  const ownersReady = !isNaN(co.profitAfterTax) && Math.abs(co.ownershipSum - 1) < 1e-9 &&
+    owners.every((f) => !isNaN(f.omkostnadsbelopp) && !isNaN(f.savedDividends));
+  if (ownersReady) {
+    co.dividendCap = Infinity;
+    for (const f of owners) {
+      const d = dividendLimit({
+        year, ownSalary: f.grossSalaryYear, totalSalary: co.grossSalaryYear, ownership: f.ownership,
+        omkostnadsbelopp: f.omkostnadsbelopp, savedDividends: f.savedDividends,
+      });
+      f.salaryBasedLimit = d.salaryBasedLimit;
+      f.dividendsLimitForenklingsregeln = d.forenklingsregeln;
+      f.dividendsLimitHuvudregeln = d.huvudregeln;
+      f.grundbelopp = d.grundbelopp;
+      f.omkostnadsbeloppInterest = d.omkostnadsbeloppInterest;
+      f.dividendsLimit = d.limit;
+      const cap = d.limit / f.ownership;
+      if (cap < co.dividendCap) {
+        co.dividendCap = cap;
+        co.limitingOwner = f.id;
+      }
+    }
+    co.grossDividends = c.maxDividend
+      ? Math.max(0, Math.min(co.dividendCap, co.profitAfterTax))
+      : Math.min(c.grossDividends, co.dividendCap);
+    co.profitAfterDividends = co.profitAfterTax - co.grossDividends;
+  }
+  for (const f of ps) {
+    if (!ownersReady) break;
+    f.grossDividends = f.ownership > 0 ? co.grossDividends * f.ownership : 0;
+    f.netDividends = f.grossDividends * (1 - RATES.dividendTax);
+    f.limitsDividend = f.id === co.limitingOwner;
+  }
+
+  // Summary per person and for the company.
+  if (ownersReady && ps.every((f) => !isNaN(f.incomeTax))) {
+    const t = p.bolagsskatt;
+    const taxed = co.profitBeforeTax > 0;
+    co.bolagsTaxOnDividends = taxed ? co.grossDividends * t / (1 - t) : 0;
+    co.bolagsTaxExclDividends = taxed ? co.profitAfterDividends * t / (1 - t) : 0;
+    co.netDividends = sum('netDividends');
+    co.incomeTax = sum('incomeTax');
+    co.dividendTax = RATES.dividendTax * co.grossDividends;
+    co.totalTax = co.incomeTax + co.slp + co.arbetsgivaravgift + co.bolagsTaxOnDividends + co.dividendTax;
+    co.totalTaxPercentage = 100 * co.totalTax / (co.invoicedAmount + co.otherRevenue);
+    for (const f of ps) {
+      f.bolagsTaxOnDividends = taxed ? f.grossDividends * t / (1 - t) : 0;
+      f.dividendTax = RATES.dividendTax * f.grossDividends;
+      f.totalTax = f.incomeTax + f.slp + f.arbetsgivaravgift + f.bolagsTaxOnDividends + f.dividendTax;
+      f.netSumMonth = f.otherNetYear / 12 + (f.salaryMonths > 0
+        ? f.netSalaryMonth + f.netDividends / f.salaryMonths
+        : f.netDividends / 12);
+    }
+  }
+  return { company: co, people: ps };
+}
+
+// The salary sweep for one person in a company with several people: everything else fixed.
+export function companySalarySweep(inputs, index, data, step = 500) {
+  const c = inputs.company;
+  const person = inputs.people[index];
+  if (!person || person.employed === false) return null;
+  const at = (gross) => {
+    const people = inputs.people.map((x, i) => (i === index ? { ...x, grossSalaryMonth: gross, useMaxGrossSalary: false } : x));
+    const r = calculateCompany({ ...inputs, people }, data);
+    const f = r.people[index];
+    return {
+      // The person's own net, the company's totals for the tax percentages.
+      grossSalaryMonth: gross, netSalaryYear: f.netSalaryYear, netDividends: f.netDividends, pension: f.pension,
+      grossSalaryYear: r.company.grossSalaryYear, grossDividends: r.company.grossDividends,
+      profitAfterDividends: r.company.profitAfterDividends, bolagsTaxExclDividends: r.company.bolagsTaxExclDividends,
+      totalTax: r.company.totalTax, totalTaxPercentage: r.company.totalTaxPercentage,
+    };
+  };
+  if (isNaN(at(person.grossSalaryMonth).totalTaxPercentage)) return null;
+  const pensionRate = person.usePension ? (person.pensionPercent ?? 100 * RATES.pensionPremium) / 100 : RATES.pensionPremium;
+  const totalRevenue = c.invoicedAmount + c.otherRevenue - c.otherCosts;
+  return sweep(at, totalRevenue, pensionRate, step);
+}
+
 // What a monthly salary costs the company per month (excluding the small flat
 // arbetsskadeförsäkring): salary + arbetsgivaravgift + tjänstepension + särskild löneskatt.
 export function employerCost({ grossSalaryMonth, usePension = true, pensionRate = RATES.pensionPremium }) {
@@ -472,17 +617,21 @@ export function equivalentEmployeeSalary({ targetNetMonth, ...person }, data) {
 // Recalculates `result` for monthly gross salaries 0, 500, 1000, ... up to the point where
 // the company would make a loss after dividends. Feeds the two line charts.
 export function salarySweep(result, data, step = 500) {
+  if (isNaN(result.totalTaxPercentage)) return null;
   const p = getYearParams(result.year);
+  const totalRevenue = result.invoicedAmount + result.otherRevenue - result.otherCosts;
+  const pensionRate = result.usePension ? result.pensionRate ?? RATES.pensionPremium : RATES.pensionPremium;
+  return sweep((gross) => run({ ...result, grossSalaryMonth: gross, useMaxGrossSalary: false }, p, data), totalRevenue, pensionRate, step);
+}
+
+// at(grossSalaryMonth) returns the person's salary, dividend and pension and the totals.
+function sweep(at, totalRevenue, pensionRate, step) {
   const out = {
     grossSalaryMonth: [], netSalaryYear: [], netDividends: [], pension: [],
     profitAfterDividends: [], totalTax: [], bolagsTaxExclDividends: [],
     taxPercentage: [], marginalTaxPercentage: [],
     maxSum: { x: 0, y: 0 }, minTax: { x: 0, y: 10000 },
   };
-  if (isNaN(result.totalTaxPercentage)) return null;
-
-  const totalRevenue = result.invoicedAmount + result.otherRevenue - result.otherCosts;
-  const pensionRate = result.usePension ? result.pensionRate ?? RATES.pensionPremium : RATES.pensionPremium;
   const probableMaxGrossSalary = 10000 + totalRevenue / (1 + RATES.arbetsgivaravgift + pensionRate * (1 + RATES.sarskildLoneskatt));
   const count = Math.floor(probableMaxGrossSalary / step) + 1;
 
@@ -491,7 +640,7 @@ export function salarySweep(result, data, step = 500) {
   let marginalDone = false;
   for (let i = 0; i < count; i++) {
     const gross = i * step;
-    const f = run({ ...result, grossSalaryMonth: gross, useMaxGrossSalary: false }, p, data);
+    const f = at(gross);
     if (f.profitAfterDividends < 0) break;
 
     out.grossSalaryMonth.push(gross);
