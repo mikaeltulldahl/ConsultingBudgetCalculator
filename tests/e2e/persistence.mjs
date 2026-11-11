@@ -193,6 +193,18 @@ try {
     await page.fill('#hourlyRate-a2', '1000');
     await page.dispatchEvent('#hourlyRate-a2', 'input');
     await page.click('[data-action="addPrice"][data-a="a2"]');
+    // Price changes sit between the start and the end date, and a new one starts inside the assignment.
+    const order = await page.evaluate(() => {
+      const ids = [...document.querySelectorAll('.part[data-part="uppdrag-a2"] input, .part[data-part="uppdrag-a2"] [data-action="addPrice"]')]
+        .map((el) => el.id || el.dataset.action);
+      return ['startDate-a2', 'pcFrom-a2-0', 'addPrice', 'endDate-a2'].map((x) => ids.indexOf(x));
+    });
+    assert.ok(order.every((x, k) => x >= 0 && (k === 0 || x > order[k - 1])), `order ${order}`);
+    const first = await page.inputValue('#pcFrom-a2-0');
+    assert.ok(first > '2026-01-01' && first <= await page.inputValue('#endDate-a2'), first);
+    await page.click('[data-action="addPrice"][data-a="a2"]');
+    assert.ok(await page.inputValue('#pcFrom-a2-1') > first);
+    await page.click('[data-action="removePrice"][data-a="a2"][data-pc="1"]');
     await page.fill('#pcFrom-a2-0', '2026-07-01');
     await page.dispatchEvent('#pcFrom-a2-0', 'input');
     await page.fill('#pcRate-a2-0', '1100');

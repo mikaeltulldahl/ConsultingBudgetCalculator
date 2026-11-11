@@ -203,9 +203,9 @@ function renderAssignmentCards() {
         ${people.length > 1 ? `<div class="row"><label for="worker-${id}">Vem arbetar</label><select id="worker-${id}" data-a="${id}" data-field="person" data-explain="assignmentPerson">${people.map((p, k) => `<option value="${p.id}" data-person-option="${p.id}" ${p.id === a.person ? 'selected' : ''}>${esc(personName(p, k))}</option>`).join('')}</select></div>` : ''}
         ${field('hourlyRate', 'Timpris exkl. moms', 'number', a.hourlyRate, 'step="10" min="0" inputmode="numeric"')}
         ${field('startDate', 'Uppdrag start', 'date', a.startDate)}
-        ${field('endDate', 'Uppdrag slut', 'date', a.endDate)}
         ${prices}
         <div class="row-actions"><button type="button" class="link-button" data-action="addPrice" data-a="${id}">+ Prisändring under uppdraget</button></div>
+        ${field('endDate', 'Uppdrag slut', 'date', a.endDate)}
         <details class="details">
           <summary>Detaljer</summary>
           ${field('workingRate', 'Arbetstakt (%)', 'number', a.workingRate, 'step="25" min="0" max="100" inputmode="numeric"')}
@@ -277,6 +277,20 @@ assignmentParts.addEventListener('input', (e) => {
   updateAll();
 });
 
+// A date for a new price change: the first of the month nearest halfway between the latest
+// price change (or the start) and the end of the assignment, kept inside the assignment.
+function priceChangeDate(a) {
+  const year = (a.startDate || yearField.value || '2026').slice(0, 4);
+  const day = (s) => (/^\d{4}-\d{2}-\d{2}$/.test(s ?? '') ? new Date(`${s}T00:00:00Z`) : null);
+  const from = day(a.priceChanges.at(-1)?.from) ?? day(a.startDate) ?? day(`${year}-01-01`);
+  const to = day(a.endDate) ?? day(`${year}-12-31`);
+  if (to <= from) return from.toISOString().slice(0, 10);
+  const mid = new Date((from.getTime() + to.getTime()) / 2);
+  let d = new Date(Date.UTC(mid.getUTCFullYear(), mid.getUTCMonth() + (mid.getUTCDate() > 15 ? 1 : 0), 1));
+  if (d <= from || d > to) d = new Date(Date.UTC(mid.getUTCFullYear(), mid.getUTCMonth(), mid.getUTCDate()));
+  return d.toISOString().slice(0, 10);
+}
+
 assignmentParts.addEventListener('click', async (e) => {
   const b = e.target.closest('[data-action]');
   if (!b) return;
@@ -285,8 +299,7 @@ assignmentParts.addEventListener('click', async (e) => {
   const action = b.dataset.action;
   if (action === 'addPrice') {
     const last = a.priceChanges.at(-1);
-    const year = (a.startDate || yearField.value || '2026').slice(0, 4);
-    a.priceChanges.push({ from: last ? last.from : `${year}-04-01`, hourlyRate: (last?.hourlyRate ?? a.hourlyRate ?? 0) + 50 });
+    a.priceChanges.push({ from: priceChangeDate(a), hourlyRate: (last?.hourlyRate ?? a.hourlyRate ?? 0) + 50 });
   } else if (action === 'removePrice') {
     a.priceChanges.splice(Number(b.dataset.pc), 1);
   } else if (action === 'toggleManual') {
