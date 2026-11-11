@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   defaultState, validateState, makeDocument, parseDocument, ScenarioFormatError,
-  toEngineInputs, toCsv, isPristine, APP_ID, defaultPerson, autoOmkostnadsbelopp, revenueForState,
+  toEngineInputs, toCsv, isPristine, APP_ID, defaultPerson, autoOmkostnadsbelopp, revenueForState, isEmployed,
 } from '../../js/scenario.js';
 import { calculate, calculateCompany } from '../../js/engine.js';
 import { defaultAssignment } from '../../js/assignments.js';
@@ -20,7 +20,7 @@ const sample = {
 const withPerson = (state, extra) => ({ ...state, people: [{ ...state.people[0], ...extra }, ...state.people.slice(1)] });
 
 test('document round trip keeps state and scenarios', () => {
-  const two = { ...sample, people: [{ ...sample.people[0], ownership: 60 }, { ...defaultPerson('p2'), name: 'Anna', ownership: 40, employed: false, yearBorn: 1990, kommun: 'SOLNA' }] };
+  const two = { ...sample, people: [{ ...sample.people[0], ownership: 60 }, { ...defaultPerson('p2'), name: 'Anna', ownership: 40, grossSalaryMonth: 0, yearBorn: 1990, kommun: 'SOLNA' }] };
   const scenarios = [{ name: 'Två', savedAt: null, state: two }, { name: '850 kr/h', savedAt: '2026-11-10T10:00:00.000Z', state: { ...sample, assignments: [{ ...defaultAssignment(), hourlyRate: 850, name: 'Kund A', priceChanges: [{ from: '2026-04-01', hourlyRate: 900, vacationDays: 3 }] }, { ...defaultAssignment('a2', 2026, 'p1'), startDate: '2026-07-01' }] } }];
   const json = JSON.stringify(makeDocument(sample, scenarios));
   const parsed = parseDocument(json);
@@ -194,4 +194,14 @@ test('omkostnadsbelopp follows the ownership until a value is entered', () => {
   const [a, b] = toEngineInputs(state, fixtureData).people;
   assert.equal(a.omkostnadsbelopp, 15000);
   assert.equal(b.omkostnadsbelopp, 99);
+});
+
+test('a person without salary from the company is not employed', () => {
+  assert.equal(isEmployed(defaultPerson()), true);
+  assert.equal(isEmployed({ ...defaultPerson(), grossSalaryMonth: 0 }), false);
+  assert.equal(isEmployed({ ...defaultPerson(), salaryMonths: 0 }), false);
+  assert.equal(isEmployed({ ...defaultPerson(), grossSalaryMonth: 0, useMaxGrossSalary: true }), true);
+  assert.equal(isEmployed({ ...defaultPerson(), grossSalaryMonth: null }), true, 'an empty field is not 0');
+  const state = { ...sample, people: [{ ...sample.people[0], ownership: 50 }, { ...defaultPerson('p2'), ownership: 50, grossSalaryMonth: 0 }] };
+  assert.deepEqual(toEngineInputs(state, kommunRates).people.map((p) => p.employed), [true, false]);
 });

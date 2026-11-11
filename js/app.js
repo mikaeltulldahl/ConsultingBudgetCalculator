@@ -8,7 +8,7 @@ import { initQuick } from './quick.js';
 import { FIRST_YEAR, LAST_YEAR, UnsupportedYearError, getYearParams } from './params.js';
 import { grundavdragGroup } from './grundavdrag.js';
 import {
-  FIELDS, PERSON_FIELDS, defaultState, defaultPerson, makeDocument, parseDocument, isPristine, toEngineInputs, toCsv, autoOmkostnadsbelopp,
+  FIELDS, PERSON_FIELDS, defaultState, defaultPerson, makeDocument, parseDocument, isPristine, toEngineInputs, toCsv, isEmployed, autoOmkostnadsbelopp,
   revenueForState,
 } from './scenario.js';
 import { loadStored, saveStored, clearStored, loadPrefs, savePrefs, clearPrefs } from './storage.js';
@@ -396,7 +396,7 @@ function switchPerson(id) {
   writePersonToForm(selectedPerson());
 }
 
-// Names in headings and lists, the cards a person has (Lön and Pension if employed,
+// Names in headings and lists, the cards a person has (Lön, and Pension if they have a salary,
 // Utdelning if owner), and labels that differ when there are several people.
 function syncPersonCards() {
   const i = selectedIndex();
@@ -415,8 +415,9 @@ function syncPersonCards() {
     el.dataset.one ??= el.textContent;
     el.textContent = several ? el.dataset.many : el.dataset.one;
   }
-  document.querySelector('.part[data-part="lon"]').hidden = !$('employed').checked;
-  document.querySelector('.part[data-part="pension"]').hidden = !$('employed').checked;
+  const formNumber = (id) => ($(id).value === '' ? null : Number($(id).value));
+  const employed = isEmployed({ useMaxGrossSalary: $('useMaxGrossSalary').checked, grossSalaryMonth: formNumber('grossSalaryMonth'), salaryMonths: formNumber('salaryMonths') });
+  document.querySelector('.part[data-part="pension"]').hidden = !employed;
   document.querySelector('.part[data-part="utdelning"]').hidden = !(Number($('ownership').value) > 0);
   $('removePersonRow').hidden = !several;
   $('ownershipBadge').textContent = `Ägande ${(Number($('ownership').value) || 0).toLocaleString('sv-SE')} %`;
@@ -471,11 +472,6 @@ $('removePerson').addEventListener('click', async () => {
 
 $('personName').addEventListener('input', updateAll);
 $('ownership').addEventListener('input', updateAll);
-$('employed').addEventListener('change', () => {
-  syncPersonCards();
-  selectPart(prefs.part);
-  updateAll();
-});
 
 // ---------------------------------------------------------------------------
 // Main update
@@ -1253,7 +1249,7 @@ function renderStructure() {
       return {
         id: p.id,
         name: personName(p, i),
-        employed: p.employed,
+        employed: isEmployed(p),
         owner: p.ownership > 0,
         ownership: p.ownership,
         grossSalaryYear: r.grossSalaryYear,
@@ -1428,7 +1424,7 @@ const quick = initQuick({
     const parts = { privat: 'person', faktura: 'uppdrag', grans: 'utdelning', kostnad: 'lon' };
     if (kind === 'privat') {
       state.year = v.year;
-      Object.assign(p, { yearBorn: v.yearBorn, kommun: v.kommun, grossSalaryMonth: Math.round(v.income / 12), salaryMonths: 12, useSemesterersattning: false, useMaxGrossSalary: false, employed: true });
+      Object.assign(p, { yearBorn: v.yearBorn, kommun: v.kommun, grossSalaryMonth: Math.round(v.income / 12), salaryMonths: 12, useSemesterersattning: false, useMaxGrossSalary: false });
     }
     if (kind === 'faktura') {
       state.assignments = [{ ...defaultAssignment('a1', 2026, p.id), vacationDays: Number.isFinite(v.vacationDays) ? v.vacationDays : null, hourlyRate: v.hourlyRate, startDate: v.billingStartDate, endDate: v.billingEndDate, workingRate: v.workingRate }];
@@ -1437,7 +1433,7 @@ const quick = initQuick({
       state.year = v.year;
       Object.assign(p, { omkostnadsbeloppAuto: false, omkostnadsbelopp: v.omkostnadsbelopp, savedDividends: v.savedDividends });
     }
-    if (kind === 'kostnad') Object.assign(p, { grossSalaryMonth: v.grossSalaryMonth, usePension: v.usePension, pensionPercent: 4.7, useMaxGrossSalary: false, employed: true });
+    if (kind === 'kostnad') Object.assign(p, { grossSalaryMonth: v.grossSalaryMonth, usePension: v.usePension, pensionPercent: 4.7, useMaxGrossSalary: false });
     for (const obj of [state, p]) {
       for (const [k, val] of Object.entries(obj)) if (typeof val === 'number' && !Number.isFinite(val)) obj[k] = null;
     }

@@ -24,10 +24,6 @@ export const EXPLANATIONS = {
     formula: 'Väljs av dig.',
   },
   personName: { what: 'Ett namn på personen. Visas i kartan och i rubrikerna.', formula: 'Anges av dig.' },
-  employed: {
-    what: 'Om personen får lön från bolaget. En ägare som inte är anställd får bara utdelning.',
-    formula: 'Väljs av dig.',
-  },
   ownership: {
     what: 'Hur stor del av aktierna personen äger. Utdelning betalas per aktie. 0 % betyder att personen bara är anställd. Är summan för alla personer under 100 % ägs resten av övriga ägare som inte ingår i kalkylen; summan får inte bli mer än 100 %.',
     formula: 'Anges av dig.',

@@ -16,8 +16,7 @@ with price changes, several owners/employees, saved data and import/export).
 - [ ] Several companies and common structures (holding company, shell companies).
 - [ ] Multi-year analysis: the rules for trädabolag / karensbolag.
 - [ ] Fiscal year not starting 1 January.
-- [ ] "Anställd i bolaget" checkbox: probably replace by salary 0 (the checkbox only removes
-      the Lön/Pension cards, the flat arbetsskadeförsäkring and the salary chart).
+- [x] "Anställd i bolaget" removed: a person is employed when the salary and months are above 0.
 - [ ] Smarter salary choices than "up to brytpunkt": e.g. highest salary with no profit left,
       the salary that maximises net for everyone, lowest total tax. Other ideas?
 - [ ] Fetch constants from external sources so they need no yearly update (3:12, tax rates).

@@ -34,7 +34,6 @@ export const FIELDS = [
 export const PERSON_FIELDS = [
   { id: 'name', type: 'text', default: '' },
   { id: 'ownership', type: 'number', default: 100 }, // % of the shares
-  { id: 'employed', type: 'boolean', default: true },
   { id: 'yearBorn', type: 'number', default: null },
   { id: 'kommun', type: 'text', default: '' },
   { id: 'churchMember', type: 'boolean', default: false },
@@ -59,6 +58,10 @@ const ID = /^[a-z0-9]{1,12}$/;
 
 // Minimum share capital of an aktiebolag. Omkostnadsbelopp defaults to this times the
 // person's share, so it is right however the shares are divided.
+// Someone with no salary from the company (a passive owner) is not employed: no employer
+// fees, no pension and no salary cards.
+export const isEmployed = (p) => Boolean(p.useMaxGrossSalary) || !(p.grossSalaryMonth === 0 || p.salaryMonths === 0);
+
 export const SHARE_CAPITAL = 25000;
 export const autoOmkostnadsbelopp = (ownershipPercent) => SHARE_CAPITAL * (Number(ownershipPercent) || 0) / 100;
 
@@ -152,7 +155,7 @@ export function validateState(obj) {
     else invalid++;
   }
   // Versions 1 and 2 had one person, with the fields at the top level.
-  const people = Array.isArray(obj.people) && obj.people.length ? obj.people.slice(0, MAX_PEOPLE) : [{ ...obj, id: 'p1', name: '', ownership: 100, employed: true }];
+  const people = Array.isArray(obj.people) && obj.people.length ? obj.people.slice(0, MAX_PEOPLE) : [{ ...obj, id: 'p1', name: '', ownership: 100 }];
   const personIds = uniqueIds(people, 'p');
   state.people = people.map((p, i) => {
     const v = validatePerson(p, personIds[i]);
@@ -278,7 +281,7 @@ export function toEngineInputs(state, kommunRates) {
       return {
         id: p.id,
         ownershipPercent: num(p.ownership),
-        employed: p.employed,
+        employed: isEmployed(p),
         yearBorn: num(p.yearBorn),
         kommunalSkattPercent: rates ? rates[0] : NaN,
         burialSkattPercent: rates ? rates[1] : NaN,

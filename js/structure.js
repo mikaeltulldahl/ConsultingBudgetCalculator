@@ -46,10 +46,8 @@ export function buildStructure(v) {
     edges: [
       ...v.assignments.map((a) => ({ goto: `faktura-${a.id}`, from: `uppdrag-${a.id}`, to: 'bolag', label: `${fmt(a.amount)}`, title: 'Fakturerat', manual: a.manual })),
       ...v.people.flatMap((p) => [
-        ...(p.employed ? [
-          { goto: `lon-${p.id}`, person: p.id, from: 'bolag', to: `person-${p.id}`, label: `lön ${fmt(p.grossSalaryYear)}`, title: 'Lön', offset: -0.42 },
-          { goto: `pension-${p.id}`, person: p.id, from: 'bolag', to: `person-${p.id}`, label: `pension ${fmt(p.pension)}`, title: 'Pension', offset: 0 },
-        ] : []),
+        { goto: `lon-${p.id}`, person: p.id, from: 'bolag', to: `person-${p.id}`, label: `lön ${fmt(p.grossSalaryYear)}`, title: 'Lön', offset: -0.42 },
+        ...(p.employed ? [{ goto: `pension-${p.id}`, person: p.id, from: 'bolag', to: `person-${p.id}`, label: `pension ${fmt(p.pension)}`, title: 'Pension', offset: 0 }] : []),
         ...(p.owner ? [{ goto: `utdelning-${p.id}`, person: p.id, from: 'bolag', to: `person-${p.id}`, label: `utdelning ${fmt(p.grossDividends)}`, title: 'Utdelning', offset: 0.42 }] : []),
         ...(p.otherEmployer ? [{ goto: `annan-${p.id}`, person: p.id, from: `annan-${p.id}`, to: `person-${p.id}`, label: `lön ${fmt(p.otherSalaryYear)}`, title: 'Annan lön', enterFromBelow: true }] : []),
       ]),
