@@ -1,14 +1,15 @@
 // Page logic: reads the form, runs the engine and writes results and charts.
 // All tax maths lives in engine.js; this file only deals with the page.
-import { calculate, salarySweep } from './engine.js';
-import { assignmentRevenue, defaultAssignment } from './assignments.js';
+import { calculateCompany, companySalarySweep } from './engine.js';
+import { defaultAssignment } from './assignments.js';
 import { EXPLANATIONS } from './explanations.js';
 import { buildStructure, renderMap, renderFlowList } from './structure.js';
 import { initQuick } from './quick.js';
 import { FIRST_YEAR, LAST_YEAR, UnsupportedYearError, getYearParams } from './params.js';
 import { grundavdragGroup } from './grundavdrag.js';
 import {
-  FIELDS, defaultState, makeDocument, parseDocument, isPristine, toEngineInputs, toCsv,
+  FIELDS, PERSON_FIELDS, defaultState, defaultPerson, makeDocument, parseDocument, isPristine, toEngineInputs, toCsv,
+  revenueForState,
 } from './scenario.js';
 import { loadStored, saveStored, clearStored, loadPrefs, savePrefs, clearPrefs } from './storage.js';
 
@@ -104,8 +105,10 @@ function validForsamling() {
 
 // preferred: { name, rate } to select (used when restoring saved data). If the live lookup
 // fails, the preferred församling is still offered with its stored rate.
+let forsamlingRequest = 0;
 async function populateForsamling(preferred = null) {
   if (!churchMemberField.checked || !validKommun()) return;
+  const request = ++forsamlingRequest; // a newer lookup (or another person) wins
   const selected = preferred?.name ?? forsamlingSelector.selectedOptions[0]?.text;
   forsamlingSelector.innerHTML = '';
   const placeholder = new Option('--- VÄLJ FÖRSAMLING---', '', true, true);
@@ -115,12 +118,14 @@ async function populateForsamling(preferred = null) {
   try {
     const url = `${KYRKOAVGIFT_DATASET}?_limit=500&kommun=${encodeURIComponent(kommunSelector.value)}&%C3%A5r=${yearField.value}`;
     const data = await loadJson(url);
+    if (request !== forsamlingRequest) return;
     for (const row of data.results) {
       const name = row['församling'];
       forsamlingSelector.add(new Option(name, row.kyrkoavgift, false, name === selected));
     }
     setStatus('forsamling', null);
   } catch (error) {
+    if (request !== forsamlingRequest) return;
     console.error(error);
     setStatus('forsamling', 'Kunde inte hämta församlingar från Skatteverket. Försök igen senare.');
     if (preferred?.name && preferred.rate !== null) {
@@ -131,11 +136,14 @@ async function populateForsamling(preferred = null) {
 }
 
 // Fills the (read-only) rate fields from the bundled kommun data and the chosen församling.
-function updateTaxRates() {
+function showTaxRates() {
   const rates = validKommun() ? ratesForYear(parseInt(yearField.value))?.[kommunSelector.value] : null;
   setRate('kommunalSkattPercent', rates ? rates[0] : '');
   setRate('burialSkattPercent', rates ? rates[1] : '');
   setRate('churchSkattPercent', churchMemberField.checked && validForsamling() ? forsamlingSelector.value : '');
+}
+function updateTaxRates() {
+  showTaxRates();
   updateAll();
 }
 
@@ -155,7 +163,7 @@ churchMemberField.addEventListener('change', () => {
 // ---------------------------------------------------------------------------
 
 let assignments = [defaultAssignment()];
-let lastRevenue = assignmentRevenue(assignments, 25);
+let lastRevenue = revenueForState({ people: [defaultPerson()], assignments });
 const assignmentParts = $('assignmentParts');
 const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const assignmentName = (a, i) => a.name.trim() || (assignments.length > 1 ? `Uppdrag ${i + 1}` : 'Uppdrag');
@@ -178,6 +186,7 @@ function renderAssignmentCards() {
         <h2 id="h-uppdrag-${id}"><span data-a-title="${id}">${esc(assignmentName(a, i))}</span> <span class="badge source">Uppdrag</span></h2>
         <p class="kind">Räknare: Fakturerat belopp</p>
         ${field('name', 'Kund eller namn', 'text', a.name, 'maxlength="60" placeholder="t.ex. Kund A"')}
+        ${people.length > 1 ? `<div class="row"><label for="worker-${id}">Vem arbetar</label><select id="worker-${id}" data-a="${id}" data-field="person" data-explain="assignmentPerson">${people.map((p, k) => `<option value="${p.id}" data-person-option="${p.id}" ${p.id === a.person ? 'selected' : ''}>${esc(personName(p, k))}</option>`).join('')}</select></div>` : ''}
         ${field('hourlyRate', 'Timpris exkl. moms', 'number', a.hourlyRate, 'step="10" min="0" inputmode="numeric"')}
         ${field('startDate', 'Uppdrag start', 'date', a.startDate)}
         ${field('endDate', 'Uppdrag slut', 'date', a.endDate)}
@@ -208,7 +217,8 @@ function renderAssignmentCards() {
 }
 
 function updateAssignmentOutputs() {
-  lastRevenue = assignmentRevenue(assignments, Number($('vacationDays').value === '' ? NaN : $('vacationDays').value));
+  syncFormToPerson();
+  lastRevenue = revenueForState({ people, assignments });
   lastRevenue.assignments.forEach((r, i) => {
     const id = r.id;
     if (!$(`invoiced-${id}`)) return;
@@ -226,7 +236,7 @@ function nextAssignmentId() {
 
 function addAssignment() {
   const year = Number(yearField.value) || 2026;
-  const a = { ...defaultAssignment(nextAssignmentId(), year), name: '' };
+  const a = { ...defaultAssignment(nextAssignmentId(), year, selectedPersonId), name: '' };
   assignments.push(a);
   renderAssignmentCards();
   selectPart(`uppdrag-${a.id}`, { scroll: true });
@@ -245,7 +255,7 @@ assignmentParts.addEventListener('input', (e) => {
   if (el.dataset.pc !== undefined) {
     const c = a.priceChanges[Number(el.dataset.pc)];
     c[el.dataset.field] = el.dataset.field === 'from' ? el.value : num(el.value);
-  } else if (['name', 'startDate', 'endDate'].includes(el.dataset.field)) {
+  } else if (['name', 'startDate', 'endDate', 'person'].includes(el.dataset.field)) {
     a[el.dataset.field] = el.value;
   } else {
     a[el.dataset.field] = num(el.value);
@@ -283,32 +293,181 @@ assignmentParts.addEventListener('click', (e) => {
 });
 
 // ---------------------------------------------------------------------------
+// People: the Du, Lön, Pension, Utdelning and Annan anställning cards show the selected
+// person. Every person's values are kept in `people`; the form holds the selected one.
+// ---------------------------------------------------------------------------
+
+let people = [defaultPerson()];
+let selectedPersonId = 'p1';
+const PERSON_INPUT_IDS = { name: 'personName' }; // person field -> element id when they differ
+const personEl = (key) => $(PERSON_INPUT_IDS[key] ?? key);
+const selectedPerson = () => people.find((p) => p.id === selectedPersonId) ?? people[0];
+const selectedIndex = () => Math.max(0, people.findIndex((p) => p.id === selectedPersonId));
+function personName(p, i) {
+  return p.name.trim() || (i === 0 ? 'Du' : `Person ${i + 1}`);
+}
+const owners = () => people.filter((p) => p.ownership > 0);
+
+// Copies the form into the selected person.
+function syncFormToPerson() {
+  const p = selectedPerson();
+  if (!p) return;
+  for (const f of PERSON_FIELDS) {
+    if (['kommun', 'forsamling', 'kyrkoavgift'].includes(f.id)) continue;
+    const el = personEl(f.id);
+    if (f.type === 'boolean') p[f.id] = el.checked;
+    else if (f.type === 'number') p[f.id] = el.value === '' || isNaN(Number(el.value)) ? null : Number(el.value);
+    else p[f.id] = el.value;
+  }
+  p.kommun = validKommun() ? kommunSelector.value : '';
+  const forsamling = churchMemberField.checked && validForsamling();
+  p.forsamling = forsamling ? forsamlingSelector.selectedOptions[0].text : '';
+  p.kyrkoavgift = forsamling ? parseFloat(forsamlingSelector.value) : null;
+}
+
+// Fills the form with a person. The stored församling is offered at once and the full
+// list is looked up in the background. Returns the lookup (a promise) or null.
+function writePersonToForm(p) {
+  for (const f of PERSON_FIELDS) {
+    if (['kommun', 'forsamling', 'kyrkoavgift'].includes(f.id)) continue;
+    const el = personEl(f.id);
+    if (f.type === 'boolean') el.checked = p[f.id];
+    else el.value = p[f.id] ?? '';
+  }
+  kommunSelector.value = p.kommun;
+  if (kommunSelector.selectedIndex < 0) kommunSelector.selectedIndex = 0;
+  $('grossSalaryMonth').disabled = p.useMaxGrossSalary;
+  $('forsamling').hidden = !p.churchMember;
+  forsamlingRequest++;
+  forsamlingSelector.innerHTML = '';
+  const placeholder = new Option('--- VÄLJ FÖRSAMLING---', '', true, !p.forsamling);
+  placeholder.disabled = true;
+  forsamlingSelector.add(placeholder);
+  if (p.forsamling && p.kyrkoavgift !== null) forsamlingSelector.add(new Option(p.forsamling, p.kyrkoavgift, true, true));
+  forsamlingSelector.disabled = !p.churchMember;
+  syncPensionInputs();
+  syncOther();
+  syncPersonCards();
+  showTaxRates();
+  return p.churchMember && validKommun() ? populateForsamling({ name: p.forsamling, rate: p.kyrkoavgift }) : null;
+}
+
+function switchPerson(id) {
+  if (id === selectedPersonId || !people.some((p) => p.id === id)) return;
+  syncFormToPerson();
+  selectedPersonId = id;
+  writePersonToForm(selectedPerson());
+}
+
+// Names in headings and lists, the cards a person has (Lön and Pension if employed,
+// Utdelning if owner), and labels that differ when there are several people.
+function syncPersonCards() {
+  const i = selectedIndex();
+  const p = selectedPerson();
+  const name = personName({ ...p, name: $('personName').value }, i);
+  const isDu = name === 'Du';
+  for (const el of document.querySelectorAll('[data-person]')) {
+    el.textContent = el.dataset.person === 'title' ? name : el.dataset.person === 'object' ? (isDu ? 'dig' : name) : (isDu ? 'du' : name);
+  }
+  people.forEach((x, k) => {
+    for (const o of document.querySelectorAll(`[data-person-option="${x.id}"]`)) o.textContent = personName(x.id === p.id ? { ...x, name: $('personName').value } : x, k);
+  });
+  $('personName').placeholder = i === 0 ? 'Du' : `Person ${i + 1}`;
+  const several = people.length > 1;
+  for (const el of document.querySelectorAll('[data-many]')) {
+    el.dataset.one ??= el.textContent;
+    el.textContent = several ? el.dataset.many : el.dataset.one;
+  }
+  document.querySelector('.part[data-part="lon"]').hidden = !$('employed').checked;
+  document.querySelector('.part[data-part="pension"]').hidden = !$('employed').checked;
+  document.querySelector('.part[data-part="utdelning"]').hidden = !(Number($('ownership').value) > 0);
+  $('removePersonRow').hidden = !several;
+  $('ownershipBadge').textContent = `Ägande ${(Number($('ownership').value) || 0).toLocaleString('sv-SE')} %`;
+}
+
+function nextPersonId() {
+  for (let n = 1; ; n++) if (!people.some((p) => p.id === `p${n}`)) return `p${n}`;
+}
+
+function addPerson() {
+  syncFormToPerson();
+  const p = { ...defaultPerson(nextPersonId()), ownership: 0, kommun: people[0].kommun };
+  people.push(p);
+  if (prefs.mode !== 'structure') setMode('structure');
+  renderAssignmentCards();
+  selectPart(`person-${p.id}`, { scroll: true });
+  $('personName').focus();
+  updateAll();
+}
+$('addPerson').addEventListener('click', addPerson);
+
+$('removePerson').addEventListener('click', () => {
+  const i = selectedIndex();
+  const p = selectedPerson();
+  if (people.length < 2 || !confirm(`Ta bort ${personName(p, i)}?`)) return;
+  people = people.filter((x) => x !== p);
+  for (const a of assignments) if (a.person === p.id) a.person = people[0].id;
+  selectedPersonId = people[0].id;
+  writePersonToForm(people[0]);
+  renderAssignmentCards();
+  selectPart(`person-${people[0].id}`, { scroll: true });
+  updateAll();
+});
+
+$('personName').addEventListener('input', updateAll);
+$('ownership').addEventListener('input', updateAll);
+$('employed').addEventListener('change', () => {
+  syncPersonCards();
+  selectPart(prefs.part);
+  updateAll();
+});
+
+// ---------------------------------------------------------------------------
 // Main update
 // ---------------------------------------------------------------------------
 
-// The value of every editable field (see FIELDS in scenario.js).
+// Everything the user has entered (see FIELDS and PERSON_FIELDS in scenario.js).
 function readState() {
+  syncFormToPerson();
   const state = {};
   for (const f of FIELDS) {
     const el = $(f.id);
-    if (!el || ['kommun', 'forsamling', 'kyrkoavgift'].includes(f.id)) continue;
     if (f.type === 'boolean') state[f.id] = el.checked;
     else if (f.type === 'number') state[f.id] = el.value === '' || isNaN(Number(el.value)) ? null : Number(el.value);
     else state[f.id] = el.value;
   }
+  state.people = structuredClone(people);
   state.assignments = structuredClone(assignments);
-  state.kommun = validKommun() ? kommunSelector.value : '';
-  const forsamling = churchMemberField.checked && validForsamling();
-  state.forsamling = forsamling ? forsamlingSelector.selectedOptions[0].text : '';
-  state.kyrkoavgift = forsamling ? parseFloat(forsamlingSelector.value) : null;
   return state;
 }
 
-function readInputs() {
-  return toEngineInputs(readState(), kommunRates);
+// The result as one flat object for person i: that person's fields, plus the company's
+// figures under the names the company outputs use. `co` holds all company totals.
+function viewFor(result, i) {
+  if (!result) return null;
+  const co = result.company;
+  return {
+    ...result.people[i],
+    invoicedAmount: co.invoicedAmount, otherRevenue: co.otherRevenue, otherCosts: co.otherCosts,
+    profitBeforeTax: co.profitBeforeTax, profitAfterTax: co.profitAfterTax, profitAfterDividends: co.profitAfterDividends,
+    totalCost: co.totalCost, totalTax: co.totalTax, totalTaxPercentage: co.totalTaxPercentage,
+    bolagsTaxExclDividends: co.bolagsTaxExclDividends,
+    co,
+  };
 }
 
-// Output field id -> decimals.
+// Calculates a state; loads the förhöjt grundavdrag tables it needs first.
+async function calculateState(state) {
+  const inputs = toEngineInputs(state, kommunRates);
+  const p = getYearParams(inputs.year);
+  for (const person of inputs.people) {
+    const age = inputs.year - person.yearBorn - 1;
+    if (!isNaN(age)) await ensureGrundavdragTable(inputs.year, grundavdragGroup(age, p.forhojtGrundavdragAge));
+  }
+  return { inputs, result: calculateCompany(inputs, engineData) };
+}
+
+// Output field id -> decimals. Ids in COMPANY_OUTPUTS show the company's totals.
 const OUTPUTS = {
   pensionDeductible: 0, pensionNonDeductible: 0, personIncomeTax: 0, otherIncomeTax: 0, otherNetYear: 0,
   grossSemesterersattning: 0, grossSalaryYear: 0, grundavdrag: 0, kommunalSkatt: 0, statligSkatt: 0,
@@ -316,32 +475,57 @@ const OUTPUTS = {
   incomeTax: 0, netSalaryYear: 0, netSemesterersattning: 0, netSalaryMonth: 0, incomeTaxPercentage: 1,
   pension: 0, insurance: 0, slp: 0, arbetsgivaravgift: 0, totalCost: 0, profitBeforeTax: 0,
   profitAfterTax: 0, omkostnadsbeloppInterest: 0, salaryBasedLimit: 0, grundbelopp: 0,
-  dividendsLimitForenklingsregeln: 0, dividendsLimitHuvudregeln: 0, dividendsLimit: 0, grossDividends: 0,
+  dividendsLimitForenklingsregeln: 0, dividendsLimitHuvudregeln: 0, dividendsLimit: 0,
   netDividends: 0, profitAfterDividends: 0, netSumMonth: 0, totalTax: 0, bolagsTaxExclDividends: 0,
   totalTaxPercentage: 1,
 };
+const COMPANY_OUTPUTS = new Set(['insurance', 'slp', 'arbetsgivaravgift']);
 
 const format = (value, decimals) => (Number.isFinite(value) ? value.toFixed(decimals) : '');
 
 function writeFields(r) {
-  for (const [id, decimals] of Object.entries(OUTPUTS)) {
-    if (id === 'grossDividends') continue; // an input field, see below
-    setOutput(id, r?.[id], decimals);
+  const co = r?.co;
+  for (const [id, decimals] of Object.entries(OUTPUTS)) setOutput(id, COMPANY_OUTPUTS.has(id) ? co?.[id] : r?.[id], decimals);
+  for (const el of document.querySelectorAll('output[data-mirror]')) {
+    const key = el.dataset.mirror;
+    setOutput(el, key.startsWith('co.') ? co?.[key.slice(3)] : r?.[key], 0);
   }
-  for (const el of document.querySelectorAll('output[data-mirror]')) setOutput(el, r?.[el.dataset.mirror], 0);
   $('pensionCapWarning').hidden = !(r?.pensionNonDeductible > 0);
   syncOther();
+  syncPersonCards();
   setOutput('churchSkatt', churchMemberField.checked ? r?.churchSkatt : NaN);
-  $('grossDividends').value = format(r?.grossDividends, 0);
+  $('grossDividends').value = format(co?.grossDividends, 0);
   if ($('useMaxGrossSalary').checked) $('grossSalaryMonth').value = format(r?.grossSalaryMonth, 0);
-  $('grossDividends').max = format(r?.dividendsLimit, 0);
+  $('grossDividends').max = format(co?.dividendCap, 0);
+
+  // Several owners: this owner's share, the company's cap and who sets it.
+  const severalOwners = owners().length > 1;
+  $('ownersRows').hidden = !severalOwners;
+  setOutput('ownerShare', 100 * r?.ownership, 1);
+  setOutput('dividendCap', co?.dividendCap, 0);
+  const limiting = people.findIndex((p) => p.id === co?.limitingOwner);
+  const limitingName = limiting < 0 ? '' : personName(people[limiting], limiting);
+  $('limitingNote').textContent = limiting < 0 ? '' : `${limitingName === 'Du' ? 'Ditt gränsbelopp' : `Gränsbeloppet för ${limitingName}`} begränsar bolagets utdelning: den får inte bli större än att varje ägare håller sig inom sitt gränsbelopp.`;
+  const sum = co?.ownershipSum;
+  const off = Number.isFinite(sum) && Math.abs(sum - 1) > 1e-9;
+  for (const el of document.querySelectorAll('.ownership-warning')) {
+    el.hidden = !off;
+    el.textContent = off ? `Ägarandelarna är tillsammans ${(100 * sum).toLocaleString('sv-SE', { maximumFractionDigits: 2 })} %. De måste bli 100 % för att utdelningen ska kunna räknas.` : '';
+  }
 
   const kr = (v) => (Number.isFinite(v) ? `${Math.round(v).toLocaleString('sv-SE')} kr` : '–');
+  $('sumNetName').textContent = people.length > 1 ? ` (${personName(selectedPerson(), selectedIndex())})` : '';
   $('sumNetMonth').textContent = kr(r?.netSumMonth);
   $('sumTaxPct').textContent = Number.isFinite(r?.totalTaxPercentage) ? `${r.totalTaxPercentage.toLocaleString('sv-SE', { maximumFractionDigits: 1, minimumFractionDigits: 1 })} %` : '–';
   $('sumLeft').textContent = kr(r?.profitAfterDividends);
-  $('sumInvoiced').textContent = kr(r?.invoicedAmount);
-  $('summaryHint').hidden = Number.isFinite(r?.netSumMonth);
+  $('sumInvoiced').textContent = kr(co?.invoicedAmount);
+  // Point to the first person whose birth year or kommun is missing.
+  const missing = people.findIndex((p) => p.yearBorn === null || !p.kommun);
+  $('summaryHint').hidden = Number.isFinite(r?.netSumMonth) || missing < 0;
+  if (missing >= 0) {
+    $('summaryHintLink').dataset.goto = `person-${people[missing].id}`;
+    $('summaryHintLink').textContent = personName(people[missing], missing);
+  }
 }
 
 function updateYearDependentFields() {
@@ -354,26 +538,24 @@ let updateCounter = 0;
 async function updateAll() {
   const id = ++updateCounter;
   updateAssignmentOutputs();
-  const inputs = readInputs();
-  let result = null;
+  let calc = null;
   try {
-    const p = getYearParams(inputs.year);
-    const age = inputs.year - inputs.yearBorn - 1;
-    if (!isNaN(age)) await ensureGrundavdragTable(inputs.year, grundavdragGroup(age, p.forhojtGrundavdragAge));
+    calc = await calculateState(readState());
     if (id !== updateCounter) return; // a newer update has started
-    result = calculate(inputs, engineData);
     setStatus('calculation', null);
   } catch (error) {
     if (id !== updateCounter) return;
+    calc = null;
     if (!(error instanceof UnsupportedYearError)) console.error(error);
     setStatus('calculation', error instanceof UnsupportedYearError
       ? error.message
       : 'Något gick fel i beräkningen. Ladda om sidan och försök igen.');
   }
-  writeFields(result);
-  updateCharts(result);
-  updateSankeyChartData(result ?? {});
-  currentResult = result;
+  currentResult = calc?.result ?? null;
+  const view = viewFor(currentResult, selectedIndex());
+  writeFields(view);
+  updateCharts(calc?.inputs, view);
+  updateSankeyChartData(sankeyData(currentResult));
   renderStructure();
   renderScenarios();
   scheduleSave();
@@ -400,6 +582,7 @@ $('pensionAmount').addEventListener('input', updateAll);
 
 // Other employment: shown when it has a name or a salary.
 const otherActive = () => $('otherEmployer').value.trim() !== '' || Number($('otherSalaryYear').value) > 0;
+const personOtherEmployer = (p) => (p.otherEmployer.trim() || (p.otherSalaryYear > 0 ? 'Annan anställning' : null));
 function syncOther() {
   const active = otherActive();
   $('annanCard').hidden = !active;
@@ -461,6 +644,13 @@ const series = root.container.children.push(
 );
 series.nodes.get('colors').set('step', 2);
 series.nodes.nodes.template.setAll({ draggable: false, toggleKey: 'none' });
+
+// The Sankey shows the whole company: all salaries, pensions and dividends together.
+function sankeyData(result) {
+  if (!result) return {};
+  const co = result.company;
+  return { ...co, totalTax: co.totalTax, bolagsTaxExclDividends: co.bolagsTaxExclDividends };
+}
 
 function updateSankeyChartData(f) {
   const n = (label, value) => `[bold]${label}:[/]\n${Math.round(value).toLocaleString()}`;
@@ -609,8 +799,11 @@ const percentageChart = new Chart($('percentageChart').getContext('2d'), {
   },
 });
 
-function updateCharts(result) {
-  const s = result ? salarySweep(result, engineData) : null;
+// The salary sweep varies the selected person's salary with everything else fixed.
+function updateCharts(inputs, view) {
+  const s = inputs && view && Number.isFinite(view.co?.totalTaxPercentage) ? companySalarySweep(inputs, selectedIndex(), engineData) : null;
+  const name = personName(selectedPerson(), selectedIndex());
+  $('h-sum').textContent = people.length > 1 ? `Lön eller utdelning för ${name === 'Du' ? 'dig' : name}?` : 'Lön eller utdelning?';
   const sum = sumChart.data;
   const pct = percentageChart.data;
   sum.labels = s ? s.grossSalaryMonth : [];
@@ -653,26 +846,20 @@ async function applyState(state) {
     yearField.value = state.year ?? '';
     updateYearDependentFields();
     populateKommunDropdown();
-    kommunSelector.value = state.kommun;
-    if (kommunSelector.selectedIndex < 0) kommunSelector.selectedIndex = 0;
     for (const f of FIELDS) {
+      if (f.id === 'year') continue;
       const el = $(f.id);
-      if (!el || ['year', 'kommun', 'forsamling', 'kyrkoavgift'].includes(f.id)) continue;
       if (f.type === 'boolean') el.checked = state[f.id];
       else el.value = state[f.id] ?? '';
     }
-    assignments = structuredClone(state.assignments);
-    renderAssignmentCards();
-    $('grossSalaryMonth').disabled = state.useMaxGrossSalary;
-    syncPensionInputs();
-    syncOther();
     $('grossDividends').disabled = state.maxDividend;
-    $('forsamling').hidden = !state.churchMember;
-    forsamlingSelector.innerHTML = '';
-    forsamlingSelector.add(new Option('--- VÄLJ FÖRSAMLING---', '', true, true));
-    if (state.churchMember && validKommun()) {
-      await populateForsamling({ name: state.forsamling, rate: state.kyrkoavgift });
-    }
+    people = structuredClone(state.people);
+    const wanted = partPerson(prefs.part);
+    selectedPersonId = people.some((p) => p.id === wanted) ? wanted : people[0].id;
+    assignments = structuredClone(state.assignments);
+    const lookup = writePersonToForm(selectedPerson());
+    renderAssignmentCards();
+    if (lookup) await lookup;
     selectPart(prefs.part);
     updateTaxRates();
   } finally {
@@ -714,13 +901,10 @@ const KEY_INPUTS = [
   [(s) => (s.assignments.length === 1 ? s.assignments[0].hourlyRate : `${s.assignments.length} uppdrag`), 'Timpris'],
 ];
 
+// Scenario comparison and the CSV scenario block: the first person and the company.
 async function resultForState(state) {
   try {
-    const inputs = toEngineInputs(state, kommunRates);
-    const p = getYearParams(inputs.year);
-    const age = inputs.year - inputs.yearBorn - 1;
-    if (!isNaN(age)) await ensureGrundavdragTable(inputs.year, grundavdragGroup(age, p.forhojtGrundavdragAge));
-    return calculate(inputs, engineData);
+    return viewFor((await calculateState(state)).result, 0);
   } catch {
     return null;
   }
@@ -742,7 +926,8 @@ async function renderScenarios() {
   if (!scenarios.length) return;
 
   const current = readState();
-  const columns = [{ name: 'Nuvarande', state: current, result: currentResult }, ...scenarios.map((s, i) => ({ ...s, result: results[i], index: i }))];
+  const currentView = viewFor(currentResult, 0);
+  const columns = [{ name: 'Nuvarande', state: current, result: currentView }, ...scenarios.map((s, i) => ({ ...s, result: results[i], index: i }))];
 
   const head = table.createTHead().insertRow();
   head.append(document.createElement('th'));
@@ -787,7 +972,7 @@ async function renderScenarios() {
     addRow(label, columns.map((c) => ({ text: get(c.state) === null ? '–' : String(get(c.state)) })));
   }
   for (const [key, label, decimals] of KEY_RESULTS) {
-    const base = currentResult?.[key];
+    const base = currentView?.[key];
     addRow(label, columns.map((c, i) => {
       const v = c.result?.[key];
       const d = v - base;
@@ -857,27 +1042,54 @@ const explanationText = (id) => {
   return e ? [e.what, e.formula].filter(Boolean).join(' ') : '';
 };
 
-// One row per field in the structure, part by part, with its explanation.
+const labelText = (label) => {
+  const copy = label.cloneNode(true);
+  copy.querySelectorAll('button').forEach((b) => b.remove());
+  return copy.textContent.replace(/^\s*→\s*/, '').replace(/\s+/g, ' ').trim();
+};
+
+function partRows(part) {
+  const rows = [];
+  const heading = part.querySelector('h2').cloneNode(true);
+  heading.querySelectorAll('.badge').forEach((b) => b.remove());
+  const section = heading.textContent.replace(/\s+/g, ' ').trim();
+  for (const label of part.querySelectorAll('label[for]')) {
+    const field = $(label.htmlFor);
+    if (!field || field.dataset.mirror || field.closest('[hidden]')) continue;
+    let value;
+    if (field.type === 'checkbox') value = field.checked ? 'Ja' : 'Nej';
+    else if (field.tagName === 'SELECT') value = field.selectedIndex >= 0 && !field.selectedOptions[0].disabled ? field.selectedOptions[0].text : '';
+    else if (field.tagName === 'OUTPUT') value = field.dataset.value === '' || field.dataset.value === undefined ? null : Number(field.dataset.value);
+    else if (field.type === 'number') value = field.value === '' ? null : Number(field.value);
+    else value = field.value;
+    const calculated = field.tagName === 'OUTPUT' || field.disabled;
+    rows.push([section, labelText(label), value, calculated ? 'Beräknat' : 'Inmatning', explanationText(field.dataset.explain ?? field.id)]);
+  }
+  return rows;
+}
+
+// One row per field in the structure, part by part, with its explanation. The person
+// cards are listed once per person.
+const PERSON_PARTS = ['lon', 'pension', 'utdelning', 'annan', 'person'];
 function pageRows() {
   const rows = [['Allmänt', 'Inkomstår', Number(yearField.value) || null, 'Inmatning', explanationText('year')]];
-  for (const part of document.querySelectorAll('#parts .part')) {
-    const heading = part.querySelector('h2').cloneNode(true);
-    heading.querySelectorAll('.badge').forEach((b) => b.remove());
-    const section = heading.textContent.replace(/\s+/g, ' ').trim();
-    for (const label of part.querySelectorAll('label[for]')) {
-      const field = $(label.htmlFor);
-      if (!field || field.dataset.mirror || field.closest('[hidden]')) continue;
-      let value;
-      if (field.type === 'checkbox') value = field.checked ? 'Ja' : 'Nej';
-      else if (field.tagName === 'SELECT') value = field.selectedIndex > 0 ? field.selectedOptions[0].text : '';
-      else if (field.tagName === 'OUTPUT') value = field.dataset.value === '' || field.dataset.value === undefined ? null : Number(field.dataset.value);
-      else if (field.type === 'number') value = field.value === '' ? null : Number(field.value);
-      else value = field.value;
-      const text = [...label.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent).join(' ');
-      const name = text.replace(/^\s*→\s*/, '').replace(/\s+/g, ' ').trim();
-      const calculated = field.tagName === 'OUTPUT' || field.disabled;
-      rows.push([section, name, value, calculated ? 'Beräknat' : 'Inmatning', explanationText(field.dataset.explain ?? field.id)]);
+  const parts = [...document.querySelectorAll('#parts .part')];
+  for (const part of parts.filter((x) => !PERSON_PARTS.includes(x.dataset.part))) rows.push(...partRows(part));
+  const original = selectedPersonId;
+  syncFormToPerson();
+  for (const p of people) {
+    if (p.id !== selectedPersonId) {
+      selectedPersonId = p.id;
+      writePersonToForm(p);
+      forsamlingRequest++; // the stored församling is enough here
+      writeFields(viewFor(currentResult, selectedIndex()));
     }
+    for (const part of parts.filter((x) => PERSON_PARTS.includes(x.dataset.part) && !x.hidden)) rows.push(...partRows(part));
+  }
+  if (selectedPersonId !== original) {
+    selectedPersonId = original;
+    writePersonToForm(selectedPerson());
+    writeFields(viewFor(currentResult, selectedIndex()));
   }
   return rows;
 }
@@ -900,7 +1112,7 @@ async function exportCsv() {
     const current = readState();
     for (const [get, label] of KEY_INPUTS) rows.push([label, get(current), ...scenarios.map((s) => get(s.state))]);
     for (const [key, label, d] of KEY_RESULTS) {
-      rows.push([label, round(currentResult?.[key], d), ...results.map((r) => round(r?.[key], d))]);
+      rows.push([label, round(viewFor(currentResult, 0)?.[key], d), ...results.map((r) => round(r?.[key], d))]);
     }
   }
   download(`budgetkalkyl-${today()}.csv`, toCsv(rows), 'text/csv;charset=utf-8');
@@ -915,7 +1127,7 @@ async function clearData() {
   clearStored();
   // Also forget page preferences, so nothing at all is left in this browser.
   Object.assign(prefs, { part: 'uppdrag', howtoClosed: false });
-  for (const el of document.querySelectorAll('.part')) el.classList.toggle('active', el.dataset.part === 'uppdrag');
+  selectPart('uppdrag');
   $('howto').hidden = false;
   renderStructure();
   clearPrefs();
@@ -942,7 +1154,7 @@ const prefs = { part: 'uppdrag', mode: 'structure', howtoClosed: false, ...loadP
 const narrow = () => window.matchMedia('(max-width: 899px)').matches;
 
 function renderStructure() {
-  const r = currentResult ?? {};
+  const result = currentResult;
   const structure = buildStructure({
     assignments: assignments.map((a, i) => {
       const rev = lastRevenue.assignments.find((x) => x.id === a.id);
@@ -955,13 +1167,23 @@ function renderStructure() {
         manual: a.manualAmount !== null,
       };
     }),
-    profitAfterTax: r.profitAfterTax,
-    grossSalaryYear: r.grossSalaryYear,
-    grossDividends: r.grossDividends,
-    pension: r.pension,
-    otherEmployer: otherActive() ? $('otherEmployer').value.trim() || 'Annan anställning' : null,
-    otherSalaryYear: Number($('otherSalaryYear').value) || 0,
-    netSumMonth: r.netSumMonth,
+    profitAfterTax: result?.company.profitAfterTax,
+    people: people.map((p, i) => {
+      const r = result?.people[i] ?? {};
+      return {
+        id: p.id,
+        name: personName(p, i),
+        employed: p.employed,
+        owner: p.ownership > 0,
+        ownership: p.ownership,
+        grossSalaryYear: r.grossSalaryYear,
+        pension: r.pension,
+        grossDividends: r.grossDividends,
+        netSumMonth: r.netSumMonth,
+        otherEmployer: personOtherEmployer(p),
+        otherSalaryYear: p.otherSalaryYear || 0,
+      };
+    }),
   });
   $('structureMap').innerHTML = renderMap(structure, prefs.part);
   $('structureTree').innerHTML = renderFlowList(structure, prefs.part);
@@ -978,17 +1200,39 @@ function scrollToCard(card) {
   if (!alreadyVisible) window.scrollBy({ top: target, behavior: 'smooth' });
 }
 
+// Person parts: "lon" (the selected person) or "lon-p2" (person p2). Returns the person
+// id in a part name, or null.
+const PERSON_PART = /^(person|lon|pension|utdelning|annan)(?:-([a-z0-9]+))?$/;
+function partPerson(part) {
+  const m = PERSON_PART.exec(part ?? '');
+  return m ? m[2] ?? selectedPersonId : null;
+}
+
 function selectPart(part, { scroll = false } = {}) {
   // "uppdrag" and "faktura" (older links and saved preferences) mean the first assignment.
   if (part === 'uppdrag' || part === 'faktura') part = `${part}-${assignments[0].id}`;
-  const card = document.querySelector(`.part[data-part="${part}"]`);
-  if (!card) part = `uppdrag-${assignments[0].id}`;
-  else if (card.hidden) part = 'person';
+  let cardPart = part;
+  const m = PERSON_PART.exec(part ?? '');
+  if (m) {
+    const id = people.some((p) => p.id === m[2]) ? m[2] : selectedPersonId;
+    switchPerson(id);
+    cardPart = m[1];
+    part = `${cardPart}-${id}`;
+  }
+  const card = document.querySelector(`.part[data-part="${cardPart}"]`);
+  if (!card) {
+    cardPart = `uppdrag-${assignments[0].id}`;
+    part = cardPart;
+  } else if (card.hidden) {
+    cardPart = 'person';
+    part = `person-${selectedPersonId}`;
+  }
   prefs.part = part;
   savePrefs(prefs);
-  for (const el of document.querySelectorAll('.part')) el.classList.toggle('active', el.dataset.part === part);
+  for (const el of document.querySelectorAll('.part')) el.classList.toggle('active', el.dataset.part === cardPart);
   renderStructure();
-  if (scroll && narrow()) scrollToCard(document.querySelector(`.part[data-part="${part}"]`));
+  if (m && !restoring) updateAll();
+  if (scroll && narrow()) scrollToCard(document.querySelector(`.part[data-part="${cardPart}"]`));
 }
 
 function setMode(mode) {
@@ -1029,7 +1273,7 @@ function closePopover() {
 }
 function openPopover(button, id, label) {
   const e = EXPLANATIONS[id];
-  const title = [...label.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent).join(' ').replace(/^\s*→\s*/, '').trim();
+  const title = labelText(label);
   const h = Object.assign(document.createElement('h3'), { textContent: title });
   const what = Object.assign(document.createElement('p'), { textContent: e.what });
   popover.replaceChildren(h, what);
@@ -1088,26 +1332,41 @@ const quick = initQuick({
   engineData,
   ensureGrundavdragTable,
   setOutput,
-  structureSummary: () => ({
-    netSumMonth: currentResult?.netSumMonth,
-    year: Number(yearField.value) || null,
-    yearBorn: Number($('yearBorn').value) || null,
-    kommun: validKommun() ? kommunSelector.value : null,
-  }),
+  structureSummary: () => {
+    syncFormToPerson();
+    return {
+      netSumMonth: viewFor(currentResult, 0)?.netSumMonth,
+      year: Number(yearField.value) || null,
+      yearBorn: people[0].yearBorn,
+      kommun: people[0].kommun || null,
+    };
+  },
+  // The quick calculators fill in the first person.
   async onConnect(kind, v) {
     const state = readState();
+    const p = state.people[0];
     const parts = { privat: 'person', faktura: 'uppdrag', grans: 'utdelning', kostnad: 'lon' };
-    if (kind === 'privat') Object.assign(state, { year: v.year, yearBorn: v.yearBorn, kommun: v.kommun, grossSalaryMonth: Math.round(v.income / 12), salaryMonths: 12, useSemesterersattning: false, useMaxGrossSalary: false });
-    if (kind === 'faktura') {
-      Object.assign(state, { vacationDays: v.vacationDays, assignments: [{ ...defaultAssignment('a1'), hourlyRate: v.hourlyRate, startDate: v.billingStartDate, endDate: v.billingEndDate, workingRate: v.workingRate }] });
+    if (kind === 'privat') {
+      state.year = v.year;
+      Object.assign(p, { yearBorn: v.yearBorn, kommun: v.kommun, grossSalaryMonth: Math.round(v.income / 12), salaryMonths: 12, useSemesterersattning: false, useMaxGrossSalary: false, employed: true });
     }
-    if (kind === 'grans') Object.assign(state, { year: v.year, omkostnadsbelopp: v.omkostnadsbelopp, savedDividends: v.savedDividends });
-    if (kind === 'kostnad') Object.assign(state, { grossSalaryMonth: v.grossSalaryMonth, usePension: v.usePension, pensionPercent: 4.7, useMaxGrossSalary: false });
-    for (const [k, val] of Object.entries(state)) if (typeof val === 'number' && !Number.isFinite(val)) state[k] = null;
-    if (state.kommun !== (kommunSelector.value || '')) { state.forsamling = ''; state.kyrkoavgift = null; }
+    if (kind === 'faktura') {
+      p.vacationDays = v.vacationDays;
+      state.assignments = [{ ...defaultAssignment('a1', 2026, p.id), hourlyRate: v.hourlyRate, startDate: v.billingStartDate, endDate: v.billingEndDate, workingRate: v.workingRate }];
+    }
+    if (kind === 'grans') {
+      state.year = v.year;
+      Object.assign(p, { omkostnadsbelopp: v.omkostnadsbelopp, savedDividends: v.savedDividends });
+    }
+    if (kind === 'kostnad') Object.assign(p, { grossSalaryMonth: v.grossSalaryMonth, usePension: v.usePension, pensionPercent: 4.7, useMaxGrossSalary: false, employed: true });
+    for (const obj of [state, p]) {
+      for (const [k, val] of Object.entries(obj)) if (typeof val === 'number' && !Number.isFinite(val)) obj[k] = null;
+    }
+    if (p.kommun !== people[0].kommun) { p.forsamling = ''; p.kyrkoavgift = null; }
     setMode('structure');
+    prefs.part = `${parts[kind]}-${p.id}`;
     await applyState(state);
-    selectPart(parts[kind], { scroll: true });
+    selectPart(kind === 'faktura' ? 'uppdrag' : `${parts[kind]}-${p.id}`, { scroll: true });
     showNotice('Snabbräknarens värden finns nu i din struktur.');
   },
 });
@@ -1142,6 +1401,7 @@ if (GOATCOUNTER_CODE && !['localhost', '127.0.0.1'].includes(location.hostname))
 
 async function init() {
   applyChartTheme();
+  const initialPart = prefs.part; // may name a person who exists only in the saved data
   selectPart(prefs.part);
   $('howto').hidden = prefs.howtoClosed;
   yearField.min = FIRST_YEAR;
@@ -1165,9 +1425,11 @@ async function init() {
   }
   if (restored) {
     scenarios = restored.scenarios;
+    prefs.part = initialPart;
     await applyState(restored.current);
   } else {
     populateKommunDropdown();
+    writePersonToForm(selectedPerson());
     renderAssignmentCards();
     selectPart(prefs.part);
     updateAll();

@@ -43,7 +43,9 @@ const snapshot = (page) => page.evaluate((ids) => Object.fromEntries(ids.map((id
 // Shows a part of the structure (its card) by clicking it in the map or the phone flow.
 // Prefers boxes in the map and buttons in the phone flow; a curved arrow's bounding box can
 // have empty space in the middle, where a click lands on nothing.
+// Person parts without a person id mean the first person ("lon" = "lon-p1").
 const goto = async (p, part) => {
+  if (/^(person|lon|pension|utdelning|annan)$/.test(part)) part = `${part}-p1`;
   const preferred = p.locator(`#structureMap g.node[data-goto="${part}"], #structureTree button[data-goto="${part}"]`).locator('visible=true');
   if (await preferred.count()) return preferred.first().click();
   return p.locator(`[data-goto="${part}"] >> visible=true`).first().click();
@@ -247,6 +249,76 @@ try {
     await settle(page);
     assert.ok(!(await page.isVisible('.part[data-part="annan"]')));
     assert.equal(Number(await page.getAttribute('#netSumMonth', 'data-value')), before);
+  });
+
+  await step('two owners: dividends per share, tightest limit, ownership warning', async () => {
+    await goto(page, 'person');
+    const before = await page.getAttribute('#netSumMonth', 'data-value');
+    const value = async (id) => Number(await page.getAttribute(`#${id}`, 'data-value'));
+    // Opens the Utdelning card of the person shown, through the chip on the person card.
+    const dividendCard = async (person) => {
+      await goto(page, `person-${person}`);
+      await page.click('.part.active button.from[data-goto="utdelning"]');
+    };
+    await page.click('#addPerson');
+    await settle(page);
+    assert.ok(await page.isVisible('#structureMap g.node[data-goto="person-p2"]'));
+    assert.equal((await page.textContent('#h-person')).trim().startsWith('Person 2'), true);
+    await page.fill('#personName', 'Anna');
+    await page.fill('#ownership', '50');
+    await page.fill('#yearBorn', '1990');
+    await page.dispatchEvent('#yearBorn', 'input');
+    await page.click('.part.active button.from[data-goto="lon"]');
+    await page.fill('#grossSalaryMonth', '40000');
+    await page.dispatchEvent('#grossSalaryMonth', 'input');
+    await settle(page);
+    assert.match(await page.textContent('#structureMap'), /Anna/);
+    await goto(page, 'bolag');
+    assert.match(await page.textContent('.part[data-part="bolag"] .ownership-warning'), /150 %/);
+    assert.equal(await page.getAttribute('#companyDividend', 'data-value'), '', 'no dividend until shares add up to 100 %');
+    await goto(page, 'person-p1');
+    await page.fill('#ownership', '50');
+    await page.dispatchEvent('#ownership', 'input');
+    await settle(page);
+    assert.ok(!(await page.isVisible('.ownership-warning >> visible=true').catch(() => false)));
+    await dividendCard('p1');
+    await settle(page);
+    assert.ok(await page.isVisible('#ownersRows'));
+    const cap = await value('dividendCap');
+    const total = await value('companyDividend');
+    const mine = await value('ownerGrossDividends');
+    const myLimit = await value('dividendsLimit');
+    await dividendCard('p2');
+    await settle(page);
+    const annas = await value('ownerGrossDividends');
+    const annasLimit = await value('dividendsLimit');
+    assert.equal(mine, annas, 'equal dividend per share');
+    assert.equal(mine + annas, total);
+    assert.ok(total <= cap && mine <= myLimit && annas <= annasLimit);
+    assert.equal(cap, Math.min(myLimit, annasLimit) * 2);
+    assert.match(await page.textContent('#limitingNote'), /begränsar/);
+    assert.equal(await page.textContent('#sumNetName'), ' (Anna)');
+    // Remembered after reloading, including which person is shown.
+    await page.reload({ waitUntil: 'networkidle' });
+    await settle(page);
+    assert.equal(await page.inputValue('#personName'), 'Anna');
+    assert.equal(await value('ownerGrossDividends'), annas);
+    // Anna as an employee without shares: no dividend arrow, her salary still costs the company.
+    await goto(page, 'person-p2');
+    await page.fill('#ownership', '0');
+    await page.dispatchEvent('#ownership', 'input');
+    await goto(page, 'person-p1');
+    await page.fill('#ownership', '100');
+    await page.dispatchEvent('#ownership', 'input');
+    await settle(page);
+    assert.equal(await page.locator('#structureMap g.edge[data-goto="utdelning-p2"]').count(), 0);
+    assert.equal(await page.locator('#structureMap g.edge[data-goto="lon-p2"]').count(), 1);
+    // Removing Anna gives the one-person result again.
+    await goto(page, 'person-p2');
+    await page.click('#removePerson');
+    await settle(page);
+    assert.equal(await page.locator('#structureMap g.node[data-goto="person-p2"]').count(), 0);
+    assert.equal(await page.getAttribute('#netSumMonth', 'data-value'), before);
   });
 
   await step('explanation popover opens with a source link', async () => {

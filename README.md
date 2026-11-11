@@ -7,12 +7,15 @@ Everything is calculated in your browser; nothing you enter is sent anywhere.
 
 ## How the page is organised
 
-- **Min struktur**: a map of your setup (assignments → your company → you, plus any salary
-  from another employer). Each box and arrow opens its own calculator card: one Uppdrag and
-  one Fakturerat card per assignment (with price changes during the assignment), Ditt
-  aktiebolag, Lön, Tjänstepension, Utdelning, Annan anställning and Du. On phones the map
-  becomes a vertical flow. The map is drawn from a list of parts, so more people and
-  companies can be added later.
+- **Min struktur**: a map of your setup (assignments → your company → the people in it,
+  plus any salary from another employer). Each box and arrow opens its own calculator card:
+  one Uppdrag and one Fakturerat card per assignment (with price changes during the
+  assignment), Ditt aktiebolag, and per person Lön, Tjänstepension, Utdelning, Annan
+  anställning and the person card. On phones the map becomes a vertical flow.
+- **Several people** ("+ Person"): each person is an owner (share in %), an employee, or
+  both, with their own birth year, kommun, salary, pension and 3:12 data. Dividends are
+  paid per share; "maximal utdelning" is the largest total where no owner goes above their
+  own gränsbelopp. Shares must add up to 100 % before dividends are calculated.
 - **Snabbräknare**: five stand-alone calculators (Privat skatt, Fakturerat belopp,
   Utdelningsgräns, Lön ↔ bolagskostnad, Motsvarande anställning). "Koppla in i min
   struktur" copies their values into the structure.
@@ -28,7 +31,8 @@ Everything is calculated in your browser; nothing you enter is sent anywhere.
 - "Exportera till Excel (CSV)" downloads every field and calculated value, in page order,
   with the explanation of how each value is calculated. The file uses semicolons and
   decimal commas, as Swedish Excel expects.
-- Scenarios can be saved under a name and compared side by side.
+- Scenarios can be saved under a name and compared side by side (the first person and the
+  company's totals).
 
 ## How the calculations are verified
 
@@ -48,7 +52,7 @@ invariants such as "money is conserved" and "net pay grows with gross pay".
 | `js/engine.js` | All calculations. Pure functions, no DOM or network. |
 | `js/params.js` | Tax parameters per year. |
 | `js/grundavdrag.js`, `js/holidays.js` | Grundavdrag and Swedish holidays. |
-| `js/scenario.js`, `js/storage.js` | Saved data format (version 2; version 1 files are converted), export/import, CSV, browser storage. |
+| `js/scenario.js`, `js/storage.js` | Saved data format (version 3 with several people; versions 1 and 2 are converted), export/import, CSV, browser storage. |
 | `js/assignments.js` | Billable hours and invoiced amount per assignment, with price changes. |
 | `js/structure.js`, `js/quick.js` | Structure map / phone flow, and the quick calculators. |
 | `js/explanations.js` | Explanation texts and sources for every field. |

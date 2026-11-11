@@ -38,7 +38,7 @@
     <!-- ===================================================================== -->
     <div id="structureMode">
       <section class="summary" aria-label="Sammanfattning">
-        <div class="summary-item"><span>Netto per månad</span><b id="sumNetMonth">–</b></div>
+        <div class="summary-item"><span>Netto per månad<span id="sumNetName"></span></span><b id="sumNetMonth">–</b></div>
         <div class="summary-item"><span>Total skatt</span><b id="sumTaxPct">–</b></div>
         <div class="summary-item"><span>Kvar i bolaget</span><b id="sumLeft">–</b></div>
         <div class="summary-item"><span>Fakturerat</span><b id="sumInvoiced">–</b></div>
@@ -46,7 +46,7 @@
           <label for="year">Inkomstår</label>
           <input type="number" id="year" value="2026" inputmode="numeric">
         </div>
-        <p id="summaryHint" class="summary-hint" hidden>Fyll i födelseår och kommun under <button type="button" class="link-button" data-goto="person">Du</button> för att se resultatet.</p>
+        <p id="summaryHint" class="summary-hint" hidden>Fyll i födelseår och kommun under <button type="button" class="link-button" id="summaryHintLink" data-goto="person">Du</button> för att se resultatet.</p>
       </section>
 
       <section id="howto" class="howto" aria-label="Så använder du kalkylatorn">
@@ -64,7 +64,7 @@
 
       <div class="layout">
         <section class="card map-card" aria-label="Struktur">
-          <div class="card-head"><h2>Din struktur</h2><span class="muted small">Klicka på en ruta eller pil · <button type="button" class="link-button" id="addAssignment">+ Uppdrag</button></span></div>
+          <div class="card-head"><h2>Din struktur</h2><span class="muted small">Klicka på en ruta eller pil · <button type="button" class="link-button" id="addAssignment">+ Uppdrag</button> · <button type="button" class="link-button" id="addPerson">+ Person</button></span></div>
           <div id="structureMap"></div>
           <div id="structureTree"></div>
           <div class="legend"><span><i class="lg-source"></i>Inkomstkälla</span><span><i class="lg-bolag"></i>Bolag</span><span><i class="lg-person"></i>Person</span><span>Pilar: pengar som flödar</span></div>
@@ -82,8 +82,8 @@
             <div class="row"><label for="companyInvoiced">Fakturerat <button type="button" class="from" data-goto="faktura" id="companyInvoicedLink">från Fakturerat</button></label><output id="companyInvoiced" data-mirror="invoicedAmount" data-unit="kr"></output></div>
             <div class="row"><label for="otherRevenue">Övriga intäkter exkl. moms</label><input type="number" step="10000" id="otherRevenue" value="0" min="0" inputmode="numeric"></div>
             <div class="group-title">Kostnader</div>
-            <div class="row"><label for="companySalary">Lön till dig <button type="button" class="from" data-goto="lon">från Lön</button></label><output id="companySalary" data-mirror="grossSalaryYear" data-unit="kr"></output></div>
-            <div class="row"><label for="companyPension">Tjänstepension till dig <button type="button" class="from" data-goto="pension">från Pension</button></label><output id="companyPension" data-mirror="pension" data-unit="kr"></output></div>
+            <div class="row"><label for="companySalary"><span data-many="Löner">Lön till dig</span> <button type="button" class="from" data-goto="lon">från Lön</button></label><output id="companySalary" data-mirror="co.grossSalaryYear" data-unit="kr"></output></div>
+            <div class="row"><label for="companyPension"><span data-many="Tjänstepensioner">Tjänstepension till dig</span> <button type="button" class="from" data-goto="pension">från Pension</button></label><output id="companyPension" data-mirror="co.pension" data-unit="kr"></output></div>
             <div class="row"><label for="otherCosts">Övriga kostnader exkl. moms</label><input type="number" step="10000" min="0" id="otherCosts" value="20000" inputmode="numeric"></div>
             <details class="details">
               <summary>Detaljer</summary>
@@ -95,13 +95,14 @@
             <div class="group-title">Resultat</div>
             <div class="row"><label for="profitBeforeTax">Resultat före skatt</label><output id="profitBeforeTax" data-unit="kr"></output></div>
             <div class="row"><label for="profitAfterTax">Resultat efter skatt</label><output id="profitAfterTax" data-unit="kr"></output></div>
-            <div class="row"><label for="companyDividend">Utdelning till dig <button type="button" class="from" data-goto="utdelning">se Utdelning</button></label><output id="companyDividend" data-mirror="grossDividends" data-unit="kr"></output></div>
+            <div class="row"><label for="companyDividend"><span data-many="Utdelning till ägarna">Utdelning till dig</span> <button type="button" class="from" data-goto="utdelning">se Utdelning</button></label><output id="companyDividend" data-mirror="co.grossDividends" data-unit="kr"></output></div>
+            <p class="status ownership-warning" hidden></p>
             <div class="result"><label for="profitAfterDividends">→ Kvar i bolaget efter utdelning</label><output id="profitAfterDividends" data-unit="kr"></output></div>
           </section>
 
           <!-- Lön ------------------------------------------------------------ -->
           <section class="card part" data-part="lon" aria-labelledby="h-lon">
-            <h2 id="h-lon">Lön: bolaget → du <span class="badge edge">Anställning</span></h2>
+            <h2 id="h-lon">Lön: bolaget → <span data-person="lower">du</span> <span class="badge edge">Anställning</span></h2>
             <p class="kind">Räknare: Lön</p>
             <div class="row"><label for="useMaxGrossSalary">Lön upp till brytpunkt för statlig skatt</label><input type="checkbox" id="useMaxGrossSalary"></div>
             <div class="row"><label for="grossSalaryMonth">Månadslön brutto</label><input type="number" step="1000" id="grossSalaryMonth" min="0" value="55000" inputmode="numeric"></div>
@@ -118,7 +119,7 @@
 
           <!-- Pension ------------------------------------------------------- -->
           <section class="card part" data-part="pension" aria-labelledby="h-pension">
-            <h2 id="h-pension">Tjänstepension: bolaget → du <span class="badge edge">Pension</span></h2>
+            <h2 id="h-pension">Tjänstepension: bolaget → <span data-person="lower">du</span> <span class="badge edge">Pension</span></h2>
             <p class="kind">Räknare: Tjänstepension</p>
             <div class="row"><label for="usePension">Ta ut tjänstepension</label><input type="checkbox" id="usePension" checked></div>
             <div class="row"><label for="pensionMode">Räkna pensionen som</label><select id="pensionMode"><option value="percent">% av lönen</option><option value="amount">Fast belopp per år</option></select></div>
@@ -138,11 +139,11 @@
 
           <!-- Utdelning ------------------------------------------------------ -->
           <section class="card part" data-part="utdelning" aria-labelledby="h-utdelning">
-            <h2 id="h-utdelning">Utdelning: bolaget → du <span class="badge edge">Ägande 100 %</span></h2>
+            <h2 id="h-utdelning">Utdelning: bolaget → <span data-person="lower">du</span> <span class="badge edge" id="ownershipBadge">Ägande 100 %</span></h2>
             <p class="kind">Räknare: Utdelningsgräns (3:12)</p>
             <div class="row"><label for="dividendBase">Resultat efter skatt <button type="button" class="from" data-goto="bolag">från bolaget</button></label><output id="dividendBase" data-mirror="profitAfterTax" data-unit="kr"></output></div>
             <div class="row"><label for="maxDividend">Välj maximal utdelning</label><input type="checkbox" id="maxDividend" checked></div>
-            <div class="row"><label for="grossDividends">Årsutdelning brutto</label><input type="number" id="grossDividends" step="10000" value="0" min="0" disabled inputmode="numeric"></div>
+            <div class="row"><label for="grossDividends"><span data-many="Utdelning från bolaget totalt">Årsutdelning brutto</span></label><input type="number" id="grossDividends" step="10000" value="0" min="0" disabled inputmode="numeric"></div>
             <details class="details">
               <summary>Detaljer</summary>
               <div class="row"><label for="omkostnadsbelopp">Omkostnadsbelopp</label><input type="number" step="25000" id="omkostnadsbelopp" value="25000" min="0" inputmode="numeric"></div>
@@ -158,13 +159,20 @@
               </div>
               <div class="row"><label for="dividendsLimit">Utdelningsgräns</label><output id="dividendsLimit" data-unit="kr"></output></div>
             </details>
+            <div id="ownersRows" hidden>
+              <div class="row"><label for="ownerShare">Ägarandel</label><output id="ownerShare" data-unit="%"></output></div>
+              <div class="row"><label for="dividendCap">Största utdelning inom allas gränsbelopp</label><output id="dividendCap" data-unit="kr"></output></div>
+              <p class="muted small" id="limitingNote"></p>
+              <div class="row"><label for="ownerGrossDividends">Utdelning till <span data-person="object">dig</span> brutto</label><output id="ownerGrossDividends" data-mirror="grossDividends" data-unit="kr"></output></div>
+            </div>
+            <p class="status ownership-warning" hidden></p>
             <div class="result"><label for="netDividends">→ Årsutdelning netto (utbetalas nästa år)</label><output id="netDividends" data-unit="kr"></output>
-              <small>går till <button type="button" class="link-button" data-goto="person">dig</button></small></div>
+              <small>går till <button type="button" class="link-button" data-goto="person"><span data-person="object">dig</span></button></small></div>
           </section>
 
           <!-- Annan anställning -------------------------------------------- -->
           <section class="card part" data-part="annan" id="annanCard" aria-labelledby="h-annan" hidden>
-            <h2 id="h-annan">Annan anställning → du <span class="badge source">Inkomstkälla</span></h2>
+            <h2 id="h-annan">Annan anställning → <span data-person="lower">du</span> <span class="badge source">Inkomstkälla</span></h2>
             <p class="kind">Räknare: Lön från annan arbetsgivare</p>
             <div class="row"><label for="otherEmployer">Arbetsgivare</label><input type="text" id="otherEmployer" maxlength="60" placeholder="t.ex. Kund C"></div>
             <div class="row"><label for="otherSalaryYear">Lön brutto per år</label><input type="number" id="otherSalaryYear" value="0" step="10000" min="0" inputmode="numeric"></div>
@@ -179,8 +187,11 @@
 
           <!-- Du ------------------------------------------------------------- -->
           <section class="card part" data-part="person" aria-labelledby="h-person">
-            <h2 id="h-person">Du <span class="badge person">Person</span></h2>
+            <h2 id="h-person"><span data-person="title">Du</span> <span class="badge person">Person</span></h2>
             <p class="kind">Räknare: Privat skatt och sammanfattning</p>
+            <div class="row"><label for="personName">Namn</label><input type="text" id="personName" maxlength="60" placeholder="Du"></div>
+            <div class="row"><label for="employed">Anställd i bolaget</label><input type="checkbox" id="employed" checked></div>
+            <div class="row"><label for="ownership">Ägarandel (%)</label><input type="number" id="ownership" value="100" step="1" min="0" max="100" inputmode="decimal"></div>
             <div class="row required"><label for="yearBorn">Födelseår</label><input type="number" id="yearBorn" min="1900" placeholder="ÅÅÅÅ" inputmode="numeric"></div>
             <div class="row required"><label for="kommunSelector">Kommun</label><select id="kommunSelector"></select></div>
             <div class="row"><label for="churchMember">Medlem i Svenska kyrkan</label><input type="checkbox" id="churchMember"></div>
@@ -217,11 +228,12 @@
             <div class="result"><label for="netSumMonth">→ Månadssumma (lön + utdelning) netto</label><output id="netSumMonth" data-unit="kr"></output></div>
             <details class="details">
               <summary>Detaljer: total skatt</summary>
-              <div class="row"><label for="totalTax">Total skatt*</label><output id="totalTax" data-unit="kr"></output></div>
-              <div class="row"><label for="totalTaxPercentage">Total skatt* (%)</label><output id="totalTaxPercentage" data-unit="%"></output></div>
+              <div class="row"><label for="totalTax"><span data-many="Total skatt* (hela bolaget)">Total skatt*</span></label><output id="totalTax" data-unit="kr"></output></div>
+              <div class="row"><label for="totalTaxPercentage"><span data-many="Total skatt* (%) (hela bolaget)">Total skatt* (%)</span></label><output id="totalTaxPercentage" data-unit="%"></output></div>
               <div class="row"><label for="bolagsTaxExclDividends">Bolagsskatt på ej utdelad vinst</label><output id="bolagsTaxExclDividends" data-unit="kr"></output></div>
               <p class="muted small">* exklusive bolagsskatt på vinst som blir kvar i bolaget.</p>
             </details>
+            <div class="row-actions" id="removePersonRow" hidden><button type="button" class="link-button" id="removePerson">Ta bort personen</button></div>
           </section>
         </div>
 

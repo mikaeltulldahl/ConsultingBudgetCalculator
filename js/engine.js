@@ -475,7 +475,7 @@ export function calculateCompany({ year, company: c, people }, data) {
     grossSalaryYear: NaN, pension: NaN, insurance: NaN, slp: NaN, arbetsgivaravgift: NaN,
     totalCost: NaN, profitBeforeTax: NaN, bolagsTax: NaN, profitAfterTax: NaN,
     ownershipSum: NaN, dividendCap: NaN, limitingOwner: null, grossDividends: NaN,
-    netDividends: NaN, profitAfterDividends: NaN, incomeTax: NaN, dividendTax: NaN,
+    netDividends: NaN, profitAfterDividends: NaN, incomeTax: NaN, netSalaryYear: NaN, dividendTax: NaN,
     bolagsTaxOnDividends: NaN, bolagsTaxExclDividends: NaN, totalTax: NaN, totalTaxPercentage: NaN,
   };
   const ps = people.map((person) => {
@@ -546,6 +546,7 @@ export function calculateCompany({ year, company: c, people }, data) {
     co.bolagsTaxExclDividends = taxed ? co.profitAfterDividends * t / (1 - t) : 0;
     co.netDividends = sum('netDividends');
     co.incomeTax = sum('incomeTax');
+    co.netSalaryYear = sum('netSalaryYear');
     co.dividendTax = RATES.dividendTax * co.grossDividends;
     co.totalTax = co.incomeTax + co.slp + co.arbetsgivaravgift + co.bolagsTaxOnDividends + co.dividendTax;
     co.totalTaxPercentage = 100 * co.totalTax / (co.invoicedAmount + co.otherRevenue);

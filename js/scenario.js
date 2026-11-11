@@ -3,19 +3,21 @@
 //
 // Document:
 //   { app, version, savedAt, current: <state>, scenarios: [{ name, savedAt, state }] }
-// State: the value of every editable field on the page, keyed by element id, plus
-// `assignments` (a list, see assignments.js).
+// State: the company-level fields (FIELDS), `people` (PERSON_FIELDS each) and
+// `assignments` (see assignments.js; each has `person`, who works on it).
 //
-// Version 2 (current): assignments as a list with price changes.
-// Version 1: one assignment as separate fields (hourlyRate, billingStartDate, ...);
-// converted to version 2 when read.
+// Version 3 (current): several people in the company.
+// Version 2: one person; the person's fields were at the top level of the state.
+// Version 1: as version 2, and one assignment as separate fields (hourlyRate, ...).
+// Older versions are converted when read.
 
 import { LAST_YEAR } from './params.js';
-import { assignmentRevenue, defaultAssignment } from './assignments.js';
+import { assignmentRevenueByPerson, defaultAssignment } from './assignments.js';
 
 export const APP_ID = 'ConsultingBudgetCalculator';
-export const VERSION = 2;
+export const VERSION = 3;
 const MAX_ASSIGNMENTS = 20;
+const MAX_PEOPLE = 10;
 const MAX_PRICE_CHANGES = 24;
 const MAX_NAME = 80;
 const MAX_SCENARIOS = 50;
@@ -23,11 +25,17 @@ const MAX_SCENARIOS = 50;
 // type: 'number' (number or null for an empty field), 'date' ('YYYY-MM-DD'), 'text', 'boolean'
 export const FIELDS = [
   { id: 'year', type: 'number', default: 2026 },
-  { id: 'vacationDays', type: 'number', default: 25 },
   { id: 'otherRevenue', type: 'number', default: 0 },
+  { id: 'otherCosts', type: 'number', default: 20000 },
+  { id: 'maxDividend', type: 'boolean', default: true },
+  { id: 'grossDividends', type: 'number', default: 0 }, // total for the company
+];
+
+export const PERSON_FIELDS = [
+  { id: 'name', type: 'text', default: '' },
+  { id: 'ownership', type: 'number', default: 100 }, // % of the shares
+  { id: 'employed', type: 'boolean', default: true },
   { id: 'yearBorn', type: 'number', default: null },
-  { id: 'otherEmployer', type: 'text', default: '' },
-  { id: 'otherSalaryYear', type: 'number', default: 0 },
   { id: 'kommun', type: 'text', default: '' },
   { id: 'churchMember', type: 'boolean', default: false },
   { id: 'forsamling', type: 'text', default: '' },
@@ -35,20 +43,26 @@ export const FIELDS = [
   { id: 'useMaxGrossSalary', type: 'boolean', default: false },
   { id: 'grossSalaryMonth', type: 'number', default: 55000 },
   { id: 'salaryMonths', type: 'number', default: 12 },
+  { id: 'vacationDays', type: 'number', default: 25 },
   { id: 'useSemesterersattning', type: 'boolean', default: true },
   { id: 'usePension', type: 'boolean', default: true },
   { id: 'pensionPercent', type: 'number', default: 4.7 },
   { id: 'pensionMode', type: 'text', default: 'percent' },
   { id: 'pensionAmount', type: 'number', default: 0 },
-  { id: 'otherCosts', type: 'number', default: 20000 },
   { id: 'omkostnadsbelopp', type: 'number', default: 25000 },
   { id: 'savedDividends', type: 'number', default: 0 },
-  { id: 'maxDividend', type: 'boolean', default: true },
-  { id: 'grossDividends', type: 'number', default: 0 },
+  { id: 'otherEmployer', type: 'text', default: '' },
+  { id: 'otherSalaryYear', type: 'number', default: 0 },
 ];
 
+const ID = /^[a-z0-9]{1,12}$/;
+
+export function defaultPerson(id = 'p1') {
+  return { id, ...Object.fromEntries(PERSON_FIELDS.map((f) => [f.id, f.default])) };
+}
+
 export function defaultState() {
-  return { ...Object.fromEntries(FIELDS.map((f) => [f.id, f.default])), assignments: [defaultAssignment()] };
+  return { ...Object.fromEntries(FIELDS.map((f) => [f.id, f.default])), people: [defaultPerson()], assignments: [defaultAssignment()] };
 }
 
 function validValue(type, v) {
@@ -63,7 +77,7 @@ function validValue(type, v) {
 
 const ASSIGNMENT_FIELDS = [
   ['name', 'text'], ['hourlyRate', 'number'], ['startDate', 'date'], ['endDate', 'date'],
-  ['workingRate', 'number'], ['billableHours', 'number'], ['manualAmount', 'number'],
+  ['workingRate', 'number'], ['billableHours', 'number'], ['manualAmount', 'number'], ['person', 'text'],
 ];
 
 // Returns { assignment, invalid }.
@@ -96,8 +110,31 @@ function legacyAssignment(obj) {
   return Object.fromEntries(Object.entries(keys).filter(([k]) => k in obj).map(([k, v]) => [v, obj[k]]));
 }
 
+// Unique ids: keeps a valid unused id, otherwise the first free `${prefix}N`.
+function uniqueIds(list, prefix) {
+  const used = new Set();
+  return list.map((x, i) => {
+    let id = typeof x?.id === 'string' && ID.test(x.id) && !used.has(x.id) ? x.id : null;
+    for (let n = i + 1; !id; n++) if (!used.has(`${prefix}${n}`)) id = `${prefix}${n}`;
+    used.add(id);
+    return id;
+  });
+}
+
+function validatePerson(obj, id) {
+  const person = defaultPerson(id);
+  let invalid = 0;
+  if (!obj || typeof obj !== 'object') return { person, invalid: 1 };
+  for (const f of PERSON_FIELDS) {
+    if (!(f.id in obj)) continue;
+    if (validValue(f.type, obj[f.id]) && !(f.id === 'name' && obj[f.id].length > 60)) person[f.id] = obj[f.id];
+    else invalid++;
+  }
+  return { person, invalid };
+}
+
 // Returns { state, invalid } where invalid counts values that were replaced by defaults.
-// Unknown keys are dropped. Accepts both version 1 and version 2 states.
+// Unknown keys are dropped. Accepts states from versions 1, 2 and 3.
 export function validateState(obj) {
   const state = defaultState();
   let invalid = 0;
@@ -107,17 +144,27 @@ export function validateState(obj) {
     if (validValue(f.type, obj[f.id])) state[f.id] = obj[f.id];
     else invalid++;
   }
+  // Versions 1 and 2 had one person, with the fields at the top level.
+  const people = Array.isArray(obj.people) && obj.people.length ? obj.people.slice(0, MAX_PEOPLE) : [{ ...obj, id: 'p1', name: '', ownership: 100, employed: true }];
+  const personIds = uniqueIds(people, 'p');
+  state.people = people.map((p, i) => {
+    const v = validatePerson(p, personIds[i]);
+    invalid += v.invalid;
+    return v.person;
+  });
+
   const list = Array.isArray(obj.assignments) ? obj.assignments.slice(0, MAX_ASSIGNMENTS) : [legacyAssignment(obj)].filter(Boolean);
   if (list.length) {
-    const used = new Set();
+    const ids = uniqueIds(list, 'a');
     state.assignments = list.map((a, i) => {
-      let id = typeof a?.id === 'string' && /^[a-z0-9]{1,12}$/.test(a.id) && !used.has(a.id) ? a.id : null;
-      for (let n = i + 1; !id; n++) if (!used.has(`a${n}`)) id = `a${n}`;
-      used.add(id);
-      const v = validateAssignment(a, id);
+      const v = validateAssignment(a, ids[i]);
       invalid += v.invalid;
       return v.assignment;
     });
+  }
+  // Everyone works on an assignment of a person who exists.
+  for (const a of state.assignments) {
+    if (!personIds.includes(a.person)) a.person = personIds[0];
   }
   return { state, invalid };
 }
@@ -177,51 +224,75 @@ export function parseDocument(input) {
   return { current: current.state, scenarios, invalid };
 }
 
+// Billable hours and invoiced amount for the state's assignments (each person's vacation
+// spread over the assignments that person works on).
+export function revenueForState(state) {
+  const num = (v) => (v === null || v === undefined ? NaN : v);
+  const vacation = (id) => num((state.people.find((p) => p.id === id) ?? state.people[0])?.vacationDays);
+  return assignmentRevenueByPerson(state.assignments ?? [], vacation);
+}
+
 // True if the state is what a first-time visitor sees (nothing worth remembering).
 export function isPristine(state) {
   const d = defaultState();
   for (const f of FIELDS) {
+    // With maximal utdelning the dividend is calculated, not entered.
+    if (f.id === 'grossDividends' && state.maxDividend) continue;
     if (state[f.id] !== d[f.id]) return false;
   }
-  if (state.assignments?.length !== 1) return false;
+  if (state.people?.length !== 1) return false;
+  for (const f of PERSON_FIELDS) {
+    if (state.people[0][f.id] !== d.people[0][f.id]) return false;
+  }
+  if (state.people[0].id !== 'p1' || state.assignments?.length !== 1) return false;
   const a = state.assignments[0];
   const def = d.assignments[0];
   for (const key of ['id', 'name', 'hourlyRate', 'startDate', 'endDate', 'workingRate', 'manualAmount']) {
     if (a[key] !== def[key]) return false;
   }
   if (a.priceChanges.length) return false;
-  return a.billableHours === null || a.billableHours === assignmentRevenue([{ ...a, billableHours: null }], state.vacationDays).totalHours;
+  return a.billableHours === null || a.billableHours === revenueForState({ ...state, assignments: [{ ...a, billableHours: null }] }).totalHours;
 }
 
-// Converts a state to engine inputs. kommunRates: { year: { KOMMUN: [skattesats, begravning] } }
+// Converts a state to calculateCompany() inputs.
+// kommunRates: { year: { KOMMUN: [skattesats, begravning] } }
 export function toEngineInputs(state, kommunRates) {
   const num = (v) => (v === null || v === undefined ? NaN : v);
-  const rates = (kommunRates[state.year] ?? kommunRates[LAST_YEAR] ?? {})[state.kommun];
-  const invoiced = assignmentRevenue(state.assignments ?? [], num(state.vacationDays)).total;
+  const yearRates = kommunRates[state.year] ?? kommunRates[LAST_YEAR] ?? {};
   return {
     year: num(state.year),
-    yearBorn: num(state.yearBorn),
-    kommunalSkattPercent: rates ? rates[0] : NaN,
-    burialSkattPercent: rates ? rates[1] : NaN,
-    churchMember: state.churchMember,
-    churchSkattPercent: state.churchMember && state.forsamling ? num(state.kyrkoavgift) : NaN,
-    useMaxGrossSalary: state.useMaxGrossSalary,
-    grossSalaryMonth: num(state.grossSalaryMonth),
-    salaryMonths: num(state.salaryMonths),
-    useSemesterersattning: state.useSemesterersattning,
-    vacationDays: num(state.vacationDays),
-    usePension: state.usePension,
-    pensionPercent: num(state.pensionPercent),
-    otherSalaryYear: num(state.otherSalaryYear),
-    pensionMode: state.pensionMode,
-    pensionAmount: num(state.pensionAmount),
-    otherCosts: num(state.otherCosts),
-    otherRevenue: num(state.otherRevenue),
-    invoicedAmount: invoiced,
-    maxDividend: state.maxDividend,
-    grossDividends: num(state.grossDividends),
-    savedDividends: num(state.savedDividends),
-    omkostnadsbelopp: num(state.omkostnadsbelopp),
+    company: {
+      invoicedAmount: revenueForState(state).total,
+      otherRevenue: num(state.otherRevenue),
+      otherCosts: num(state.otherCosts),
+      maxDividend: state.maxDividend,
+      grossDividends: num(state.grossDividends),
+    },
+    people: state.people.map((p) => {
+      const rates = yearRates[p.kommun];
+      return {
+        id: p.id,
+        ownershipPercent: num(p.ownership),
+        employed: p.employed,
+        yearBorn: num(p.yearBorn),
+        kommunalSkattPercent: rates ? rates[0] : NaN,
+        burialSkattPercent: rates ? rates[1] : NaN,
+        churchMember: p.churchMember,
+        churchSkattPercent: p.churchMember && p.forsamling ? num(p.kyrkoavgift) : NaN,
+        useMaxGrossSalary: p.useMaxGrossSalary,
+        grossSalaryMonth: num(p.grossSalaryMonth),
+        salaryMonths: num(p.salaryMonths),
+        useSemesterersattning: p.useSemesterersattning,
+        vacationDays: num(p.vacationDays),
+        usePension: p.usePension,
+        pensionPercent: num(p.pensionPercent),
+        pensionMode: p.pensionMode,
+        pensionAmount: num(p.pensionAmount),
+        otherSalaryYear: num(p.otherSalaryYear),
+        savedDividends: num(p.savedDividends),
+        omkostnadsbelopp: num(p.omkostnadsbelopp),
+      };
+    }),
   };
 }
 

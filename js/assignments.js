@@ -9,9 +9,10 @@ const toUTC = (iso) => {
 };
 const toISO = (t) => new Date(t).toISOString().slice(0, 10);
 
-export function defaultAssignment(id = 'a1', year = 2026) {
+export function defaultAssignment(id = 'a1', year = 2026, person = 'p1') {
   return {
     id,
+    person, // who works on the assignment (a person id)
     name: '',
     hourlyRate: 700,
     startDate: `${year}-01-01`,
@@ -75,6 +76,27 @@ export function assignmentRevenue(assignments, vacationDays) {
     const amount = Number.isFinite(a.manualAmount) ? a.manualAmount : computedAmount;
     return { id: a.id, computedHours, hours, computedAmount, amount, segments };
   });
+  return {
+    assignments: result,
+    totalHours: result.reduce((s, r) => s + r.hours, 0),
+    total: result.reduce((s, r) => s + r.amount, 0),
+  };
+}
+
+// Several people: each person's vacation is spread over the assignments that person works
+// on. vacationFor(personId) gives that person's vacation days. Results keep the order of
+// `assignments`.
+export function assignmentRevenueByPerson(assignments, vacationFor) {
+  const groups = new Map();
+  for (const a of assignments) {
+    if (!groups.has(a.person)) groups.set(a.person, []);
+    groups.get(a.person).push(a);
+  }
+  const byId = new Map();
+  for (const [person, list] of groups) {
+    for (const r of assignmentRevenue(list, vacationFor(person)).assignments) byId.set(r.id, r);
+  }
+  const result = assignments.map((a) => byId.get(a.id));
   return {
     assignments: result,
     totalHours: result.reduce((s, r) => s + r.hours, 0),

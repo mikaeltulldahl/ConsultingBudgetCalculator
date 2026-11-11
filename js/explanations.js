@@ -19,6 +19,26 @@ export const EXPLANATIONS = {
     formula: 'Anges av dig.',
   },
   assignmentName: { what: 'Ett namn på uppdraget, t.ex. kunden. Visas i kartan.', formula: 'Anges av dig.' },
+  assignmentPerson: {
+    what: 'Vem som arbetar i uppdraget. Personens semesterdagar dras av från de uppdrag personen arbetar i.',
+    formula: 'Väljs av dig.',
+  },
+  personName: { what: 'Ett namn på personen. Visas i kartan och i rubrikerna.', formula: 'Anges av dig.' },
+  employed: {
+    what: 'Om personen får lön från bolaget. En ägare som inte är anställd får bara utdelning.',
+    formula: 'Väljs av dig.',
+  },
+  ownership: {
+    what: 'Hur stor del av aktierna personen äger. Utdelning betalas per aktie, och alla ägares andelar ska tillsammans bli 100 %. 0 % betyder att personen bara är anställd.',
+    formula: 'Anges av dig.',
+  },
+  ownerShare: { what: 'Personens andel av aktierna, och därmed av utdelningen.', formula: 'Anges på personens kort.' },
+  dividendCap: {
+    what: 'Den största utdelning bolaget kan ge utan att någon ägare får mer än sitt eget gränsbelopp (så att allt beskattas med 20 %). Utdelning betalas lika per aktie, så den ägare som har lägst gränsbelopp i förhållande till sin andel sätter gränsen.',
+    formula: 'Lägsta (gränsbelopp ÷ ägarandel) bland ägarna.',
+    source: ['Inkomstskattelagen 57 kap. 20 §', `${IL}#K57P20`],
+  },
+  ownerGrossDividends: { what: 'Personens del av bolagets utdelning, före skatt.', formula: 'Utdelning totalt × ägarandel.' },
   startDate: { what: 'Första dagen du fakturerar i uppdraget.', formula: 'Anges av dig.' },
   endDate: { what: 'Sista dagen du fakturerar i uppdraget.', formula: 'Anges av dig.' },
   billingStartDate: { what: 'Första dagen du fakturerar i uppdraget.', formula: 'Anges av dig.' },
@@ -248,7 +268,7 @@ export const EXPLANATIONS = {
   },
   maxDividend: {
     what: 'Tar ut så mycket utdelning som både gränsbeloppet och bolagets vinst tillåter.',
-    formula: 'Utdelning = min(utdelningsgräns, resultat efter skatt).',
+    formula: 'Utdelning = min(utdelningsgräns, resultat efter skatt). Med flera ägare används den största utdelningen där ingen ägare går över sitt gränsbelopp.',
   },
   grossDividends: { what: 'Utdelning före skatt.', formula: 'Anges av dig, eller maximal utdelning.' },
   netDividends: {
