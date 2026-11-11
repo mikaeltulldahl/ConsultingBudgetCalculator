@@ -264,7 +264,7 @@ try {
     assert.equal(Number(await page.getAttribute('#netSumMonth', 'data-value')), before);
   });
 
-  await step('two owners: dividends per share, tightest limit, ownership warning', async () => {
+  await step('owners: dividends per share, tightest limit, owners table, other owners', async () => {
     await goto(page, 'person');
     const before = await page.getAttribute('#netSumMonth', 'data-value');
     const value = async (id) => Number(await page.getAttribute(`#${id}`, 'data-value'));
@@ -286,10 +286,17 @@ try {
     await page.dispatchEvent('#grossSalaryMonth', 'input');
     await settle(page);
     assert.match(await page.textContent('#structureMap'), /Anna/);
-    // Giving Anna 50 % leaves 50 % to the first person: the shares always add up to 100 %.
+    // 100 % + 50 % is too much: warning and no dividend until fixed under Ägare.
+    await goto(page, 'bolag');
+    assert.match(await page.textContent('.part[data-part="bolag"] .ownership-warning'), /150 %/);
+    assert.equal(await page.getAttribute('#companyDividend', 'data-value'), '', 'no dividend above 100 %');
+    assert.ok(await page.isVisible('#ownersTable'));
+    await page.fill('#ownerInputs input[data-owner="p1"]', '50');
+    await settle(page);
+    assert.equal(await page.getAttribute('#ownershipTotal', 'data-value'), '100.00');
+    assert.ok(!(await page.isVisible('.ownership-warning >> visible=true').catch(() => false)));
     await goto(page, 'person-p1');
     assert.equal(await page.inputValue('#ownership'), '50');
-    assert.ok(!(await page.isVisible('.ownership-warning >> visible=true').catch(() => false)));
     await dividendCard('p1');
     await settle(page);
     assert.ok(await page.isVisible('#ownersRows'));
@@ -339,13 +346,16 @@ try {
     await settle(page);
     assert.equal(await page.locator('#structureMap g.node[data-goto="person-p2"]').count(), 0);
     assert.equal(await page.getAttribute('#netSumMonth', 'data-value'), before);
-    // One person owning less than 100 %: warning and no dividend.
+    // One person owning 60 %: the other 40 % belong to owners outside the calculation.
     await goto(page, 'person-p1');
     await page.fill('#ownership', '60');
     await settle(page);
     await goto(page, 'bolag');
-    assert.match(await page.textContent('.part[data-part="bolag"] .ownership-warning'), /60 %/);
-    assert.equal(await page.getAttribute('#companyDividend', 'data-value'), '', 'no dividend until shares add up to 100 %');
+    assert.ok(await page.isVisible('#otherOwnersRows'));
+    assert.equal(await page.getAttribute('#otherOwnersShare', 'data-value'), '40.00');
+    const companyTotal = Number(await page.getAttribute('#companyDividend', 'data-value'));
+    assert.ok(Math.abs(Number(await page.getAttribute('#otherOwnersDividends', 'data-value')) - 0.4 * companyTotal) < 1);
+    assert.match(await page.textContent('#structureMap'), /Övriga ägare/);
     await goto(page, 'person-p1');
     await page.fill('#ownership', '100');
     await settle(page);

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   defaultState, validateState, makeDocument, parseDocument, ScenarioFormatError,
-  toEngineInputs, toCsv, isPristine, APP_ID, defaultPerson, rebalanceOwnership,
+  toEngineInputs, toCsv, isPristine, APP_ID, defaultPerson,
 } from '../../js/scenario.js';
 import { calculate, calculateCompany } from '../../js/engine.js';
 import { defaultAssignment } from '../../js/assignments.js';
@@ -171,27 +171,3 @@ test('assignment and person ids are kept unique', () => {
   assert.deepEqual(state.people.map((p) => p.id), ['p1', 'p2']);
 });
 
-test('rebalanceOwnership keeps the shares at 100 %', () => {
-  const ppl = (...o) => o.map((ownership, i) => ({ id: `p${i + 1}`, ownership }));
-  const shares = (list) => list.map((p) => p.ownership);
-  // Two people: the other gets the rest.
-  assert.deepEqual(shares(rebalanceOwnership(ppl(100, 0), 'p2', 30)), [70, 30]);
-  assert.deepEqual(shares(rebalanceOwnership(ppl(50, 50), 'p1', 120)), [100, 0]);
-  assert.deepEqual(shares(rebalanceOwnership(ppl(50, 50), 'p1', -5)), [0, 100]);
-  // Three people: the rest is split in proportion, and is reversible.
-  const a = rebalanceOwnership(ppl(50, 25, 25), 'p1', 5);
-  assert.deepEqual(shares(a), [5, 47.5, 47.5]);
-  assert.deepEqual(shares(rebalanceOwnership(a, 'p1', 50)), [50, 25, 25]);
-  // Others owning nothing: the first other person gets the rest.
-  assert.deepEqual(shares(rebalanceOwnership(ppl(100, 0, 0), 'p1', 60)), [60, 40, 0]);
-  // Rounding: always exactly 100.
-  for (const v of [33.333, 10, 1, 99.99, 66.67, 12.5]) {
-    const r = rebalanceOwnership(ppl(40, 33, 27), 'p2', v);
-    assert.ok(Math.abs(r.reduce((s, p) => s + p.ownership, 0) - 100) < 1e-9);
-    assert.equal(r[1].ownership, v);
-  }
-  // One person alone keeps any value; the input list is not changed.
-  const one = ppl(100);
-  assert.deepEqual(shares(rebalanceOwnership(one, 'p1', 60)), [60]);
-  assert.equal(one[0].ownership, 100);
-});

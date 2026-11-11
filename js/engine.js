@@ -474,7 +474,7 @@ export function calculateCompany({ year, company: c, people }, data) {
     maxDividend: c.maxDividend,
     grossSalaryYear: NaN, pension: NaN, insurance: NaN, slp: NaN, arbetsgivaravgift: NaN,
     totalCost: NaN, profitBeforeTax: NaN, bolagsTax: NaN, profitAfterTax: NaN,
-    ownershipSum: NaN, dividendCap: NaN, limitingOwner: null, grossDividends: NaN,
+    ownershipSum: NaN, otherOwnersShare: NaN, otherOwnersDividends: NaN, dividendCap: NaN, limitingOwner: null, grossDividends: NaN,
     netDividends: NaN, profitAfterDividends: NaN, incomeTax: NaN, netSalaryYear: NaN, dividendTax: NaN,
     bolagsTaxOnDividends: NaN, bolagsTaxExclDividends: NaN, totalTax: NaN, totalTaxPercentage: NaN,
   };
@@ -494,6 +494,9 @@ export function calculateCompany({ year, company: c, people }, data) {
   });
   const sum = (key) => ps.reduce((acc, f) => acc + f[key], 0);
   co.ownershipSum = sum('ownership');
+  // Shares not held by anyone in the calculation belong to other owners. They get their
+  // dividend per share too, but their own 3:12 limits and taxes are not known here.
+  co.otherOwnersShare = co.ownershipSum < 1 - 1e-9 ? 1 - co.ownershipSum : 0;
 
   if (!isNaN(co.otherCosts) && !isNaN(co.otherRevenue) && !isNaN(co.invoicedAmount) && ps.every((f) => !isNaN(f.arbetsgivaravgift))) {
     for (const k of ['grossSalaryYear', 'pension', 'insurance', 'slp', 'arbetsgivaravgift']) co[k] = sum(k);
@@ -503,9 +506,10 @@ export function calculateCompany({ year, company: c, people }, data) {
     co.profitAfterTax = co.profitBeforeTax - co.bolagsTax;
   }
 
-  // 3:12 per owner, then the total dividend.
+  // 3:12 per owner, then the total dividend. Needs at least one owner in the calculation
+  // and shares of at most 100 % together.
   const owners = ps.filter((f) => f.ownership > 0);
-  const ownersReady = !isNaN(co.profitAfterTax) && Math.abs(co.ownershipSum - 1) < 1e-9 &&
+  const ownersReady = !isNaN(co.profitAfterTax) && owners.length > 0 && co.ownershipSum <= 1 + 1e-9 &&
     owners.every((f) => !isNaN(f.omkostnadsbelopp) && !isNaN(f.savedDividends));
   if (ownersReady) {
     co.dividendCap = Infinity;
@@ -530,6 +534,7 @@ export function calculateCompany({ year, company: c, people }, data) {
       ? Math.max(0, Math.min(co.dividendCap, co.profitAfterTax))
       : Math.min(c.grossDividends, co.dividendCap);
     co.profitAfterDividends = co.profitAfterTax - co.grossDividends;
+    co.otherOwnersDividends = co.grossDividends * co.otherOwnersShare;
   }
   for (const f of ps) {
     if (!ownersReady) break;
@@ -547,7 +552,8 @@ export function calculateCompany({ year, company: c, people }, data) {
     co.netDividends = sum('netDividends');
     co.incomeTax = sum('incomeTax');
     co.netSalaryYear = sum('netSalaryYear');
-    co.dividendTax = RATES.dividendTax * co.grossDividends;
+    // Dividend tax for the people in the calculation (other owners' tax is not known).
+    co.dividendTax = RATES.dividendTax * (co.grossDividends - co.otherOwnersDividends);
     co.totalTax = co.incomeTax + co.slp + co.arbetsgivaravgift + co.bolagsTaxOnDividends + co.dividendTax;
     co.totalTaxPercentage = 100 * co.totalTax / (co.invoicedAmount + co.otherRevenue);
     for (const f of ps) {

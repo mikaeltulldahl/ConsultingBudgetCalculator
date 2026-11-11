@@ -15,7 +15,7 @@ Everything is calculated in your browser; nothing you enter is sent anywhere.
 - **Several people** ("+ Person"): each person is an owner (share in %), an employee, or
   both, with their own birth year, kommun, salary, pension and 3:12 data. Dividends are
   paid per share; "maximal utdelning" is the largest total where no owner goes above their
-  own gränsbelopp. Shares must add up to 100 % before dividends are calculated.
+  own gränsbelopp. All shares can be entered together under Ägare on the company card. Shares below 100 % in total mean the rest belongs to other owners outside the calculation (they get their dividend per share, but their limits and taxes are not modelled); above 100 % gives no dividend.
 - **Snabbräknare**: five stand-alone calculators (Privat skatt, Fakturerat belopp,
   Utdelningsgräns, Lön ↔ bolagskostnad, Motsvarande anställning). "Koppla in i min
   struktur" copies their values into the structure.

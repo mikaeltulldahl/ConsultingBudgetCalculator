@@ -232,28 +232,6 @@ export function revenueForState(state) {
   return assignmentRevenueByPerson(state.assignments ?? [], vacation);
 }
 
-// Sets one person's ownership (0–100 %) and adjusts the others so that the shares add
-// up to 100 %: the rest is split between the others in proportion to their current
-// shares, or given to the first other person if they own nothing. The others' shares
-// are rounded to hundredths of a percent; the rounding difference goes to the largest.
-// Returns a new list; one person alone keeps any value.
-export function rebalanceOwnership(people, id, percent) {
-  const v = Math.min(100, Math.max(0, percent));
-  const result = people.map((p) => (p.id === id ? { ...p, ownership: v } : { ...p }));
-  const others = result.filter((p) => p.id !== id);
-  if (!others.length || !Number.isFinite(v)) return result;
-  const rest = 100 - v;
-  const current = others.reduce((s, p) => s + (Number(p.ownership) || 0), 0);
-  for (const p of others) p.ownership = current > 0 ? Math.round(((Number(p.ownership) || 0) / current) * rest * 100) / 100 : 0;
-  if (current <= 0) others[0].ownership = Math.round(rest * 100) / 100;
-  const diff = rest - others.reduce((s, p) => s + p.ownership, 0);
-  if (Math.abs(diff) > 1e-12) {
-    const largest = others.reduce((a, b) => (b.ownership > a.ownership ? b : a));
-    largest.ownership = rest - others.reduce((s, p) => s + (p === largest ? 0 : p.ownership), 0);
-  }
-  return result;
-}
-
 // True if the state is what a first-time visitor sees (nothing worth remembering).
 export function isPristine(state) {
   const d = defaultState();

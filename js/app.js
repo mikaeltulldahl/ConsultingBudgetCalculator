@@ -9,7 +9,7 @@ import { FIRST_YEAR, LAST_YEAR, UnsupportedYearError, getYearParams } from './pa
 import { grundavdragGroup } from './grundavdrag.js';
 import {
   FIELDS, PERSON_FIELDS, defaultState, defaultPerson, makeDocument, parseDocument, isPristine, toEngineInputs, toCsv,
-  revenueForState, rebalanceOwnership,
+  revenueForState,
 } from './scenario.js';
 import { loadStored, saveStored, clearStored, loadPrefs, savePrefs, clearPrefs } from './storage.js';
 
@@ -399,6 +399,40 @@ function syncPersonCards() {
   $('ownershipBadge').textContent = `Ägande ${(Number($('ownership').value) || 0).toLocaleString('sv-SE')} %`;
 }
 
+// Ägare on the company card: everyone's share in one place, the total and other owners.
+function renderOwners(co) {
+  const show = people.length > 1 || co?.otherOwnersShare > 0;
+  $('ownersTable').hidden = !show;
+  if (!show) return;
+  const box = $('ownerInputs');
+  const ids = people.map((p) => p.id).join(',');
+  if (box.dataset.ids !== ids) {
+    box.dataset.ids = ids;
+    box.innerHTML = people.map((p) => `<div class="row"><span class="owner-name"><button type="button" class="link-button" data-goto="person-${p.id}" data-owner-name="${p.id}"></button></span>
+      <input type="number" data-owner="${p.id}" min="0" max="100" step="any" inputmode="decimal"></div>`).join('');
+  }
+  people.forEach((p, i) => {
+    const name = personName(p.id === selectedPersonId ? { ...p, name: $('personName').value } : p, i);
+    box.querySelector(`[data-owner-name="${p.id}"]`).textContent = name;
+    const input = box.querySelector(`[data-owner="${p.id}"]`);
+    input.setAttribute('aria-label', `Ägarandel för ${name} (%)`);
+    const value = p.id === selectedPersonId ? $('ownership').value : (p.ownership ?? '');
+    if (input !== document.activeElement && input.value !== String(value)) input.value = value;
+  });
+  setOutput('ownershipTotal', 100 * co?.ownershipSum, 2);
+  $('otherOwnersRows').hidden = !(co?.otherOwnersShare > 0);
+  setOutput('otherOwnersShare', 100 * co?.otherOwnersShare, 2);
+  setOutput('otherOwnersDividends', co?.otherOwnersDividends, 0);
+}
+$('ownerInputs').addEventListener('input', (e) => {
+  const id = e.target.dataset.owner;
+  if (!id) return;
+  const value = e.target.value === '' || isNaN(Number(e.target.value)) ? null : Number(e.target.value);
+  if (id === selectedPersonId) $('ownership').value = e.target.value;
+  else people.find((p) => p.id === id).ownership = value;
+  updateAll();
+});
+
 function nextPersonId() {
   for (let n = 1; ; n++) if (!people.some((p) => p.id === `p${n}`)) return `p${n}`;
 }
@@ -429,17 +463,7 @@ $('removePerson').addEventListener('click', async () => {
 });
 
 $('personName').addEventListener('input', updateAll);
-// With several people the shares always add up to 100 %: the others make up the difference.
-$('ownership').addEventListener('input', () => {
-  const el = $('ownership');
-  const value = Number(el.value);
-  if (people.length > 1 && el.value !== '' && Number.isFinite(value)) {
-    const p = selectedPerson();
-    people = rebalanceOwnership(people, p.id, value);
-    if (value > 100 || value < 0) el.value = selectedPerson().ownership;
-  }
-  updateAll();
-});
+$('ownership').addEventListener('input', updateAll);
 $('employed').addEventListener('change', () => {
   syncPersonCards();
   selectPart(prefs.part);
@@ -531,11 +555,16 @@ function writeFields(r) {
   const limitingName = limiting < 0 ? '' : personName(people[limiting], limiting);
   $('limitingNote').textContent = limiting < 0 ? '' : `${limitingName === 'Du' ? 'Ditt gränsbelopp' : `Gränsbeloppet för ${limitingName}`} begränsar bolagets utdelning: den får inte bli större än att varje ägare håller sig inom sitt gränsbelopp.`;
   const sum = co?.ownershipSum;
-  const off = Number.isFinite(sum) && Math.abs(sum - 1) > 1e-9;
+  const pct = (v) => `${(100 * v).toLocaleString('sv-SE', { maximumFractionDigits: 2 })} %`;
+  const warning = !Number.isFinite(sum) ? ''
+    : sum > 1 + 1e-9 ? `Ägarandelarna är tillsammans ${pct(sum)}. De får inte bli mer än 100 % för att utdelningen ska kunna räknas.`
+      : sum < 1e-9 ? 'Ingen i kalkylen äger aktier i bolaget, så ingen utdelning räknas. Ange ägarandelar under Ägare.'
+        : '';
   for (const el of document.querySelectorAll('.ownership-warning')) {
-    el.hidden = !off;
-    el.textContent = off ? `Ägarandelarna är tillsammans ${(100 * sum).toLocaleString('sv-SE', { maximumFractionDigits: 2 })} %. De måste bli 100 % för att utdelningen ska kunna räknas.` : '';
+    el.hidden = !warning;
+    el.textContent = warning;
   }
+  renderOwners(co);
 
   const kr = (v) => (Number.isFinite(v) ? `${Math.round(v).toLocaleString('sv-SE')} kr` : '–');
   $('sumNetName').textContent = people.length > 1 ? ` (${personName(selectedPerson(), selectedIndex())})` : '';
@@ -723,6 +752,7 @@ function updateSankeyChartData(f) {
     { from: savingsStr, to: grossDividendsStr, value: isProfitable * savings2dividends, label: 'Utdelning brutto från besparingar' },
     { from: grossDividendsStr, to: totalTaxStr, value: Math.round(f.dividendTax), label: 'Utdelningsskatt' },
     { from: grossDividendsStr, to: netDividendsStr, value: Math.round(f.netDividends), label: 'Utdelning netto' },
+    { from: grossDividendsStr, to: n('Övriga ägare', f.otherOwnersDividends), value: Math.round(f.otherOwnersDividends || 0), label: 'Utdelning till övriga ägare' },
     { from: profitAfterTaxStr, to: profitAfterDividendsStr, value: Math.round(f.profitAfterDividends), label: 'Vinst efter utdelning' },
   ];
   if (links.some((l) => isNaN(l.value))) {
@@ -1192,6 +1222,9 @@ function renderStructure() {
       };
     }),
     profitAfterTax: result?.company.profitAfterTax,
+    otherOwners: result?.company.otherOwnersShare > 0
+      ? { share: 100 * result.company.otherOwnersShare, grossDividends: result.company.otherOwnersDividends }
+      : null,
     people: people.map((p, i) => {
       const r = result?.people[i] ?? {};
       return {

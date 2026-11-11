@@ -96,6 +96,15 @@
             <div class="row"><label for="profitBeforeTax">Resultat före skatt</label><output id="profitBeforeTax" data-unit="kr"></output></div>
             <div class="row"><label for="profitAfterTax">Resultat efter skatt</label><output id="profitAfterTax" data-unit="kr"></output></div>
             <div class="row"><label for="companyDividend"><span data-many="Utdelning till ägarna">Utdelning till dig</span> <button type="button" class="from" data-goto="utdelning">se Utdelning</button></label><output id="companyDividend" data-mirror="co.grossDividends" data-unit="kr"></output></div>
+            <div id="ownersTable" hidden>
+              <div class="group-title">Ägare</div>
+              <div id="ownerInputs"></div>
+              <div class="row"><label for="ownershipTotal">Summa</label><output id="ownershipTotal" data-unit="%"></output></div>
+              <div id="otherOwnersRows" hidden>
+                <div class="row"><label for="otherOwnersShare">Övriga ägare (ingår inte i kalkylen)</label><output id="otherOwnersShare" data-unit="%"></output></div>
+                <div class="row"><label for="otherOwnersDividends">Utdelning till övriga ägare</label><output id="otherOwnersDividends" data-unit="kr"></output></div>
+              </div>
+            </div>
             <p class="status ownership-warning" hidden></p>
             <div class="result"><label for="profitAfterDividends">→ Kvar i bolaget efter utdelning</label><output id="profitAfterDividends" data-unit="kr"></output></div>
           </section>

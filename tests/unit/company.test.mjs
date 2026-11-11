@@ -108,11 +108,34 @@ test('employee without shares: salary costs the company, no dividend', () => {
   assert.ok(r.people[0].salaryBasedLimit > alone.people[0].salaryBasedLimit);
 });
 
-test('ownership not adding up to 100 % gives no dividend', () => {
+test('shares below 100 %: the rest belongs to other owners, who get their dividend per share', () => {
   const r = calculateCompany(twoOwners(2026, {}, { ownershipPercent: 40 }), fixtureData);
-  assert.ok(Math.abs(r.company.ownershipSum - 0.9) < 1e-9);
-  assert.ok(Number.isNaN(r.company.grossDividends));
-  assert.ok(Number.isFinite(r.company.profitAfterTax));
+  const c = r.company;
+  const [p1, p2] = r.people;
+  assert.ok(Math.abs(c.ownershipSum - 0.9) < 1e-9);
+  assert.ok(Math.abs(c.otherOwnersShare - 0.1) < 1e-9);
+  assert.equal(c.dividendCap, Math.min(p1.dividendsLimit / 0.5, p2.dividendsLimit / 0.4));
+  assert.equal(c.grossDividends, Math.max(0, Math.min(c.dividendCap, c.profitAfterTax)));
+  assert.ok(Math.abs(p1.grossDividends + p2.grossDividends + c.otherOwnersDividends - c.grossDividends) < 1e-6);
+  assert.ok(Math.abs(c.otherOwnersDividends - 0.1 * c.grossDividends) < 1e-6);
+  // Only the people in the calculation pay dividend tax here.
+  assert.ok(Math.abs(c.dividendTax - 0.2 * (p1.grossDividends + p2.grossDividends)) < 1e-6);
+  // One person owning 60 %: 40 % of the dividend goes to others.
+  const one = calculateCompany(single({ ...BASE_INPUT }), fixtureData);
+  const sixty = calculateCompany({ ...single(BASE_INPUT), people: [{ ...single(BASE_INPUT).people[0], ownershipPercent: 60 }] }, fixtureData);
+  assert.ok(sixty.people[0].grossDividends > 0 && sixty.company.otherOwnersDividends > 0);
+  assert.equal(one.company.otherOwnersShare, 0);
+  assert.equal(one.company.otherOwnersDividends, 0);
+});
+
+test('shares above 100 %, or no owner in the calculation, give no dividend', () => {
+  for (const r of [
+    calculateCompany(twoOwners(2026, {}, { ownershipPercent: 60 }), fixtureData),
+    calculateCompany(twoOwners(2026, { ownershipPercent: 0 }, { ownershipPercent: 0 }), fixtureData),
+  ]) {
+    assert.ok(Number.isNaN(r.company.grossDividends));
+    assert.ok(Number.isFinite(r.company.profitAfterTax));
+  }
 });
 
 test('manual total dividend is capped by the tightest owner', () => {
@@ -122,9 +145,9 @@ test('manual total dividend is capped by the tightest owner', () => {
 
 test('money is conserved across people', () => {
   for (const year of [2025, 2026]) {
-    const r = calculateCompany(twoOwners(year, { grossSalaryMonth: 52000 }, { grossSalaryMonth: 31000, yearBorn: 1960 }), fixtureData);
+    const r = calculateCompany(twoOwners(year, { grossSalaryMonth: 52000 }, { grossSalaryMonth: 31000, yearBorn: 1960, ownershipPercent: 30 }), fixtureData);
     const c = r.company;
-    const paidToPeople = r.people.reduce((s, f) => s + f.grossSalaryYear + f.pension + f.grossDividends, 0);
+    const paidToPeople = r.people.reduce((s, f) => s + f.grossSalaryYear + f.pension + f.grossDividends, 0) + c.otherOwnersDividends;
     const toState = c.arbetsgivaravgift + c.slp + c.bolagsTax;
     assert.ok(Math.abs(c.invoicedAmount + c.otherRevenue - c.otherCosts - c.insurance - paidToPeople - toState - c.profitAfterDividends) < 1e-6);
   }

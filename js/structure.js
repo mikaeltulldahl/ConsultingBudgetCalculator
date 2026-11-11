@@ -8,19 +8,22 @@
 // and edges.
 
 const fmt = (v) => (Number.isFinite(v) ? Math.round(v).toLocaleString('sv-SE') : '–');
+const fmtShare = (v) => (Number.isFinite(v) ? v.toLocaleString('sv-SE', { maximumFractionDigits: 2 }) : '–');
 
 // v.assignments: [{ id, name, rates: [hourly rates], amount, manual }]
 // v.people: [{ id, name, employed, owner, ownership, grossSalaryYear, pension, grossDividends,
 //              netSumMonth, otherEmployer (or null), otherSalaryYear }]
+// v.otherOwners: { share (%), grossDividends } for owners not in the calculation, or null
 export function buildStructure(v) {
   const n = v.assignments.length;
   const others = v.people.filter((p) => p.otherEmployer);
   const leftRows = n + others.length;
-  const rows = Math.max(leftRows, v.people.length);
+  const rightRows = v.people.length + (v.otherOwners ? 1 : 0);
+  const rows = Math.max(leftRows, rightRows);
   const leftTop = (rows - leftRows) / 2;
-  const peopleTop = (rows - v.people.length) / 2;
+  const peopleTop = (rows - rightRows) / 2;
   const middle = (rows - 1) / 2; // the company sits in the middle
-  const several = v.people.length > 1;
+  const several = v.people.length > 1 || Boolean(v.otherOwners);
   const rateText = (rates) => {
     if (!rates.length) return 'timpris saknas';
     const lo = Math.min(...rates);
@@ -29,7 +32,7 @@ export function buildStructure(v) {
   };
   const personSub = (p) => {
     const net = Number.isFinite(p.netSumMonth) ? `${fmt(p.netSumMonth)} kr/mån` : 'fyll i uppgifter';
-    return several && p.owner ? `${fmt(p.ownership)} % · ${net}` : net;
+    return several && p.owner ? `${fmtShare(p.ownership)} % · ${net}` : net;
   };
   const structure = {
     columns: ['Inkomstkällor', 'Bolag', several ? 'Personer' : 'Person'],
@@ -38,6 +41,7 @@ export function buildStructure(v) {
       { id: 'bolag', type: 'bolag', name: 'Ditt aktiebolag', sub: `resultat ${fmt(v.profitAfterTax)}`, col: 1, row: middle },
       ...others.map((p, i) => ({ id: `annan-${p.id}`, type: 'source', name: p.otherEmployer, sub: `lön ${fmt(p.otherSalaryYear)}/år`, col: 0, row: leftTop + n + i })),
       ...v.people.map((p, i) => ({ id: `person-${p.id}`, type: 'person', name: p.name, sub: personSub(p), col: 2, row: peopleTop + i })),
+      ...(v.otherOwners ? [{ id: 'ovriga', goto: 'bolag', type: 'person other', name: 'Övriga ägare', sub: `${fmtShare(v.otherOwners.share)} % · ingår inte`, col: 2, row: peopleTop + v.people.length }] : []),
     ],
     edges: [
       ...v.assignments.map((a) => ({ goto: `faktura-${a.id}`, from: `uppdrag-${a.id}`, to: 'bolag', label: `${fmt(a.amount)}`, title: 'Fakturerat', manual: a.manual })),
@@ -49,6 +53,7 @@ export function buildStructure(v) {
         ...(p.owner ? [{ goto: `utdelning-${p.id}`, person: p.id, from: 'bolag', to: `person-${p.id}`, label: `utdelning ${fmt(p.grossDividends)}`, title: 'Utdelning', offset: 0.42 }] : []),
         ...(p.otherEmployer ? [{ goto: `annan-${p.id}`, person: p.id, from: `annan-${p.id}`, to: `person-${p.id}`, label: `lön ${fmt(p.otherSalaryYear)}`, title: 'Annan lön', enterFromBelow: true }] : []),
       ]),
+      ...(v.otherOwners ? [{ goto: 'bolag', from: 'bolag', to: 'ovriga', label: `utdelning ${fmt(v.otherOwners.grossDividends)}`, title: 'Utdelning', offset: 0 }] : []),
     ],
   };
   // Several people: the company box grows so that every arrow leaving it starts at its own
@@ -123,7 +128,7 @@ export function renderMap(structure, selected) {
 
   const nodeSvg = nodes.map((n) => {
     const p = pos[n.id];
-    return `<g class="node ${n.type} ${n.id === selected ? 'selected' : ''}" data-goto="${n.id}" role="button" tabindex="0" aria-label="${esc(`${n.name}: ${n.sub}`)}">
+    return `<g class="node ${n.type} ${(n.goto ?? n.id) === selected ? 'selected' : ''}" data-goto="${n.goto ?? n.id}" role="button" tabindex="0" aria-label="${esc(`${n.name}: ${n.sub}`)}">
       <rect x="${p.x}" y="${p.y}" width="${NODE_W}" height="${p.h}" rx="10"/>
       <text x="${p.x + 12}" y="${p.y + p.h / 2 - 4}" font-size="14" font-weight="600" fill="currentColor">${esc(n.name)}</text>
       <text x="${p.x + 12}" y="${p.y + p.h / 2 + 14}" font-size="12" fill="currentColor" opacity=".7">${esc(n.sub)}</text></g>`;
@@ -140,10 +145,10 @@ export function renderFlowList(structure, selected) {
   const node = (id) => structure.nodes.find((n) => n.id === id);
   const btn = (goto, cls, label, sub, isSelected) =>
     `<button type="button" class="${cls} ${isSelected ? 'selected' : ''}" data-goto="${goto}"><span>${esc(label)}</span><small>${esc(sub)}</small></button>`;
-  const n = (id) => btn(id, `t-${node(id).type}`, node(id).name, node(id).sub, selected === id);
+  const n = (id) => btn(node(id).goto ?? id, `t-${node(id).type}`, node(id).name, node(id).sub, selected === (node(id).goto ?? id));
   const e = (ed) => btn(ed.goto, 't-edge', ed.title, ed.label.replace(/^(lön|pension|utdelning) /, ''), selected === ed.goto);
   const assignmentRows = structure.edges.filter((ed) => ed.title === 'Fakturerat').map((ed) => n(ed.from) + e(ed)).join('');
-  const people = structure.nodes.filter((x) => x.type === 'person').map((p) => {
+  const people = structure.nodes.filter((x) => x.type.startsWith('person')).map((p) => {
     const edges = structure.edges.filter((ed) => ed.to === p.id);
     const fromCompany = edges.filter((ed) => ed.from === 'bolag');
     const other = edges.find((ed) => ed.title === 'Annan lön');

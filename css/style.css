@@ -222,6 +222,8 @@ h1, h2, h3 { line-height: 1.25; }
 .row input:disabled, .row select:disabled { background: var(--surface-2); color: var(--muted); }
 .row input[type="checkbox"] { width: 18px; height: 18px; justify-self: end; }
 .row output { font-variant-numeric: tabular-nums; text-align: right; }
+.owner-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.owner-name .link-button { text-align: left; overflow-wrap: anywhere; }
 .row-actions { padding: 2px 0 6px; font-size: 13px; text-align: right; }
 .inline { display: flex; gap: 6px; }
 .inline input { width: 160px; }
@@ -276,6 +278,7 @@ h1, h2, h3 { line-height: 1.25; }
 .map .node rect { stroke-width: 1.5; cursor: pointer; }
 .map .node text { pointer-events: none; }
 .map .node.person rect { fill: var(--person-soft); stroke: var(--person); }
+.map .node.other rect { fill: var(--surface-2); stroke: var(--muted); stroke-dasharray: 4 4; }
 .map .node.bolag rect { fill: var(--bolag-soft); stroke: var(--bolag); }
 .map .node.source rect { fill: var(--source-soft); stroke: var(--source); }
 .map .node.selected rect { stroke-width: 3.5; }
@@ -310,6 +313,7 @@ h1, h2, h3 { line-height: 1.25; }
 .flow-list button small { color: var(--muted); font-variant-numeric: tabular-nums; }
 .flow-list button.selected { border-color: var(--accent); outline: 2px solid var(--accent); }
 .flow-list .t-person { border-left: 5px solid var(--person); }
+.flow-list .t-person.other { border-left-color: var(--muted); border-style: dashed; }
 .flow-list .t-bolag { border-left: 5px solid var(--bolag); }
 .flow-list .t-source { border-left: 5px solid var(--source); }
 .flow-list .t-edge { border-style: dashed; margin-left: 18px; font-size: 14px; }

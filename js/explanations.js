@@ -29,9 +29,15 @@ export const EXPLANATIONS = {
     formula: 'Väljs av dig.',
   },
   ownership: {
-    what: 'Hur stor del av aktierna personen äger. Utdelning betalas per aktie, och alla ägares andelar ska tillsammans bli 100 %. 0 % betyder att personen bara är anställd. När ni är flera ändras de andras andelar automatiskt så att summan blir 100 %: resten fördelas mellan dem i proportion till vad de äger.',
+    what: 'Hur stor del av aktierna personen äger. Utdelning betalas per aktie. 0 % betyder att personen bara är anställd. Är summan för alla personer under 100 % ägs resten av övriga ägare som inte ingår i kalkylen; summan får inte bli mer än 100 %. Alla andelar kan fyllas i samtidigt under Ägare på bolagets kort.',
     formula: 'Anges av dig.',
   },
+  ownershipTotal: { what: 'Summan av ägarandelarna för personerna i kalkylen. Den får vara högst 100 %.', formula: 'Summan av allas ägarandel.' },
+  otherOwnersShare: {
+    what: 'Aktier som ägs av någon som inte är med i kalkylen. De får utdelning per aktie som alla andra, men deras gränsbelopp och skatt räknas inte, och deras gränsbelopp begränsar inte utdelningen här.',
+    formula: '100 % − summan av ägarandelarna.',
+  },
+  otherOwnersDividends: { what: 'Den del av bolagets utdelning som går till övriga ägare. Pengarna lämnar bolaget men ingår inte i någon persons netto eller i den totala skatten.', formula: 'Utdelning från bolaget × övriga ägares andel.' },
   ownerShare: { what: 'Personens andel av aktierna, och därmed av utdelningen.', formula: 'Anges på personens kort.' },
   dividendCap: {
     what: 'Den största utdelning bolaget kan ge utan att någon ägare får mer än sitt eget gränsbelopp (så att allt beskattas med 20 %). Utdelning betalas lika per aktie, så den ägare som har lägst gränsbelopp i förhållande till sin andel sätter gränsen.',
