@@ -577,10 +577,10 @@ export function companySalarySweep(inputs, index, data, step = 500) {
   const at = (gross) => {
     const people = inputs.people.map((x, i) => (i === index ? { ...x, grossSalaryMonth: gross, useMaxGrossSalary: false } : x));
     const r = calculateCompany({ ...inputs, people }, data);
-    const f = r.people[index];
     return {
-      // The person's own net, the company's totals for the tax percentages.
-      grossSalaryMonth: gross, netSalaryYear: f.netSalaryYear, netDividends: f.netDividends, pension: f.pension,
+      // Everyone in the company, so that the parts add up to the same total at every salary.
+      grossSalaryMonth: gross, netSalaryYear: r.company.netSalaryYear, netDividends: r.company.netDividends, pension: r.company.pension,
+      otherOwnersDividends: r.company.otherOwnersDividends,
       grossSalaryYear: r.company.grossSalaryYear, grossDividends: r.company.grossDividends,
       profitAfterDividends: r.company.profitAfterDividends, bolagsTaxExclDividends: r.company.bolagsTaxExclDividends,
       totalTax: r.company.totalTax, totalTaxPercentage: r.company.totalTaxPercentage,
@@ -635,7 +635,7 @@ export function salarySweep(result, data, step = 500) {
 // at(grossSalaryMonth) returns the person's salary, dividend and pension and the totals.
 function sweep(at, totalRevenue, pensionRate, step) {
   const out = {
-    grossSalaryMonth: [], netSalaryYear: [], netDividends: [], pension: [],
+    grossSalaryMonth: [], netSalaryYear: [], netDividends: [], pension: [], otherOwnersDividends: [],
     profitAfterDividends: [], totalTax: [], bolagsTaxExclDividends: [],
     taxPercentage: [], marginalTaxPercentage: [],
     maxSum: { x: 0, y: 0 }, minTax: { x: 0, y: 10000 },
@@ -655,6 +655,7 @@ function sweep(at, totalRevenue, pensionRate, step) {
     out.netSalaryYear.push(round0(f.netSalaryYear));
     out.netDividends.push(round0(f.netDividends));
     out.pension.push(round0(f.pension));
+    out.otherOwnersDividends.push(round0(f.otherOwnersDividends || 0));
     out.profitAfterDividends.push(round0(f.profitAfterDividends));
     out.totalTax.push(round0(f.totalTax));
     out.bolagsTaxExclDividends.push(round0(f.bolagsTaxExclDividends));

@@ -162,3 +162,14 @@ test('salary sweep for the second person keeps the first person fixed', () => {
   assert.ok(s.netSalaryYear[20] > s.netSalaryYear[5]);
   assert.equal(companySalarySweep({ ...inputs, people: [inputs.people[0], { ...inputs.people[1], employed: false }] }, 1, fixtureData), null);
 });
+
+test('salary sweep: the parts of the chart add up to the same total at every salary', () => {
+  // 30 % of the shares belong to someone outside the calculation.
+  const inputs = twoOwners(2026, { grossSalaryMonth: 60000 }, { grossSalaryMonth: 40000, ownershipPercent: 20 });
+  inputs.people[0].ownershipPercent = 50;
+  const s = companySalarySweep(inputs, 1, fixtureData);
+  assert.ok(s.otherOwnersDividends.some((v) => v > 0));
+  const totals = s.grossSalaryMonth.map((_, i) => s.netSalaryYear[i] + s.netDividends[i] + s.pension[i] + s.otherOwnersDividends[i]
+    + s.profitAfterDividends[i] + s.totalTax[i] + s.bolagsTaxExclDividends[i]);
+  for (const t of totals) assert.ok(Math.abs(t - totals[0]) <= 4, `${t} vs ${totals[0]}`);
+});

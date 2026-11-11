@@ -808,7 +808,7 @@ if (crosshair) {
 
 const COLORS = {
   red: [255, 99, 132], orange: [255, 159, 64], yellow: [255, 205, 86], green: [75, 192, 192],
-  blue: [54, 162, 235], purple: [153, 102, 255], amber: [235, 139, 34], cyan: [0, 235, 235],
+  blue: [54, 162, 235], purple: [153, 102, 255], amber: [235, 139, 34], cyan: [0, 235, 235], gray: [150, 150, 160],
 };
 const rgb = (c) => `rgb(${c.join(', ')})`;
 const rgba = (c, alpha) => `rgba(${c.join(', ')}, ${alpha})`;
@@ -834,9 +834,10 @@ const sumChart = new Chart($('myChart').getContext('2d'), {
       area(1, 'Årslön netto', COLORS.red, { fill: 'origin' }),
       area(2, 'Årsutdelning netto', COLORS.blue),
       area(3, 'Tjänstepension brutto', COLORS.purple),
-      area(4, 'Årets resultat efter utdelning', COLORS.green),
-      area(5, 'Total skatt*', COLORS.orange),
-      area(6, 'Bolagskatt på ej utdelad vinst', COLORS.amber),
+      area(4, 'Utdelning brutto till övriga ägare', COLORS.gray, { hidden: true }),
+      area(5, 'Årets resultat efter utdelning', COLORS.green),
+      area(6, 'Total skatt*', COLORS.orange),
+      area(7, 'Bolagskatt på ej utdelad vinst', COLORS.amber),
       star('Högst summa (lön + utdelning) netto', COLORS.yellow),
     ],
   },
@@ -845,7 +846,10 @@ const sumChart = new Chart($('myChart').getContext('2d'), {
     maintainAspectRatio: false,
     scales: { x: xAxis, y: { stacked: true } },
     elements: { line: { fill: '-1' } }, // fill each line down to the previous dataset
-    plugins: { crosshair: crosshairOptions },
+    plugins: {
+      crosshair: crosshairOptions,
+      legend: { labels: { filter: (item, data) => !data.datasets[item.datasetIndex].hidden || item.datasetIndex !== 3 } },
+    },
   },
 });
 
@@ -872,11 +876,16 @@ function updateCharts(inputs, view) {
   const s = inputs && view && Number.isFinite(view.co?.totalTaxPercentage) ? companySalarySweep(inputs, selectedIndex(), engineData) : null;
   const name = personName(selectedPerson(), selectedIndex());
   $('h-sum').textContent = people.length > 1 ? `Lön eller utdelning för ${name === 'Du' ? 'dig' : name}?` : 'Lön eller utdelning?';
+  $('sumChartNote').textContent = people.length > 1
+    ? `Vad ${name === 'Du' ? 'du' : name} och de andra tillsammans får ut vid olika månadslön för ${name === 'Du' ? 'dig' : name}, med maximal utdelning. Övriga personers löner är fasta. Stjärnan visar högst summa netto för alla.`
+    : 'Vad du får ut vid olika månadslön, med maximal utdelning. Stjärnan visar högst summa netto.';
   const sum = sumChart.data;
   const pct = percentageChart.data;
   sum.labels = s ? s.grossSalaryMonth : [];
-  const series = s ? [s.netSalaryYear, s.netDividends, s.pension, s.profitAfterDividends, s.totalTax, s.bolagsTaxExclDividends, [s.maxSum]] : [];
+  const series = s ? [s.netSalaryYear, s.netDividends, s.pension, s.otherOwnersDividends, s.profitAfterDividends, s.totalTax, s.bolagsTaxExclDividends, [s.maxSum]] : [];
   sum.datasets.forEach((d, i) => { d.data = series[i] ?? []; });
+  // The band for owners outside the calculation is only there when they get a dividend.
+  sum.datasets[3].hidden = !s?.otherOwnersDividends.some((v) => v > 0);
   pct.labels = s ? s.grossSalaryMonth : [];
   const pctSeries = s ? [s.taxPercentage, s.marginalTaxPercentage, [s.minTax]] : [];
   pct.datasets.forEach((d, i) => { d.data = pctSeries[i] ?? []; });
