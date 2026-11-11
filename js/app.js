@@ -9,7 +9,7 @@ import { FIRST_YEAR, LAST_YEAR, UnsupportedYearError, getYearParams } from './pa
 import { grundavdragGroup } from './grundavdrag.js';
 import {
   FIELDS, PERSON_FIELDS, defaultState, defaultPerson, makeDocument, parseDocument, isPristine, toEngineInputs, toCsv,
-  revenueForState,
+  revenueForState, rebalanceOwnership,
 } from './scenario.js';
 import { loadStored, saveStored, clearStored, loadPrefs, savePrefs, clearPrefs } from './storage.js';
 
@@ -429,7 +429,17 @@ $('removePerson').addEventListener('click', async () => {
 });
 
 $('personName').addEventListener('input', updateAll);
-$('ownership').addEventListener('input', updateAll);
+// With several people the shares always add up to 100 %: the others make up the difference.
+$('ownership').addEventListener('input', () => {
+  const el = $('ownership');
+  const value = Number(el.value);
+  if (people.length > 1 && el.value !== '' && Number.isFinite(value)) {
+    const p = selectedPerson();
+    people = rebalanceOwnership(people, p.id, value);
+    if (value > 100 || value < 0) el.value = selectedPerson().ownership;
+  }
+  updateAll();
+});
 $('employed').addEventListener('change', () => {
   syncPersonCards();
   selectPart(prefs.part);

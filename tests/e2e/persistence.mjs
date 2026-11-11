@@ -286,13 +286,9 @@ try {
     await page.dispatchEvent('#grossSalaryMonth', 'input');
     await settle(page);
     assert.match(await page.textContent('#structureMap'), /Anna/);
-    await goto(page, 'bolag');
-    assert.match(await page.textContent('.part[data-part="bolag"] .ownership-warning'), /150 %/);
-    assert.equal(await page.getAttribute('#companyDividend', 'data-value'), '', 'no dividend until shares add up to 100 %');
+    // Giving Anna 50 % leaves 50 % to the first person: the shares always add up to 100 %.
     await goto(page, 'person-p1');
-    await page.fill('#ownership', '50');
-    await page.dispatchEvent('#ownership', 'input');
-    await settle(page);
+    assert.equal(await page.inputValue('#ownership'), '50');
     assert.ok(!(await page.isVisible('.ownership-warning >> visible=true').catch(() => false)));
     await dividendCard('p1');
     await settle(page);
@@ -343,6 +339,16 @@ try {
     await settle(page);
     assert.equal(await page.locator('#structureMap g.node[data-goto="person-p2"]').count(), 0);
     assert.equal(await page.getAttribute('#netSumMonth', 'data-value'), before);
+    // One person owning less than 100 %: warning and no dividend.
+    await goto(page, 'person-p1');
+    await page.fill('#ownership', '60');
+    await settle(page);
+    await goto(page, 'bolag');
+    assert.match(await page.textContent('.part[data-part="bolag"] .ownership-warning'), /60 %/);
+    assert.equal(await page.getAttribute('#companyDividend', 'data-value'), '', 'no dividend until shares add up to 100 %');
+    await goto(page, 'person-p1');
+    await page.fill('#ownership', '100');
+    await settle(page);
   });
 
   await step('explanation popover opens with a source link', async () => {

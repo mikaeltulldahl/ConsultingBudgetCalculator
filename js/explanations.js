@@ -29,7 +29,7 @@ export const EXPLANATIONS = {
     formula: 'Väljs av dig.',
   },
   ownership: {
-    what: 'Hur stor del av aktierna personen äger. Utdelning betalas per aktie, och alla ägares andelar ska tillsammans bli 100 %. 0 % betyder att personen bara är anställd.',
+    what: 'Hur stor del av aktierna personen äger. Utdelning betalas per aktie, och alla ägares andelar ska tillsammans bli 100 %. 0 % betyder att personen bara är anställd. När ni är flera ändras de andras andelar automatiskt så att summan blir 100 %: resten fördelas mellan dem i proportion till vad de äger.',
     formula: 'Anges av dig.',
   },
   ownerShare: { what: 'Personens andel av aktierna, och därmed av utdelningen.', formula: 'Anges på personens kort.' },
