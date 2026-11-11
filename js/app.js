@@ -372,7 +372,7 @@ function writePersonToForm(p) {
   }
   kommunSelector.value = p.kommun;
   if (kommunSelector.selectedIndex < 0) kommunSelector.selectedIndex = 0;
-  $('grossSalaryMonth').disabled = p.useMaxGrossSalary;
+  $('grossSalaryMonth').disabled = p.salaryMode !== 'manual';
   $('omkostnadsbelopp').disabled = p.omkostnadsbeloppAuto;
   $('forsamling').hidden = !p.churchMember;
   forsamlingRequest++;
@@ -416,7 +416,7 @@ function syncPersonCards() {
     el.textContent = several ? el.dataset.many : el.dataset.one;
   }
   const formNumber = (id) => ($(id).value === '' ? null : Number($(id).value));
-  const employed = isEmployed({ useMaxGrossSalary: $('useMaxGrossSalary').checked, grossSalaryMonth: formNumber('grossSalaryMonth'), salaryMonths: formNumber('salaryMonths') });
+  const employed = isEmployed({ salaryMode: $('salaryMode').value, grossSalaryMonth: formNumber('grossSalaryMonth'), salaryMonths: formNumber('salaryMonths') });
   document.querySelector('.part[data-part="pension"]').hidden = !employed;
   document.querySelector('.part[data-part="utdelning"]').hidden = !(Number($('ownership').value) > 0);
   $('removePersonRow').hidden = !several;
@@ -508,13 +508,41 @@ function viewFor(result, i) {
 }
 
 // Calculates a state; loads the förhöjt grundavdrag tables it needs first.
+// Salaries found by trying many: the highest total net for everyone, the lowest salary that
+// pays out all profit, the highest salary the company can afford. Each person in turn, with
+// the others as they are (earlier ones already settled). Returns a state where those people
+// have the salary as a typed value.
+const SALARY_PICKS = {
+  maxNet: (s) => s.maxSum.x,
+  breakEven: (s) => s.grossSalaryMonth.at(-1),
+  allDividend: (s) => {
+    const i = s.profitAfterDividends.findIndex((v) => v <= 0);
+    return s.grossSalaryMonth[i < 0 ? s.grossSalaryMonth.length - 1 : i];
+  },
+};
+function resolveSalaryModes(state) {
+  if (!state.people.some((p) => SALARY_PICKS[p.salaryMode])) return state;
+  const settled = structuredClone(state);
+  state.people.forEach((person, i) => {
+    const pick = SALARY_PICKS[person.salaryMode];
+    if (!pick) return;
+    const sweep = companySalarySweep(toEngineInputs(settled, kommunRates), i, engineData, 100);
+    if (!sweep || !sweep.grossSalaryMonth.length) return;
+    settled.people[i].grossSalaryMonth = pick(sweep);
+    settled.people[i].salaryMode = 'manual';
+  });
+  return settled;
+}
+
 async function calculateState(state) {
-  const inputs = toEngineInputs(state, kommunRates);
+  let inputs = toEngineInputs(state, kommunRates);
   const p = getYearParams(inputs.year);
   for (const person of inputs.people) {
     const age = inputs.year - person.yearBorn - 1;
     if (!isNaN(age)) await ensureGrundavdragTable(inputs.year, grundavdragGroup(age, p.forhojtGrundavdragAge));
   }
+  const resolved = resolveSalaryModes(state);
+  if (resolved !== state) inputs = toEngineInputs(resolved, kommunRates);
   return { inputs, result: calculateCompany(inputs, engineData) };
 }
 
@@ -546,7 +574,8 @@ function writeFields(r) {
   syncPersonCards();
   setOutput('churchSkatt', churchMemberField.checked ? r?.churchSkatt : NaN);
   $('grossDividends').value = format(co?.grossDividends, 0);
-  if ($('useMaxGrossSalary').checked) $('grossSalaryMonth').value = format(r?.grossSalaryMonth, 0);
+  $('grossSalaryMonth').disabled = $('salaryMode').value !== 'manual';
+  if ($('salaryMode').value !== 'manual') $('grossSalaryMonth').value = format(r?.grossSalaryMonth, 0);
   $('grossDividends').max = format(co?.dividendCap, 0);
   // Automatic omkostnadsbelopp follows the typed ownership, even before it is valid.
   $('omkostnadsbelopp').disabled = $('omkostnadsbeloppAuto').checked;
@@ -672,10 +701,7 @@ $('removeOther').addEventListener('click', () => {
 for (const id of ['useSemesterersattning', 'usePension']) {
   $(id).addEventListener('change', updateAll);
 }
-$('useMaxGrossSalary').addEventListener('change', function () {
-  $('grossSalaryMonth').disabled = this.checked;
-  updateAll();
-});
+$('salaryMode').addEventListener('change', updateAll);
 $('maxDividend').addEventListener('change', function () {
   $('grossDividends').disabled = this.checked;
   updateAll();
@@ -1424,7 +1450,7 @@ const quick = initQuick({
     const parts = { privat: 'person', faktura: 'uppdrag', grans: 'utdelning', kostnad: 'lon' };
     if (kind === 'privat') {
       state.year = v.year;
-      Object.assign(p, { yearBorn: v.yearBorn, kommun: v.kommun, grossSalaryMonth: Math.round(v.income / 12), salaryMonths: 12, useSemesterersattning: false, useMaxGrossSalary: false });
+      Object.assign(p, { yearBorn: v.yearBorn, kommun: v.kommun, grossSalaryMonth: Math.round(v.income / 12), salaryMonths: 12, useSemesterersattning: false, salaryMode: 'manual' });
     }
     if (kind === 'faktura') {
       state.assignments = [{ ...defaultAssignment('a1', 2026, p.id), vacationDays: Number.isFinite(v.vacationDays) ? v.vacationDays : null, hourlyRate: v.hourlyRate, startDate: v.billingStartDate, endDate: v.billingEndDate, workingRate: v.workingRate }];
@@ -1435,7 +1461,7 @@ const quick = initQuick({
     }
     if (kind === 'kostnad') {
       state.year = v.year;
-      Object.assign(p, { yearBorn: v.yearBorn, grossSalaryMonth: v.grossSalaryMonth, usePension: v.usePension, pensionPercent: v.pensionPercent, useMaxGrossSalary: false });
+      Object.assign(p, { yearBorn: v.yearBorn, grossSalaryMonth: v.grossSalaryMonth, usePension: v.usePension, pensionPercent: v.pensionPercent, salaryMode: 'manual' });
     }
     for (const obj of [state, p]) {
       for (const [k, val] of Object.entries(obj)) if (typeof val === 'number' && !Number.isFinite(val)) obj[k] = null;

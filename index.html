@@ -108,7 +108,13 @@
           <section class="card part" data-part="lon" aria-labelledby="h-lon">
             <h2 id="h-lon">Lön: bolaget → <span data-person="lower">du</span> <span class="badge edge">Anställning</span></h2>
             <p class="kind">Räknare: Lön</p>
-            <div class="row"><label for="useMaxGrossSalary">Lön upp till brytpunkt för statlig skatt</label><input type="checkbox" id="useMaxGrossSalary"></div>
+            <div class="row"><label for="salaryMode">Så sätts lönen</label><select id="salaryMode">
+              <option value="manual">Egen lön</option>
+              <option value="brytpunkt">Upp till brytpunkt för statlig skatt</option>
+              <option value="maxNet">Högsta netto (lön + utdelning)</option>
+              <option value="allDividend">Lägsta lön som delar ut hela vinsten</option>
+              <option value="breakEven">Högsta lön (bolaget går jämnt upp)</option>
+            </select></div>
             <div class="row"><label for="grossSalaryMonth">Månadslön brutto</label><input type="number" step="1000" id="grossSalaryMonth" min="0" value="55000" inputmode="numeric"></div>
             <div class="row"><label for="salaryMonths">Månader med lön</label><input type="number" id="salaryMonths" min="0" max="12" value="12" inputmode="numeric"></div>
             <div class="row"><label for="vacationTotal">Semesterdagar <button type="button" class="from" data-goto="uppdrag">från Uppdrag</button></label><output id="vacationTotal"></output></div>

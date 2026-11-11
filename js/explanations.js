@@ -132,9 +132,9 @@ export const EXPLANATIONS = {
     what: 'Församlingen du tillhör. Bestämmer kyrkoavgiften.',
     formula: 'Kyrkoavgift hämtas från Skatteverkets öppna data.',
   },
-  useMaxGrossSalary: {
-    what: 'Sätter månadslönen så att årslönen hamnar precis på brytpunkten, där statlig inkomstskatt börjar.',
-    formula: 'Månadslön = brytpunkt / (månader med lön + semesterersättningens andel). Brytpunkten räknas fram ur skiktgränsen och grundavdraget.',
+  salaryMode: {
+    what: 'Hur månadslönen bestäms. Egen lön skriver du själv. De andra räknas fram åt dig och lönefältet visar resultatet.',
+    formula: 'Brytpunkt: lönen där statlig inkomstskatt börjar. Högsta netto: lönen som ger mest kvar efter skatt för alla i bolaget tillsammans, med maximal utdelning. Lägsta lön som delar ut hela vinsten: lägsta lönen där ingen vinst blir kvar i bolaget. Högsta lön: den högsta lönen bolaget har råd med utan förlust. För de tre sista provas löner i steg om 100 kr och övriga personers löner hålls fasta.',
     source: ['Skatteverket: När betalar man statlig inkomstskatt?', SKV_STATLIG],
   },
   grossSalaryMonth: { what: 'Din lön från bolaget per månad, före skatt.', formula: 'Anges av dig.' },

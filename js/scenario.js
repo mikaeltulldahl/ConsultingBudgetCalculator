@@ -39,7 +39,7 @@ export const PERSON_FIELDS = [
   { id: 'churchMember', type: 'boolean', default: false },
   { id: 'forsamling', type: 'text', default: '' },
   { id: 'kyrkoavgift', type: 'number', default: null }, // rate in % for the församling
-  { id: 'useMaxGrossSalary', type: 'boolean', default: false },
+  { id: 'salaryMode', type: 'text', default: 'manual' }, // see SALARY_MODES
   { id: 'grossSalaryMonth', type: 'number', default: 55000 },
   { id: 'salaryMonths', type: 'number', default: 12 },
   { id: 'useSemesterersattning', type: 'boolean', default: true },
@@ -60,7 +60,11 @@ const ID = /^[a-z0-9]{1,12}$/;
 // person's share, so it is right however the shares are divided.
 // Someone with no salary from the company (a passive owner) is not employed: no employer
 // fees, no pension and no salary cards.
-export const isEmployed = (p) => Boolean(p.useMaxGrossSalary) || !(p.grossSalaryMonth === 0 || p.salaryMonths === 0);
+export const isEmployed = (p) => (p.salaryMode ?? 'manual') !== 'manual' || !(p.grossSalaryMonth === 0 || p.salaryMonths === 0);
+
+// How a person's monthly salary is chosen. 'manual' is typed in; 'brytpunkt' is worked out by
+// the engine; the others are found by trying salaries (see resolveSalaryModes in app.js).
+export const SALARY_MODES = ['manual', 'brytpunkt', 'maxNet', 'allDividend', 'breakEven'];
 
 export const SHARE_CAPITAL = 25000;
 export const autoOmkostnadsbelopp = (ownershipPercent) => SHARE_CAPITAL * (Number(ownershipPercent) || 0) / 100;
@@ -137,7 +141,7 @@ function validatePerson(obj, id) {
   if (!obj || typeof obj !== 'object') return { person, invalid: 1 };
   for (const f of PERSON_FIELDS) {
     if (!(f.id in obj)) continue;
-    if (validValue(f.type, obj[f.id]) && !(f.id === 'name' && obj[f.id].length > 60)) person[f.id] = obj[f.id];
+    if (validValue(f.type, obj[f.id]) && !(f.id === 'name' && obj[f.id].length > 60) && !(f.id === 'salaryMode' && !SALARY_MODES.includes(obj[f.id]))) person[f.id] = obj[f.id];
     else invalid++;
   }
   return { person, invalid };
@@ -287,7 +291,7 @@ export function toEngineInputs(state, kommunRates) {
         burialSkattPercent: rates ? rates[1] : NaN,
         churchMember: p.churchMember,
         churchSkattPercent: p.churchMember && p.forsamling ? num(p.kyrkoavgift) : NaN,
-        useMaxGrossSalary: p.useMaxGrossSalary,
+        useMaxGrossSalary: p.salaryMode === 'brytpunkt',
         grossSalaryMonth: num(p.grossSalaryMonth),
         salaryMonths: num(p.salaryMonths),
         useSemesterersattning: p.useSemesterersattning,
