@@ -510,6 +510,7 @@ export function calculateCompany({ year, company: c, people }, data) {
   // and shares of at most 100 % together.
   const owners = ps.filter((f) => f.ownership > 0);
   const ownersReady = !isNaN(co.profitAfterTax) && owners.length > 0 && co.ownershipSum <= 1 + 1e-9 &&
+    ps.every((f) => !(f.ownership < 0 || f.ownership > 1)) &&
     owners.every((f) => !isNaN(f.omkostnadsbelopp) && !isNaN(f.savedDividends));
   if (ownersReady) {
     co.dividendCap = Infinity;

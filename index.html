@@ -200,7 +200,8 @@
             <p class="kind">Räknare: Privat skatt och sammanfattning</p>
             <div class="row"><label for="personName">Namn</label><input type="text" id="personName" maxlength="60" placeholder="Du"></div>
             <div class="row"><label for="employed">Anställd i bolaget</label><input type="checkbox" id="employed" checked></div>
-            <div class="row"><label for="ownership">Ägarandel (%)</label><input type="number" id="ownership" value="100" step="1" min="0" max="100" inputmode="decimal"></div>
+            <div class="row"><label for="ownership">Ägarandel (%)</label><input type="number" id="ownership" value="100" step="any" min="0" max="100" inputmode="decimal"></div>
+            <p class="status ownership-warning" hidden></p>
             <div class="row required"><label for="yearBorn">Födelseår</label><input type="number" id="yearBorn" min="1900" placeholder="ÅÅÅÅ" inputmode="numeric"></div>
             <div class="row required"><label for="kommunSelector">Kommun</label><select id="kommunSelector"></select></div>
             <div class="row"><label for="churchMember">Medlem i Svenska kyrkan</label><input type="checkbox" id="churchMember"></div>

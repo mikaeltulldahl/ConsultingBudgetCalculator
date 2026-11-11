@@ -128,10 +128,12 @@ test('shares below 100 %: the rest belongs to other owners, who get their divide
   assert.equal(one.company.otherOwnersDividends, 0);
 });
 
-test('shares above 100 %, or no owner in the calculation, give no dividend', () => {
+test('shares above 100 %, a share outside 0–100 %, or no owner in the calculation, give no dividend', () => {
   for (const r of [
     calculateCompany(twoOwners(2026, {}, { ownershipPercent: 60 }), fixtureData),
     calculateCompany(twoOwners(2026, { ownershipPercent: 0 }, { ownershipPercent: 0 }), fixtureData),
+    // A share outside 0–100 % is wrong even if the total is 100 %.
+    calculateCompany(twoOwners(2026, { ownershipPercent: 150 }, { ownershipPercent: -50 }), fixtureData),
   ]) {
     assert.ok(Number.isNaN(r.company.grossDividends));
     assert.ok(Number.isFinite(r.company.profitAfterTax));

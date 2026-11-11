@@ -290,6 +290,11 @@ try {
     assert.ok(await page.isVisible('#structureMap g.node[data-goto="person-p2"]'));
     assert.equal((await page.textContent('#h-person')).trim().startsWith('Person 2'), true);
     await page.fill('#personName', 'Anna');
+    // A share above 100 % is flagged on the person card at once, before the rest is filled in.
+    await page.fill('#ownership', '500');
+    await settle(page);
+    assert.match(await page.textContent('.part[data-part="person"] .ownership-warning'), /Anna är 500 %.*mellan 0 och 100 %/);
+    assert.ok(await page.isVisible('.part[data-part="person"] .ownership-warning'));
     await page.fill('#ownership', '50');
     await page.fill('#yearBorn', '1990');
     await page.dispatchEvent('#yearBorn', 'input');

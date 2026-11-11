@@ -413,8 +413,19 @@ function syncPersonCards() {
 }
 
 // Ägare on the company card: everyone's share in one place, the total and other owners.
-function renderOwners(co) {
-  const show = people.length > 1 || co?.otherOwnersShare > 0;
+// Everyone's ownership in % as typed (an empty field counts as 0), and the total.
+function ownershipShares() {
+  const shares = people.map((p) => {
+    const v = p.id === selectedPersonId ? Number($('ownership').value) : Number(p.ownership);
+    return Number.isFinite(v) ? v : 0;
+  });
+  shares.total = shares.reduce((a, b) => a + b, 0);
+  return shares;
+}
+
+function renderOwners(co, shares) {
+  const others = shares.total < 100 - 1e-7 && shares.total > 1e-7 && shares.every((v) => v >= 0 && v <= 100) ? 100 - shares.total : 0;
+  const show = people.length > 1 || others > 0;
   $('ownersTable').hidden = !show;
   if (!show) return;
   const box = $('ownerInputs');
@@ -432,9 +443,9 @@ function renderOwners(co) {
     const value = p.id === selectedPersonId ? $('ownership').value : (p.ownership ?? '');
     if (input !== document.activeElement && input.value !== String(value)) input.value = value;
   });
-  setOutput('ownershipTotal', 100 * co?.ownershipSum, 2);
-  $('otherOwnersRows').hidden = !(co?.otherOwnersShare > 0);
-  setOutput('otherOwnersShare', 100 * co?.otherOwnersShare, 2);
+  setOutput('ownershipTotal', shares.total, 2);
+  $('otherOwnersRows').hidden = !(others > 0);
+  setOutput('otherOwnersShare', others, 2);
   setOutput('otherOwnersDividends', co?.otherOwnersDividends, 0);
 }
 $('ownerInputs').addEventListener('input', (e) => {
@@ -567,17 +578,19 @@ function writeFields(r) {
   const limiting = people.findIndex((p) => p.id === co?.limitingOwner);
   const limitingName = limiting < 0 ? '' : personName(people[limiting], limiting);
   $('limitingNote').textContent = limiting < 0 ? '' : `${limitingName === 'Du' ? 'Ditt gränsbelopp' : `Gränsbeloppet för ${limitingName}`} begränsar bolagets utdelning: den får inte bli större än att varje ägare håller sig inom sitt gränsbelopp.`;
-  const sum = co?.ownershipSum;
-  const pct = (v) => `${(100 * v).toLocaleString('sv-SE', { maximumFractionDigits: 2 })} %`;
-  const warning = !Number.isFinite(sum) ? ''
-    : sum > 1 + 1e-9 ? `Ägarandelarna är tillsammans ${pct(sum)}. De får inte bli mer än 100 % för att utdelningen ska kunna räknas.`
-      : sum < 1e-9 ? 'Ingen i kalkylen äger aktier i bolaget, så ingen utdelning räknas. Ange ägarandelar under Ägare.'
+  // Checked from what is typed, so the warning shows even before everything is filled in.
+  const shares = ownershipShares();
+  const pct = (v) => `${v.toLocaleString('sv-SE', { maximumFractionDigits: 2 })} %`;
+  const bad = people.findIndex((p, i) => shares[i] < 0 || shares[i] > 100);
+  const warning = bad >= 0 ? `Ägarandelen för ${personName({ ...people[bad], name: people[bad].id === selectedPersonId ? $('personName').value : people[bad].name }, bad)} är ${pct(shares[bad])}. Den måste vara mellan 0 och 100 %.`
+    : shares.total > 100 + 1e-7 ? `Ägarandelarna är tillsammans ${pct(shares.total)}. De får inte bli mer än 100 % för att utdelningen ska kunna räknas.`
+      : shares.total < 1e-7 ? 'Ingen i kalkylen äger aktier i bolaget, så ingen utdelning räknas. Ange ägarandelar under Ägare.'
         : '';
   for (const el of document.querySelectorAll('.ownership-warning')) {
     el.hidden = !warning;
     el.textContent = warning;
   }
-  renderOwners(co);
+  renderOwners(co, shares);
 
   const kr = (v) => (Number.isFinite(v) ? `${Math.round(v).toLocaleString('sv-SE')} kr` : '–');
   $('sumNetName').textContent = people.length > 1 ? ` (${personName(selectedPerson(), selectedIndex())})` : '';
