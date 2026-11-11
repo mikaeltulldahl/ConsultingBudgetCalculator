@@ -24,8 +24,4 @@ with price changes, several owners/employees, saved data and import/export).
 - [ ] Verify a few critical cases by hand against Skatteverket.
 
 ## Page
-- [ ] Quick calculators: light open/close animation; reconsider the order (follow the chain:
-      Fakturerat → Lön ↔ bolagskostnad → Utdelningsgräns → Privat skatt → Motsvarande anställning).
-- [ ] Quick calculators out of date vs the structure: "Lön ↔ bolagskostnad" uses a flat
-      arbetsgivaravgift and 4,7 % pension (no age, no fixed pension amount, no deduction cap).
 - [ ] More explanations in the UI and more on how to use the tool.

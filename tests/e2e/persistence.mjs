@@ -432,6 +432,7 @@ try {
     const gap = await p.evaluate(() => document.getElementById('qc-grans').getBoundingClientRect().top
       - document.querySelector('[data-quick="grans"]').getBoundingClientRect().bottom);
     assert.ok(Math.abs(gap) < 2, `calculator should open under its button, gap=${gap}`);
+    await p.waitForTimeout(400); // the other calculators finish closing
     assert.equal(await p.locator('[data-quick-card]:visible').count(), 1);
     await p.click('[data-mode="structure"]');
     const { docW, vw } = await p.evaluate(() => ({ docW: document.documentElement.scrollWidth, vw: innerWidth }));

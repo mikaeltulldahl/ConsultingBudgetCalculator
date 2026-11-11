@@ -103,7 +103,7 @@ export const EXPLANATIONS = {
   },
   pensionPercent: {
     what: 'Hur stor tjänstepension bolaget betalar, i procent av din bruttolön.',
-    formula: 'Anges av dig; 4,7 % är kalkylatorns standardvärde. Bolagets avdrag för pensionskostnader är begränsat, vilket kalkylatorn ännu inte räknar med.',
+    formula: 'Anges av dig; 4,7 % är kalkylatorns standardvärde. Bolagets avdrag för pensionskostnader är begränsat till 35 % av lönen och 10 prisbasbelopp; resten ökar den skattepliktiga vinsten.',
   },
   usedInvoicedAmount: {
     what: 'Det fakturerade belopp som bolaget räknar med.',

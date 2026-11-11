@@ -1433,7 +1433,10 @@ const quick = initQuick({
       state.year = v.year;
       Object.assign(p, { omkostnadsbeloppAuto: false, omkostnadsbelopp: v.omkostnadsbelopp, savedDividends: v.savedDividends });
     }
-    if (kind === 'kostnad') Object.assign(p, { grossSalaryMonth: v.grossSalaryMonth, usePension: v.usePension, pensionPercent: 4.7, useMaxGrossSalary: false });
+    if (kind === 'kostnad') {
+      state.year = v.year;
+      Object.assign(p, { yearBorn: v.yearBorn, grossSalaryMonth: v.grossSalaryMonth, usePension: v.usePension, pensionPercent: v.pensionPercent, useMaxGrossSalary: false });
+    }
     for (const obj of [state, p]) {
       for (const [k, val] of Object.entries(obj)) if (typeof val === 'number' && !Number.isFinite(val)) obj[k] = null;
     }

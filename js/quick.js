@@ -77,11 +77,22 @@ export function initQuick(ctx) {
       }
     },
     kostnad() {
-      const c = employerCost({ grossSalaryMonth: num('qk-salary'), usePension: $('qk-pension').checked });
-      out('qk-agavg', c.arbetsgivaravgift);
-      out('qk-pensionAmount', c.pension);
-      out('qk-slp', c.slp);
-      out('qk-total', c.total);
+      $('qk-pensionPercent').disabled = !$('qk-pension').checked;
+      try {
+        const c = employerCost({
+          year: num('qk-year'), yearBorn: num('qk-yearBorn'), grossSalaryMonth: num('qk-salary'),
+          usePension: $('qk-pension').checked, pensionRate: num('qk-pensionPercent') / 100,
+        });
+        out('qk-agavg', c.arbetsgivaravgift);
+        out('qk-pensionAmount', c.pension);
+        out('qk-slp', c.slp);
+        out('qk-insurance', c.insurance);
+        out('qk-total', c.total);
+        $('qk-capWarning').hidden = !(c.pensionNonDeductible > 0);
+      } catch {
+        clear(['qk-agavg', 'qk-pensionAmount', 'qk-slp', 'qk-insurance', 'qk-total']);
+        $('qk-capWarning').hidden = true;
+      }
     },
     async motsv() {
       try {
@@ -108,7 +119,7 @@ export function initQuick(ctx) {
     const button = document.querySelector(`[data-quick="${kind}"]`);
     const open = button.getAttribute('aria-expanded') !== 'true';
     for (const b of document.querySelectorAll('[data-quick]')) b.setAttribute('aria-expanded', open && b === button);
-    for (const c of document.querySelectorAll('[data-quick-card]')) c.hidden = !(open && c.dataset.quickCard === kind);
+    for (const item of document.querySelectorAll('.quick-item')) item.classList.toggle('open', open && item.contains(button));
     if (open) {
       calculators[kind]();
       // Closing a calculator above can move this one up; keep its button in view.
@@ -121,7 +132,7 @@ export function initQuick(ctx) {
     privat: () => ({ year: num('qp-year'), yearBorn: num('qp-yearBorn'), kommun: $('qp-kommun').value, income: num('qp-income') }),
     faktura: () => ({ hourlyRate: num('qf-rate'), billingStartDate: $('qf-start').value, billingEndDate: $('qf-end').value, vacationDays: num('qf-vacation'), workingRate: num('qf-working') }),
     grans: () => ({ year: num('qg-year'), omkostnadsbelopp: num('qg-omkostnadsbelopp'), savedDividends: num('qg-saved') }),
-    kostnad: () => ({ grossSalaryMonth: num('qk-salary'), usePension: $('qk-pension').checked }),
+    kostnad: () => ({ year: num('qk-year'), yearBorn: num('qk-yearBorn'), grossSalaryMonth: num('qk-salary'), usePension: $('qk-pension').checked, pensionPercent: num('qk-pensionPercent') }),
   };
   for (const b of document.querySelectorAll('[data-connect]')) {
     b.addEventListener('click', () => ctx.onConnect(b.dataset.connect, values[b.dataset.connect]()));

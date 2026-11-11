@@ -592,13 +592,24 @@ export function companySalarySweep(inputs, index, data, step = 500) {
   return sweep(at, totalRevenue, pensionRate, step);
 }
 
-// What a monthly salary costs the company per month (excluding the small flat
-// arbetsskadeförsäkring): salary + arbetsgivaravgift + tjänstepension + särskild löneskatt.
-export function employerCost({ grossSalaryMonth, usePension = true, pensionRate = RATES.pensionPremium }) {
-  const arbetsgivaravgift = RATES.arbetsgivaravgift * grossSalaryMonth;
-  const pension = usePension ? pensionRate * grossSalaryMonth : 0;
-  const slp = RATES.sarskildLoneskatt * pension;
-  return { arbetsgivaravgift, pension, slp, total: grossSalaryMonth + arbetsgivaravgift + pension + slp };
+// What a monthly salary (12 months) costs the company per month, with the same rules as the
+// structure: arbetsgivaravgift by birth year, arbetsskadeförsäkring, tjänstepension (% of
+// the salary) and särskild löneskatt. Also the part of the pension the company may not
+// deduct (over 35 % of the salary or 10 prisbasbelopp).
+export function employerCost({ year, yearBorn, grossSalaryMonth, usePension = true, pensionRate = RATES.pensionPremium }) {
+  const f = {
+    year, age: year - yearBorn - 1, grossSalaryYear: 12 * grossSalaryMonth, grossSalaryMonth, salaryMonths: 12,
+    usePension, pensionMode: 'percent', pensionRate, pensionAmount: 0,
+  };
+  employment(f, getYearParams(year));
+  const arbetsgivaravgift = f.arbetsgivaravgift / 12;
+  const pension = f.pension / 12;
+  const insurance = f.insurance / 12;
+  const slp = f.slp / 12;
+  return {
+    arbetsgivaravgift, pension, insurance, slp, pensionNonDeductible: f.pensionNonDeductible / 12,
+    total: grossSalaryMonth + arbetsgivaravgift + pension + insurance + slp,
+  };
 }
 
 // The monthly gross salary an employee would need to get `targetNetMonth` after tax

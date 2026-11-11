@@ -284,8 +284,74 @@
     <div id="quickMode" hidden>
       <p class="muted">Räkna på en sak i taget, utan att fylla i allt. Varje snabbräknare använder samma beräkningar som strukturen.</p>
       <div class="quick-list" aria-label="Snabbräknare">
+        <div class="quick-item open">
+          <button type="button" class="quick-toggle" data-quick="faktura" aria-expanded="true" aria-controls="qc-faktura"><b>Fakturerat belopp</b><small>Timpris × timmar med röda dagar</small></button>
+        <div class="quick-body"><div class="quick-clip">
+        <section class="card quick-card" id="qc-faktura" data-quick-card="faktura" aria-labelledby="hq-faktura">
+          <h2 id="hq-faktura">Fakturerat belopp <span class="badge source">Snabbräknare</span></h2>
+          <p class="kind">Arbetsdagar med svenska röda dagar, julafton, midsommarafton och nyårsafton.</p>
+          <div class="row"><label for="qf-rate">Timpris exkl. moms</label><input type="number" id="qf-rate" data-q value="850" step="10" min="0" inputmode="numeric"></div>
+          <div class="row"><label for="qf-start">Start</label><input type="date" id="qf-start" data-q value="2026-01-01"></div>
+          <div class="row"><label for="qf-end">Slut</label><input type="date" id="qf-end" data-q value="2026-12-31"></div>
+          <div class="row"><label for="qf-vacation">Semesterdagar</label><input type="number" id="qf-vacation" data-q value="25" min="0" inputmode="numeric"></div>
+          <div class="row"><label for="qf-working">Arbetstakt (%)</label><input type="number" id="qf-working" data-q value="100" step="25" min="0" max="100" inputmode="numeric"></div>
+          <div class="row"><label for="qf-hours">Fakturerbara timmar</label><output id="qf-hours" data-unit=""></output></div>
+          <div class="result"><label for="qf-amount">→ Fakturerat belopp</label><output id="qf-amount" data-unit="kr"></output></div>
+          <button type="button" class="button primary" data-connect="faktura">Koppla in i min struktur</button>
+          <p class="muted small">Tar med timpris, period, semesterdagar och arbetstakt till Uppdrag i strukturen.</p>
+        </section>
+        </div></div>
+        </div>
         <div class="quick-item">
-          <button type="button" class="quick-toggle" data-quick="privat" aria-expanded="true" aria-controls="qc-privat"><b>Privat skatt</b><small>Skatt och nettolön på en årsinkomst</small></button>
+          <button type="button" class="quick-toggle" data-quick="kostnad" aria-expanded="false" aria-controls="qc-kostnad"><b>Lön ↔ bolagskostnad</b><small>Vad en lön kostar bolaget</small></button>
+        <div class="quick-body"><div class="quick-clip">
+        <section class="card quick-card" id="qc-kostnad" data-quick-card="kostnad" aria-labelledby="hq-kostnad">
+          <h2 id="hq-kostnad">Lön ↔ bolagskostnad <span class="badge bolag">Snabbräknare</span></h2>
+          <p class="kind">Vad en månadslön kostar bolaget, med arbetsgivaravgift efter ålder och tjänstepension.</p>
+          <div class="row"><label for="qk-year">Inkomstår</label><input type="number" id="qk-year" data-q value="2026" inputmode="numeric"></div>
+          <div class="row"><label for="qk-yearBorn">Födelseår</label><input type="number" id="qk-yearBorn" data-q value="1985" inputmode="numeric"></div>
+          <div class="row"><label for="qk-salary">Månadslön brutto</label><input type="number" id="qk-salary" data-q value="55000" step="1000" min="0" inputmode="numeric"></div>
+          <div class="row"><label for="qk-pension">Tjänstepension</label><input type="checkbox" id="qk-pension" data-q checked></div>
+          <div class="row"><label for="qk-pensionPercent">Tjänstepension (% av lönen)</label><input type="number" id="qk-pensionPercent" data-q value="4.7" step="0.1" min="0" inputmode="decimal"></div>
+          <div class="row"><label for="qk-agavg">Arbetsgivaravgift</label><output id="qk-agavg" data-unit="kr"></output></div>
+          <div class="row"><label for="qk-pensionAmount">Tjänstepension</label><output id="qk-pensionAmount" data-unit="kr"></output></div>
+          <div class="row"><label for="qk-slp">Särskild löneskatt på pension och försäkring</label><output id="qk-slp" data-unit="kr"></output></div>
+          <div class="row"><label for="qk-insurance">Arbetsskadeförsäkring</label><output id="qk-insurance" data-unit="kr"></output></div>
+          <p class="status" id="qk-capWarning" hidden>Pensionen är högre än bolaget får dra av (35 % av lönen, högst 10 prisbasbelopp). Resten ökar bolagets skattepliktiga vinst.</p>
+          <div class="result"><label for="qk-total">→ Kostnad för bolaget per månad</label><output id="qk-total" data-unit="kr"></output></div>
+          <button type="button" class="button primary" data-connect="kostnad">Koppla in i min struktur</button>
+          <p class="muted small">Tar med inkomstår, födelseår, månadslön och tjänstepension till första personen i strukturen.</p>
+        </section>
+        </div></div>
+        </div>
+        <div class="quick-item">
+          <button type="button" class="quick-toggle" data-quick="grans" aria-expanded="false" aria-controls="qc-grans"><b>Utdelningsgräns</b><small>3:12 för ett bolag du äger</small></button>
+        <div class="quick-body"><div class="quick-clip">
+        <section class="card quick-card" id="qc-grans" data-quick-card="grans" aria-labelledby="hq-grans">
+          <h2 id="hq-grans">Utdelningsgräns (3:12) <span class="badge bolag">Snabbräknare</span></h2>
+          <p class="kind">För ett fåmansföretag där du är verksam.</p>
+          <div class="row"><label for="qg-year">Inkomstår</label><input type="number" id="qg-year" data-q value="2026" inputmode="numeric"></div>
+          <div class="row"><label for="qg-ownership">Din ägarandel (%)</label><input type="number" id="qg-ownership" data-q value="100" min="1" max="100" inputmode="numeric"></div>
+          <div class="row"><label for="qg-ownSalary">Din lön från bolaget per år</label><input type="number" id="qg-ownSalary" data-q value="665912" step="10000" min="0" inputmode="numeric"></div>
+          <div class="row"><label for="qg-totalSalary">Alla löner i bolaget per år</label><input type="number" id="qg-totalSalary" data-q value="665912" step="10000" min="0" inputmode="numeric"></div>
+          <div class="row"><label for="qg-omkostnadsbelopp">Omkostnadsbelopp</label><input type="number" id="qg-omkostnadsbelopp" data-q value="25000" step="25000" min="0" inputmode="numeric"></div>
+          <div class="row"><label for="qg-saved">Sparat utdelningsutrymme</label><input type="number" id="qg-saved" data-q value="0" step="10000" min="0" inputmode="numeric"></div>
+          <details class="details"><summary>Detaljer</summary>
+            <div class="row"><label for="qg-grundbelopp">Grundbelopp</label><output id="qg-grundbelopp" data-unit="kr"></output></div>
+            <div class="row"><label for="qg-forenklingsregeln">Förenklingsregeln</label><output id="qg-forenklingsregeln" data-unit="kr"></output></div>
+            <div class="row"><label for="qg-salaryBasedLimit">Lönebaserat utrymme</label><output id="qg-salaryBasedLimit" data-unit="kr"></output></div>
+            <div class="row"><label for="qg-omkostnadsbeloppInterest">Ränta på omkostnadsbelopp</label><output id="qg-omkostnadsbeloppInterest" data-unit="kr"></output></div>
+          </details>
+          <div class="result"><label for="qg-limit">→ Utdelningsgräns</label><output id="qg-limit" data-unit="kr"></output></div>
+          <p class="muted small">Utdelning upp till gränsen beskattas med 20 %.</p>
+          <button type="button" class="button primary" data-connect="grans">Koppla in i min struktur</button>
+          <p class="muted small">Tar med inkomstår, omkostnadsbelopp och sparat utrymme till första personen i strukturen.</p>
+        </section>
+        </div></div>
+        </div>
+        <div class="quick-item">
+          <button type="button" class="quick-toggle" data-quick="privat" aria-expanded="false" aria-controls="qc-privat"><b>Privat skatt</b><small>Skatt och nettolön på en årsinkomst</small></button>
+        <div class="quick-body"><div class="quick-clip">
         <section class="card quick-card" id="qc-privat" data-quick-card="privat" aria-labelledby="hq-privat">
           <h2 id="hq-privat">Privat skatt <span class="badge person">Snabbräknare</span></h2>
           <p class="kind">Skatt och nettolön på en årsinkomst från anställning. Stämmer på kronan mot Skatteverkets beräkning 2020–2026.</p>
@@ -307,64 +373,12 @@
           <button type="button" class="button primary" data-connect="privat">Koppla in i min struktur</button>
           <p class="muted small">Tar med inkomstår, födelseår, kommun och lön (årsinkomsten / 12) till strukturen.</p>
         </section>
-        </div>
-        <div class="quick-item">
-          <button type="button" class="quick-toggle" data-quick="faktura" aria-expanded="false" aria-controls="qc-faktura"><b>Fakturerat belopp</b><small>Timpris × timmar med röda dagar</small></button>
-        <section class="card quick-card" id="qc-faktura" data-quick-card="faktura" hidden aria-labelledby="hq-faktura">
-          <h2 id="hq-faktura">Fakturerat belopp <span class="badge source">Snabbräknare</span></h2>
-          <p class="kind">Arbetsdagar med svenska röda dagar, julafton, midsommarafton och nyårsafton.</p>
-          <div class="row"><label for="qf-rate">Timpris exkl. moms</label><input type="number" id="qf-rate" data-q value="850" step="10" min="0" inputmode="numeric"></div>
-          <div class="row"><label for="qf-start">Start</label><input type="date" id="qf-start" data-q value="2026-01-01"></div>
-          <div class="row"><label for="qf-end">Slut</label><input type="date" id="qf-end" data-q value="2026-12-31"></div>
-          <div class="row"><label for="qf-vacation">Semesterdagar</label><input type="number" id="qf-vacation" data-q value="25" min="0" inputmode="numeric"></div>
-          <div class="row"><label for="qf-working">Arbetstakt (%)</label><input type="number" id="qf-working" data-q value="100" step="25" min="0" max="100" inputmode="numeric"></div>
-          <div class="row"><label for="qf-hours">Fakturerbara timmar</label><output id="qf-hours" data-unit=""></output></div>
-          <div class="result"><label for="qf-amount">→ Fakturerat belopp</label><output id="qf-amount" data-unit="kr"></output></div>
-          <button type="button" class="button primary" data-connect="faktura">Koppla in i min struktur</button>
-          <p class="muted small">Tar med timpris, period, semesterdagar och arbetstakt till Uppdrag i strukturen.</p>
-        </section>
-        </div>
-        <div class="quick-item">
-          <button type="button" class="quick-toggle" data-quick="grans" aria-expanded="false" aria-controls="qc-grans"><b>Utdelningsgräns</b><small>3:12 för ett bolag du äger</small></button>
-        <section class="card quick-card" id="qc-grans" data-quick-card="grans" hidden aria-labelledby="hq-grans">
-          <h2 id="hq-grans">Utdelningsgräns (3:12) <span class="badge bolag">Snabbräknare</span></h2>
-          <p class="kind">För ett fåmansföretag där du är verksam.</p>
-          <div class="row"><label for="qg-year">Inkomstår</label><input type="number" id="qg-year" data-q value="2026" inputmode="numeric"></div>
-          <div class="row"><label for="qg-ownership">Din ägarandel (%)</label><input type="number" id="qg-ownership" data-q value="100" min="1" max="100" inputmode="numeric"></div>
-          <div class="row"><label for="qg-ownSalary">Din lön från bolaget per år</label><input type="number" id="qg-ownSalary" data-q value="665912" step="10000" min="0" inputmode="numeric"></div>
-          <div class="row"><label for="qg-totalSalary">Alla löner i bolaget per år</label><input type="number" id="qg-totalSalary" data-q value="665912" step="10000" min="0" inputmode="numeric"></div>
-          <div class="row"><label for="qg-omkostnadsbelopp">Omkostnadsbelopp</label><input type="number" id="qg-omkostnadsbelopp" data-q value="25000" step="25000" min="0" inputmode="numeric"></div>
-          <div class="row"><label for="qg-saved">Sparat utdelningsutrymme</label><input type="number" id="qg-saved" data-q value="0" step="10000" min="0" inputmode="numeric"></div>
-          <details class="details"><summary>Detaljer</summary>
-            <div class="row"><label for="qg-grundbelopp">Grundbelopp</label><output id="qg-grundbelopp" data-unit="kr"></output></div>
-            <div class="row"><label for="qg-forenklingsregeln">Förenklingsregeln</label><output id="qg-forenklingsregeln" data-unit="kr"></output></div>
-            <div class="row"><label for="qg-salaryBasedLimit">Lönebaserat utrymme</label><output id="qg-salaryBasedLimit" data-unit="kr"></output></div>
-            <div class="row"><label for="qg-omkostnadsbeloppInterest">Ränta på omkostnadsbelopp</label><output id="qg-omkostnadsbeloppInterest" data-unit="kr"></output></div>
-          </details>
-          <div class="result"><label for="qg-limit">→ Utdelningsgräns</label><output id="qg-limit" data-unit="kr"></output></div>
-          <p class="muted small">Utdelning upp till gränsen beskattas med 20 %.</p>
-          <button type="button" class="button primary" data-connect="grans">Koppla in i min struktur</button>
-          <p class="muted small">Tar med inkomstår, omkostnadsbelopp och sparat utrymme till första personen i strukturen.</p>
-        </section>
-        </div>
-        <div class="quick-item">
-          <button type="button" class="quick-toggle" data-quick="kostnad" aria-expanded="false" aria-controls="qc-kostnad"><b>Lön ↔ bolagskostnad</b><small>Vad en lön kostar bolaget</small></button>
-        <section class="card quick-card" id="qc-kostnad" data-quick-card="kostnad" hidden aria-labelledby="hq-kostnad">
-          <h2 id="hq-kostnad">Lön ↔ bolagskostnad <span class="badge bolag">Snabbräknare</span></h2>
-          <p class="kind">Vad en månadslön kostar bolaget.</p>
-          <div class="row"><label for="qk-salary">Månadslön brutto</label><input type="number" id="qk-salary" data-q value="55000" step="1000" min="0" inputmode="numeric"></div>
-          <div class="row"><label for="qk-pension">Tjänstepension (4,7 % av lönen)</label><input type="checkbox" id="qk-pension" data-q checked></div>
-          <div class="row"><label for="qk-agavg">Arbetsgivaravgift (31,42 %)</label><output id="qk-agavg" data-unit="kr"></output></div>
-          <div class="row"><label for="qk-pensionAmount">Tjänstepension</label><output id="qk-pensionAmount" data-unit="kr"></output></div>
-          <div class="row"><label for="qk-slp">Särskild löneskatt på pension (24,26 %)</label><output id="qk-slp" data-unit="kr"></output></div>
-          <div class="result"><label for="qk-total">→ Kostnad för bolaget per månad</label><output id="qk-total" data-unit="kr"></output></div>
-          <button type="button" class="button primary" data-connect="kostnad">Koppla in i min struktur</button>
-          <p class="muted small">Tar med månadslön och tjänstepension till Lön i strukturen.</p>
-        </section>
+        </div></div>
         </div>
         <div class="quick-item">
           <button type="button" class="quick-toggle" data-quick="motsv" aria-expanded="false" aria-controls="qc-motsv"><b>Motsvarande anställning</b><small>Lönen att jämföra ett jobberbjudande med</small></button>
-        <section class="card quick-card" id="qc-motsv" data-quick-card="motsv" hidden aria-labelledby="hq-motsv">
+        <div class="quick-body"><div class="quick-clip">
+        <section class="card quick-card" id="qc-motsv" data-quick-card="motsv" aria-labelledby="hq-motsv">
           <h2 id="hq-motsv">Motsvarande anställning <span class="badge person">Snabbräknare</span></h2>
           <p class="kind">Vilken bruttolön som anställd ger samma netto per månad? Siffran att slå vid ett jobberbjudande, eller tvärtom.</p>
           <div class="row"><label for="qm-net">Netto per månad att matcha</label><input type="number" id="qm-net" data-q value="60000" step="1000" min="0" inputmode="numeric"></div>
@@ -375,6 +389,7 @@
           <div class="result"><label for="qm-gross">→ Motsvarande månadslön brutto som anställd</label><output id="qm-gross" data-unit="kr"></output></div>
           <p class="muted small">Jämför också tjänstepension, semester, sjuklön och förmåner. Som egen bestämmer du själv pensionen; i strukturen ingår den inte i nettot.</p>
         </section>
+        </div></div>
         </div>
       </div>
     </div>

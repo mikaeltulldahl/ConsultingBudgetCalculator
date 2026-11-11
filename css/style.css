@@ -391,6 +391,11 @@ h1, h2, h3 { line-height: 1.25; }
 }
 .quick-toggle[aria-expanded="true"] { border-color: var(--accent); border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .quick-toggle[aria-expanded="true"]::after { transform: translateY(-30%) rotate(-135deg); }
+.quick-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .25s ease; }
+.quick-item.open .quick-body { grid-template-rows: 1fr; }
+.quick-clip { min-height: 0; overflow: hidden; }
+.quick-item:not(.open) .quick-clip { visibility: hidden; transition: visibility 0s .25s; }
+@media (prefers-reduced-motion: reduce) { .quick-body, .quick-item:not(.open) .quick-clip { transition: none; } }
 .quick-item .quick-card { border-top: none; border-color: var(--accent); border-top-left-radius: 0; border-top-right-radius: 0; }
 
 /* About --------------------------------------------------------------------- */

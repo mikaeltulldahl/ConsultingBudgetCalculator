@@ -28,13 +28,28 @@ test('dividendLimit: grundbelopp per share, at most one per person (2026)', () =
   assert.equal(g(1, 1), 161200);
 });
 
-test('employerCost adds arbetsgivaravgift, pension and särskild löneskatt', () => {
-  const c = employerCost({ grossSalaryMonth: 55000 });
+test('employerCost adds arbetsgivaravgift, pension, insurance and särskild löneskatt', () => {
+  const c = employerCost({ year: 2026, yearBorn: 1985, grossSalaryMonth: 55000 });
   assert.equal(c.arbetsgivaravgift, 0.3142 * 55000);
   assert.equal(c.pension, 0.047 * 55000);
-  assert.equal(c.slp, 0.2426 * c.pension);
-  assert.equal(c.total, 55000 + c.arbetsgivaravgift + c.pension + c.slp);
-  assert.equal(employerCost({ grossSalaryMonth: 55000, usePension: false }).pension, 0);
+  assert.ok(Math.abs(c.insurance - 200 / 12) < 1e-9);
+  assert.ok(Math.abs(c.slp - 0.2426 * (c.pension + c.insurance)) < 1e-9);
+  assert.ok(Math.abs(c.total - (55000 + c.arbetsgivaravgift + c.pension + c.insurance + c.slp)) < 1e-9);
+  assert.equal(employerCost({ year: 2026, yearBorn: 1985, grossSalaryMonth: 55000, usePension: false }).pension, 0);
+  assert.equal(c.pensionNonDeductible, 0);
+});
+
+test('employerCost follows the age rules and the pension cap, like the structure', () => {
+  // Born 1950 (2026): 10,21 %. Young people get the temporary reduction.
+  assert.ok(Math.abs(employerCost({ year: 2026, yearBorn: 1950, grossSalaryMonth: 50000 }).arbetsgivaravgift - 0.1021 * 50000) < 1e-9);
+  assert.ok(employerCost({ year: 2026, yearBorn: 2004, grossSalaryMonth: 20000 }).arbetsgivaravgift < 0.3142 * 20000);
+  // A high pension rate goes over the deduction cap (35 % of the salary).
+  assert.ok(employerCost({ year: 2026, yearBorn: 1985, grossSalaryMonth: 55000, pensionRate: 0.5 }).pensionNonDeductible > 0);
+  // The same figures as the company calculation for one employee.
+  const input = { year: 2026, yearBorn: 1985, grossSalaryMonth: 55000 };
+  const quick = employerCost(input);
+  const company = calculate({ ...BASE_INPUT, ...input, useSemesterersattning: false, vacationDays: 0, useMaxGrossSalary: false, salaryMonths: 12 }, fixtureData);
+  assert.ok(Math.abs(12 * quick.total - (company.grossSalaryYear + company.arbetsgivaravgift + company.pension + company.insurance + company.slp)) < 1e-6);
 });
 
 test('equivalentEmployeeSalary finds the lowest salary reaching the net target', () => {
