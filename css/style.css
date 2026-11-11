@@ -416,5 +416,21 @@ h1, h2, h3 { line-height: 1.25; }
 .popover p { margin: 4px 0; }
 .popover .formula { background: var(--surface-2); padding: 6px 8px; border-radius: 6px; font-size: 13px; }
 
+/* Confirmation dialog (instead of the browser's confirm(), which some
+   embedded browsers block silently). */
+.confirm-dialog {
+  max-width: min(380px, calc(100vw - 32px));
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .25);
+  padding: 16px 18px;
+}
+.confirm-dialog::backdrop { background: rgba(0, 0, 0, .35); }
+.confirm-dialog p { margin: 0 0 6px; }
+.confirm-dialog .buttons { justify-content: flex-end; }
+.confirm-dialog .button.primary { margin-top: 0; }
+
 /* The accordion button already shows the calculator's name. */
 .quick-item .quick-card > h2 { display: none; }

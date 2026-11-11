@@ -15,6 +15,20 @@ import { loadStored, saveStored, clearStored, loadPrefs, savePrefs, clearPrefs }
 
 const $ = (id) => document.getElementById(id);
 
+// Asks a yes/no question in a dialog on the page. The browser's own confirm dialog is
+// blocked without a sound in some embedded browsers, which made buttons do nothing.
+function ask(message, okLabel = 'OK') {
+  const dialog = $('confirmDialog');
+  $('confirmMessage').textContent = message;
+  $('confirmOk').textContent = okLabel;
+  dialog.returnValue = '';
+  return new Promise((resolve) => {
+    dialog.addEventListener('close', () => resolve(dialog.returnValue === 'ok'), { once: true });
+    dialog.showModal();
+    $('confirmOk').focus();
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Data loading (kommun rates and förhöjt grundavdrag tables are served by this site)
 // ---------------------------------------------------------------------------
@@ -263,7 +277,7 @@ assignmentParts.addEventListener('input', (e) => {
   updateAll();
 });
 
-assignmentParts.addEventListener('click', (e) => {
+assignmentParts.addEventListener('click', async (e) => {
   const b = e.target.closest('[data-action]');
   if (!b) return;
   const a = findAssignment(b.dataset.a);
@@ -279,7 +293,7 @@ assignmentParts.addEventListener('click', (e) => {
     const r = lastRevenue.assignments.find((x) => x.id === a.id);
     a.manualAmount = a.manualAmount === null ? Math.round(r?.computedAmount ?? 0) : null;
   } else if (action === 'removeAssignment') {
-    if (assignments.length < 2 || !confirm(`Ta bort ${assignmentName(a, assignments.indexOf(a)).toLowerCase() === 'uppdrag' ? 'uppdraget' : `"${assignmentName(a, assignments.indexOf(a))}"`}?`)) return;
+    if (assignments.length < 2 || !(await ask(`Ta bort ${assignmentName(a, assignments.indexOf(a)).toLowerCase() === 'uppdrag' ? 'uppdraget' : `"${assignmentName(a, assignments.indexOf(a))}"`}?`, 'Ta bort'))) return;
     assignments = assignments.filter((x) => x !== a);
     prefs.part = `uppdrag-${assignments[0].id}`;
   }
@@ -401,10 +415,10 @@ function addPerson() {
 }
 $('addPerson').addEventListener('click', addPerson);
 
-$('removePerson').addEventListener('click', () => {
+$('removePerson').addEventListener('click', async () => {
   const i = selectedIndex();
   const p = selectedPerson();
-  if (people.length < 2 || !confirm(`Ta bort ${personName(p, i)}?`)) return;
+  if (people.length < 2 || !(await ask(`Ta bort ${personName({ ...p, name: $('personName').value }, i)}?`, 'Ta bort'))) return;
   people = people.filter((x) => x !== p);
   for (const a of assignments) if (a.person === p.id) a.person = people[0].id;
   selectedPersonId = people[0].id;
@@ -984,13 +998,13 @@ async function renderScenarios() {
   }
 }
 
-function saveScenario() {
+async function saveScenario() {
   const input = $('scenarioName');
   const name = input.value.trim().slice(0, 80) || `Scenario ${scenarios.length + 1}`;
   const entry = { name, savedAt: new Date().toISOString(), state: readState() };
   const existing = scenarios.findIndex((s) => s.name === name);
   if (existing >= 0) {
-    if (!confirm(`Det finns redan ett scenario som heter "${name}". Vill du ersätta det?`)) return;
+    if (!(await ask(`Det finns redan ett scenario som heter "${name}". Vill du ersätta det?`, 'Ersätt'))) return;
     scenarios[existing] = entry;
   } else {
     scenarios.push(entry);
@@ -1008,9 +1022,9 @@ async function loadScenario(index) {
   saveNow();
 }
 
-function removeScenario(index) {
+async function removeScenario(index) {
   const s = scenarios[index];
-  if (!confirm(`Ta bort scenariot "${s.name}"?`)) return;
+  if (!(await ask(`Ta bort scenariot "${s.name}"?`, 'Ta bort'))) return;
   scenarios.splice(index, 1);
   showNotice(`Tog bort scenariot "${s.name}".`);
   renderScenarios();
@@ -1027,7 +1041,7 @@ async function importJson(file) {
   try {
     const { current, scenarios: imported, invalid } = parseDocument(await file.text());
     const what = imported.length ? ` och ${imported.length} sparade scenarier` : '';
-    if (!confirm(`Ersätta det du har fyllt i nu med uppgifterna i filen${what}?`)) return;
+    if (!(await ask(`Ersätta det du har fyllt i nu med uppgifterna i filen${what}?`, 'Ersätt'))) return;
     scenarios = imported;
     await applyState(current);
     saveNow();
@@ -1120,7 +1134,7 @@ async function exportCsv() {
 }
 
 async function clearData() {
-  if (!confirm('Rensa allt du har fyllt i och alla sparade scenarier från den här webbläsaren?')) return;
+  if (!(await ask('Rensa allt du har fyllt i och alla sparade scenarier från den här webbläsaren?', 'Rensa'))) return;
   scenarios = [];
   clearStored();
   await applyState(defaultState());

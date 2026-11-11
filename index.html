@@ -390,6 +390,16 @@
 
   <div id="popover" class="popover" role="dialog" aria-modal="false" hidden></div>
 
+  <dialog id="confirmDialog" class="confirm-dialog" aria-labelledby="confirmMessage">
+    <form method="dialog">
+      <p id="confirmMessage"></p>
+      <div class="buttons">
+        <button type="submit" value="cancel" class="button" id="confirmCancel">Avbryt</button>
+        <button type="submit" value="ok" class="button primary" id="confirmOk">OK</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="https://cdn.amcharts.com/lib/version/5.21.5/index.js"></script>
   <script src="https://cdn.amcharts.com/lib/version/5.21.5/flow.js"></script>
   <script src="https://cdn.amcharts.com/lib/version/5.21.5/themes/Animated.js"></script>

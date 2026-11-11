@@ -60,12 +60,25 @@ async function step(name, fn) {
   console.log(`ok - ${name}`);
 }
 
+// The page asks in its own <dialog>; answer OK automatically unless a step turns it off.
+// The browser's own confirm() must not be used (some embedded browsers block it).
+const AUTO_ANSWER = () => {
+  window.autoAnswer = true;
+  const show = HTMLDialogElement.prototype.showModal;
+  HTMLDialogElement.prototype.showModal = function showModal() {
+    show.call(this);
+    if (window.autoAnswer) setTimeout(() => this.querySelector('#confirmOk')?.click());
+  };
+};
+const noNativeDialogs = (p) => p.on('dialog', (d) => { errors.push(`native dialog: ${d.message()}`); d.dismiss(); });
+
 const browser = await chromium.launch();
 try {
   const context = await browser.newContext({ acceptDownloads: true });
+  await context.addInitScript(AUTO_ANSWER);
   const page = await context.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
-  page.on('dialog', (d) => d.accept());
+  noNativeDialogs(page);
   await page.goto(URL_, { waitUntil: 'networkidle' });
 
   // Fill in a scenario, including church membership and a manual billable-hours value.
@@ -314,8 +327,19 @@ try {
     assert.equal(await page.locator('#structureMap g.edge[data-goto="utdelning-p2"]').count(), 0);
     assert.equal(await page.locator('#structureMap g.edge[data-goto="lon-p2"]').count(), 1);
     // Removing Anna gives the one-person result again.
+    // Asked in the page's own dialog: Avbryt keeps her, Ta bort removes her.
     await goto(page, 'person-p2');
+    await page.evaluate(() => { window.autoAnswer = false; });
     await page.click('#removePerson');
+    assert.ok(await page.isVisible('#confirmDialog'));
+    assert.match(await page.textContent('#confirmMessage'), /Ta bort Anna\?/);
+    await page.click('#confirmCancel');
+    await settle(page);
+    assert.ok(!(await page.isVisible('#confirmDialog')));
+    assert.equal(await page.locator('#structureMap g.node[data-goto="person-p2"]').count(), 1);
+    await page.click('#removePerson');
+    await page.click('#confirmOk');
+    await page.evaluate(() => { window.autoAnswer = true; });
     await settle(page);
     assert.equal(await page.locator('#structureMap g.node[data-goto="person-p2"]').count(), 0);
     assert.equal(await page.getAttribute('#netSumMonth', 'data-value'), before);
@@ -388,7 +412,8 @@ try {
   await step('scenario table does not widen the page on a phone', async () => {
     const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const p = await phone.newPage();
-    p.on('dialog', (d) => d.accept());
+    await p.addInitScript(AUTO_ANSWER);
+    noNativeDialogs(p);
     await p.goto(URL_, { waitUntil: 'networkidle' });
     await p.setInputFiles('#importFile', exported);
     await p.waitForTimeout(500);
