@@ -8,7 +8,7 @@ import { initQuick } from './quick.js';
 import { FIRST_YEAR, LAST_YEAR, UnsupportedYearError, getYearParams } from './params.js';
 import { grundavdragGroup } from './grundavdrag.js';
 import {
-  FIELDS, PERSON_FIELDS, defaultState, defaultPerson, makeDocument, parseDocument, isPristine, toEngineInputs, toCsv,
+  FIELDS, PERSON_FIELDS, defaultState, defaultPerson, makeDocument, parseDocument, isPristine, toEngineInputs, toCsv, autoOmkostnadsbelopp,
   revenueForState,
 } from './scenario.js';
 import { loadStored, saveStored, clearStored, loadPrefs, savePrefs, clearPrefs } from './storage.js';
@@ -194,7 +194,9 @@ function renderAssignmentCards() {
       <div class="row price-change"><label for="pcFrom-${id}-${k}">Nytt pris från</label>
         <span class="inline"><input type="date" id="pcFrom-${id}-${k}" data-a="${id}" data-pc="${k}" data-field="from" value="${esc(c.from)}">
         <input type="number" id="pcRate-${id}-${k}" data-a="${id}" data-pc="${k}" data-field="hourlyRate" value="${esc(c.hourlyRate)}" step="10" min="0" inputmode="numeric" aria-label="Nytt timpris">
-        <button type="button" class="icon-button" data-action="removePrice" data-a="${id}" data-pc="${k}" aria-label="Ta bort prisändringen">✕</button></span></div>`).join('');
+        <button type="button" class="icon-button" data-action="removePrice" data-a="${id}" data-pc="${k}" aria-label="Ta bort prisändringen">✕</button></span></div>
+      <div class="row price-change"><label for="pcVacation-${id}-${k}">Semesterdagar i den perioden</label>
+        <input type="number" id="pcVacation-${id}-${k}" data-a="${id}" data-pc="${k}" data-field="vacationDays" data-explain="vacationDays" value="${esc(c.vacationDays ?? '')}" min="0" step="any" inputmode="decimal"></div>`).join('');
     return `
       <section class="card part" data-part="uppdrag-${id}" aria-labelledby="h-uppdrag-${id}">
         <h2 id="h-uppdrag-${id}"><span data-a-title="${id}">${esc(assignmentName(a, i))}</span> <span class="badge source">Uppdrag</span></h2>
@@ -203,6 +205,7 @@ function renderAssignmentCards() {
         ${people.length > 1 ? `<div class="row"><label for="worker-${id}">Vem arbetar</label><select id="worker-${id}" data-a="${id}" data-field="person" data-explain="assignmentPerson">${people.map((p, k) => `<option value="${p.id}" data-person-option="${p.id}" ${p.id === a.person ? 'selected' : ''}>${esc(personName(p, k))}</option>`).join('')}</select></div>` : ''}
         ${field('hourlyRate', 'Timpris exkl. moms', 'number', a.hourlyRate, 'step="10" min="0" inputmode="numeric"')}
         ${field('startDate', 'Uppdrag start', 'date', a.startDate)}
+        ${field('vacationDays', a.priceChanges.length ? 'Semesterdagar, första perioden' : 'Semesterdagar', 'number', a.vacationDays ?? '', 'min="0" step="any" inputmode="decimal"')}
         ${prices}
         <div class="row-actions"><button type="button" class="link-button" data-action="addPrice" data-a="${id}">+ Prisändring under uppdraget</button></div>
         ${field('endDate', 'Uppdrag slut', 'date', a.endDate)}
@@ -240,6 +243,12 @@ function updateAssignmentOutputs() {
     setOutput(`fromAssignment-${id}`, r.computedAmount);
     setOutput(`used-${id}`, r.amount);
     $(`billableHours-${id}`).placeholder = `${r.computedHours} (beräknat)`;
+    const calculated = (source) => {
+      const seg = r.segments.find((s) => s.source === source);
+      return seg ? `${seg.calculatedVacation.toLocaleString('sv-SE', { maximumFractionDigits: 1 })} (beräknat)` : '';
+    };
+    $(`vacationDays-${id}`).placeholder = calculated(null);
+    assignments[i].priceChanges.forEach((c, k) => { $(`pcVacation-${id}-${k}`).placeholder = calculated(c); });
     for (const t of document.querySelectorAll(`[data-a-title="${id}"]`)) t.textContent = assignmentName(assignments[i], i);
   });
 }
@@ -299,7 +308,7 @@ assignmentParts.addEventListener('click', async (e) => {
   const action = b.dataset.action;
   if (action === 'addPrice') {
     const last = a.priceChanges.at(-1);
-    a.priceChanges.push({ from: priceChangeDate(a), hourlyRate: (last?.hourlyRate ?? a.hourlyRate ?? 0) + 50 });
+    a.priceChanges.push({ from: priceChangeDate(a), hourlyRate: (last?.hourlyRate ?? a.hourlyRate ?? 0) + 50, vacationDays: null });
   } else if (action === 'removePrice') {
     a.priceChanges.splice(Number(b.dataset.pc), 1);
   } else if (action === 'toggleManual') {
@@ -364,6 +373,7 @@ function writePersonToForm(p) {
   kommunSelector.value = p.kommun;
   if (kommunSelector.selectedIndex < 0) kommunSelector.selectedIndex = 0;
   $('grossSalaryMonth').disabled = p.useMaxGrossSalary;
+  $('omkostnadsbelopp').disabled = p.omkostnadsbeloppAuto;
   $('forsamling').hidden = !p.churchMember;
   forsamlingRequest++;
   forsamlingSelector.innerHTML = '';
@@ -412,7 +422,6 @@ function syncPersonCards() {
   $('ownershipBadge').textContent = `Ägande ${(Number($('ownership').value) || 0).toLocaleString('sv-SE')} %`;
 }
 
-// Ägare on the company card: everyone's share in one place, the total and other owners.
 // Everyone's ownership in % as typed (an empty field counts as 0), and the total.
 function ownershipShares() {
   const shares = people.map((p) => {
@@ -423,39 +432,13 @@ function ownershipShares() {
   return shares;
 }
 
+// Company card: owners outside the calculation (when the shares add up to less than 100 %).
 function renderOwners(co, shares) {
   const others = shares.total < 100 - 1e-7 && shares.total > 1e-7 && shares.every((v) => v >= 0 && v <= 100) ? 100 - shares.total : 0;
-  const show = people.length > 1 || others > 0;
-  $('ownersTable').hidden = !show;
-  if (!show) return;
-  const box = $('ownerInputs');
-  const ids = people.map((p) => p.id).join(',');
-  if (box.dataset.ids !== ids) {
-    box.dataset.ids = ids;
-    box.innerHTML = people.map((p) => `<div class="row"><span class="owner-name"><button type="button" class="link-button" data-goto="person-${p.id}" data-owner-name="${p.id}"></button></span>
-      <input type="number" data-owner="${p.id}" min="0" max="100" step="any" inputmode="decimal"></div>`).join('');
-  }
-  people.forEach((p, i) => {
-    const name = personName(p.id === selectedPersonId ? { ...p, name: $('personName').value } : p, i);
-    box.querySelector(`[data-owner-name="${p.id}"]`).textContent = name;
-    const input = box.querySelector(`[data-owner="${p.id}"]`);
-    input.setAttribute('aria-label', `Ägarandel för ${name} (%)`);
-    const value = p.id === selectedPersonId ? $('ownership').value : (p.ownership ?? '');
-    if (input !== document.activeElement && input.value !== String(value)) input.value = value;
-  });
-  setOutput('ownershipTotal', shares.total, 2);
   $('otherOwnersRows').hidden = !(others > 0);
   setOutput('otherOwnersShare', others, 2);
   setOutput('otherOwnersDividends', co?.otherOwnersDividends, 0);
 }
-$('ownerInputs').addEventListener('input', (e) => {
-  const id = e.target.dataset.owner;
-  if (!id) return;
-  const value = e.target.value === '' || isNaN(Number(e.target.value)) ? null : Number(e.target.value);
-  if (id === selectedPersonId) $('ownership').value = e.target.value;
-  else people.find((p) => p.id === id).ownership = value;
-  updateAll();
-});
 
 function nextPersonId() {
   for (let n = 1; ; n++) if (!people.some((p) => p.id === `p${n}`)) return `p${n}`;
@@ -569,6 +552,9 @@ function writeFields(r) {
   $('grossDividends').value = format(co?.grossDividends, 0);
   if ($('useMaxGrossSalary').checked) $('grossSalaryMonth').value = format(r?.grossSalaryMonth, 0);
   $('grossDividends').max = format(co?.dividendCap, 0);
+  // Automatic omkostnadsbelopp follows the typed ownership, even before it is valid.
+  $('omkostnadsbelopp').disabled = $('omkostnadsbeloppAuto').checked;
+  if ($('omkostnadsbeloppAuto').checked) $('omkostnadsbelopp').value = autoOmkostnadsbelopp($('ownership').value);
 
   // Several owners: this owner's share, the company's cap and who sets it.
   const severalOwners = owners().length > 1;
@@ -583,8 +569,8 @@ function writeFields(r) {
   const pct = (v) => `${v.toLocaleString('sv-SE', { maximumFractionDigits: 2 })} %`;
   const bad = people.findIndex((p, i) => shares[i] < 0 || shares[i] > 100);
   const warning = bad >= 0 ? `Ägarandelen för ${personName({ ...people[bad], name: people[bad].id === selectedPersonId ? $('personName').value : people[bad].name }, bad)} är ${pct(shares[bad])}. Den måste vara mellan 0 och 100 %.`
-    : shares.total > 100 + 1e-7 ? `Ägarandelarna är tillsammans ${pct(shares.total)}. De får inte bli mer än 100 % för att utdelningen ska kunna räknas.`
-      : shares.total < 1e-7 ? 'Ingen i kalkylen äger aktier i bolaget, så ingen utdelning räknas. Ange ägarandelar under Ägare.'
+    : shares.total > 100 + 1e-7 ? `Ägarandelarna är ${pct(shares.total)}.`
+      : shares.total < 1e-7 ? 'Ingen i kalkylen äger aktier i bolaget, så ingen utdelning räknas. Ange ägarandel på personens kort.'
         : '';
   for (const el of document.querySelectorAll('.ownership-warning')) {
     el.hidden = !warning;
@@ -633,6 +619,7 @@ async function updateAll() {
   currentResult = calc?.result ?? null;
   const view = viewFor(currentResult, selectedIndex());
   writeFields(view);
+  $('vacationTotal').textContent = `${(lastRevenue.vacationByPerson[selectedPersonId] ?? 0).toLocaleString('sv-SE', { maximumFractionDigits: 1 })} dagar`;
   updateCharts(calc?.inputs, view);
   updateSankeyChartData(sankeyData(currentResult));
   renderStructure();
@@ -640,10 +627,11 @@ async function updateAll() {
   scheduleSave();
 }
 
-for (const id of ['vacationDays', 'yearBorn', 'grossSalaryMonth', 'salaryMonths', 'otherRevenue', 'otherCosts',
+for (const id of ['yearBorn', 'grossSalaryMonth', 'salaryMonths', 'otherRevenue', 'otherCosts',
   'grossDividends', 'savedDividends', 'omkostnadsbelopp']) {
   $(id).addEventListener('input', updateAll);
 }
+$('omkostnadsbeloppAuto').addEventListener('change', updateAll);
 // Pension: % of salary or a fixed amount; the inputs follow the on/off setting.
 function syncPensionInputs() {
   const on = $('usePension').checked;
@@ -1434,12 +1422,11 @@ const quick = initQuick({
       Object.assign(p, { yearBorn: v.yearBorn, kommun: v.kommun, grossSalaryMonth: Math.round(v.income / 12), salaryMonths: 12, useSemesterersattning: false, useMaxGrossSalary: false, employed: true });
     }
     if (kind === 'faktura') {
-      p.vacationDays = v.vacationDays;
-      state.assignments = [{ ...defaultAssignment('a1', 2026, p.id), hourlyRate: v.hourlyRate, startDate: v.billingStartDate, endDate: v.billingEndDate, workingRate: v.workingRate }];
+      state.assignments = [{ ...defaultAssignment('a1', 2026, p.id), vacationDays: Number.isFinite(v.vacationDays) ? v.vacationDays : null, hourlyRate: v.hourlyRate, startDate: v.billingStartDate, endDate: v.billingEndDate, workingRate: v.workingRate }];
     }
     if (kind === 'grans') {
       state.year = v.year;
-      Object.assign(p, { omkostnadsbelopp: v.omkostnadsbelopp, savedDividends: v.savedDividends });
+      Object.assign(p, { omkostnadsbeloppAuto: false, omkostnadsbelopp: v.omkostnadsbelopp, savedDividends: v.savedDividends });
     }
     if (kind === 'kostnad') Object.assign(p, { grossSalaryMonth: v.grossSalaryMonth, usePension: v.usePension, pensionPercent: 4.7, useMaxGrossSalary: false, employed: true });
     for (const obj of [state, p]) {

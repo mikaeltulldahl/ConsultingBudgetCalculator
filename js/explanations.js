@@ -29,10 +29,9 @@ export const EXPLANATIONS = {
     formula: 'Väljs av dig.',
   },
   ownership: {
-    what: 'Hur stor del av aktierna personen äger. Utdelning betalas per aktie. 0 % betyder att personen bara är anställd. Är summan för alla personer under 100 % ägs resten av övriga ägare som inte ingår i kalkylen; summan får inte bli mer än 100 %. Alla andelar kan fyllas i samtidigt under Ägare på bolagets kort.',
+    what: 'Hur stor del av aktierna personen äger. Utdelning betalas per aktie. 0 % betyder att personen bara är anställd. Är summan för alla personer under 100 % ägs resten av övriga ägare som inte ingår i kalkylen; summan får inte bli mer än 100 %.',
     formula: 'Anges av dig.',
   },
-  ownershipTotal: { what: 'Summan av ägarandelarna för personerna i kalkylen. Den får vara högst 100 %.', formula: 'Summan av allas ägarandel.' },
   otherOwnersShare: {
     what: 'Aktier som ägs av någon som inte är med i kalkylen. De får utdelning per aktie som alla andra, men deras gränsbelopp och skatt räknas inte, och deras gränsbelopp begränsar inte utdelningen här.',
     formula: '100 % − summan av ägarandelarna.',
@@ -54,8 +53,12 @@ export const EXPLANATIONS = {
     formula: 'Anges av dig.',
   },
   vacationDays: {
-    what: 'Arbetsdagar du är ledig och inte fakturerar, för hela året. Fördelas över alla uppdrag och används också för semesterersättningen.',
-    formula: 'Anges av dig.',
+    what: 'Arbetsdagar som är lediga och inte faktureras i den här perioden av uppdraget. Lämna tomt så fördelas personens 25 semesterdagar på de perioder där inget är ifyllt, efter antal arbetsdagar. Dagarna räknas också in i semesterersättningen under Lön.',
+    formula: 'Anges av dig, eller beräknas: (25 − ifyllda dagar) × periodens arbetsdagar / arbetsdagar i alla perioder utan ifyllt värde.',
+  },
+  vacationTotal: {
+    what: 'Personens semesterdagar, summan av dagarna i alla perioder i personens uppdrag. Dagarna ger semesterersättning om du tar ut den. Ändras under Uppdrag.',
+    formula: 'Summan av semesterdagarna i uppdragens perioder.',
   },
   billableHours: {
     what: 'Antal timmar du kan fakturera under perioden.',
@@ -235,8 +238,8 @@ export const EXPLANATIONS = {
     source: ['Inkomstskattelagen 65 kap.', `${IL}#K65`],
   },
   omkostnadsbelopp: {
-    what: 'Vad du betalat för aktierna, normalt aktiekapitalet (minst 25 000 kr).',
-    formula: 'Anges av dig.',
+    what: 'Vad personen betalat för sina aktier, normalt sin del av aktiekapitalet (minst 25 000 kr för hela bolaget).',
+    formula: 'Automatiskt: 25 000 kr × ägarandel. Avmarkera för att ange eget belopp, till exempel om aktierna köpts eller ett aktieägartillskott betalats.',
   },
   omkostnadsbeloppInterest: {
     what: 'Ränta på omkostnadsbeloppet som ökar utdelningsutrymmet.',

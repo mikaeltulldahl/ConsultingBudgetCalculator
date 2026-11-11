@@ -25,7 +25,7 @@ const server = createServer(async (req, res) => {
 await new Promise((r) => server.listen(0, r));
 const URL_ = `http://localhost:${server.address().port}/`;
 
-const FIELDS = ['year', 'hourlyRate-a1', 'startDate-a1', 'endDate-a1', 'workingRate-a1', 'vacationDays',
+const FIELDS = ['year', 'hourlyRate-a1', 'startDate-a1', 'endDate-a1', 'workingRate-a1', 'vacationDays-a1',
   'billableHours-a1', 'used-a1', 'otherRevenue', 'yearBorn', 'kommunSelector', 'churchMember',
   'forsamlingSelector', 'kommunalSkattPercent', 'churchSkattPercent', 'grossSalaryMonth', 'salaryMonths',
   'useSemesterersattning', 'usePension', 'otherCosts', 'omkostnadsbelopp', 'savedDividends', 'maxDividend',
@@ -303,16 +303,14 @@ try {
     await page.dispatchEvent('#grossSalaryMonth', 'input');
     await settle(page);
     assert.match(await page.textContent('#structureMap'), /Anna/);
-    // 100 % + 50 % is too much: warning and no dividend until fixed under Ägare.
+    // 100 % + 50 % is too much: warning and no dividend until fixed on the person card.
     await goto(page, 'bolag');
     assert.match(await page.textContent('.part[data-part="bolag"] .ownership-warning'), /150 %/);
     assert.equal(await page.getAttribute('#companyDividend', 'data-value'), '', 'no dividend above 100 %');
-    assert.ok(await page.isVisible('#ownersTable'));
-    await page.fill('#ownerInputs input[data-owner="p1"]', '50');
-    await settle(page);
-    assert.equal(await page.getAttribute('#ownershipTotal', 'data-value'), '100.00');
-    assert.ok(!(await page.isVisible('.ownership-warning >> visible=true').catch(() => false)));
     await goto(page, 'person-p1');
+    await page.fill('#ownership', '50');
+    await settle(page);
+    assert.ok(!(await page.isVisible('.ownership-warning >> visible=true').catch(() => false)));
     assert.equal(await page.inputValue('#ownership'), '50');
     await dividendCard('p1');
     await settle(page);

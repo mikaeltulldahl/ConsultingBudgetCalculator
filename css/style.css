@@ -222,8 +222,6 @@ h1, h2, h3 { line-height: 1.25; }
 .row input:disabled, .row select:disabled { background: var(--surface-2); color: var(--muted); }
 .row input[type="checkbox"] { width: 18px; height: 18px; justify-self: end; }
 .row output { font-variant-numeric: tabular-nums; text-align: right; }
-.owner-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.owner-name .link-button { text-align: left; overflow-wrap: anywhere; }
 .row-actions { padding: 2px 0 6px; font-size: 13px; text-align: right; }
 .inline { display: flex; gap: 6px; }
 .inline input { width: 160px; }

@@ -96,14 +96,9 @@
             <div class="row"><label for="profitBeforeTax">Resultat före skatt</label><output id="profitBeforeTax" data-unit="kr"></output></div>
             <div class="row"><label for="profitAfterTax">Resultat efter skatt</label><output id="profitAfterTax" data-unit="kr"></output></div>
             <div class="row"><label for="companyDividend"><span data-many="Utdelning till ägarna">Utdelning till dig</span> <button type="button" class="from" data-goto="utdelning">se Utdelning</button></label><output id="companyDividend" data-mirror="co.grossDividends" data-unit="kr"></output></div>
-            <div id="ownersTable" hidden>
-              <div class="group-title">Ägare</div>
-              <div id="ownerInputs"></div>
-              <div class="row"><label for="ownershipTotal">Summa</label><output id="ownershipTotal" data-unit="%"></output></div>
-              <div id="otherOwnersRows" hidden>
-                <div class="row"><label for="otherOwnersShare">Övriga ägare (ingår inte i kalkylen)</label><output id="otherOwnersShare" data-unit="%"></output></div>
-                <div class="row"><label for="otherOwnersDividends">Utdelning till övriga ägare</label><output id="otherOwnersDividends" data-unit="kr"></output></div>
-              </div>
+            <div id="otherOwnersRows" hidden>
+              <div class="row"><label for="otherOwnersShare">Övriga ägare (ingår inte i kalkylen)</label><output id="otherOwnersShare" data-unit="%"></output></div>
+              <div class="row"><label for="otherOwnersDividends">Utdelning till övriga ägare</label><output id="otherOwnersDividends" data-unit="kr"></output></div>
             </div>
             <p class="status ownership-warning" hidden></p>
             <div class="result"><label for="profitAfterDividends">→ Kvar i bolaget efter utdelning</label><output id="profitAfterDividends" data-unit="kr"></output></div>
@@ -116,8 +111,8 @@
             <div class="row"><label for="useMaxGrossSalary">Lön upp till brytpunkt för statlig skatt</label><input type="checkbox" id="useMaxGrossSalary"></div>
             <div class="row"><label for="grossSalaryMonth">Månadslön brutto</label><input type="number" step="1000" id="grossSalaryMonth" min="0" value="55000" inputmode="numeric"></div>
             <div class="row"><label for="salaryMonths">Månader med lön</label><input type="number" id="salaryMonths" min="0" max="12" value="12" inputmode="numeric"></div>
-            <div class="row"><label for="vacationDays">Semesterdagar</label><input type="number" id="vacationDays" min="0" value="25" inputmode="numeric"></div>
-            <div class="row"><label for="useSemesterersattning">Ta ut semesterersättning</label><input type="checkbox" id="useSemesterersattning" checked></div>
+            <div class="row"><label for="vacationTotal">Semesterdagar <button type="button" class="from" data-goto="uppdrag">från Uppdrag</button></label><output id="vacationTotal"></output></div>
+            <div class="row"><label for="useSemesterersattning">Ta ut semesterersättning för dem</label><input type="checkbox" id="useSemesterersattning" checked></div>
             <details class="details">
               <summary>Detaljer</summary>
               <div class="row"><label for="grossSemesterersattning">Semesterersättning brutto</label><output id="grossSemesterersattning" data-unit="kr"></output></div>
@@ -155,6 +150,7 @@
             <div class="row"><label for="grossDividends"><span data-many="Utdelning från bolaget totalt">Årsutdelning brutto</span></label><input type="number" id="grossDividends" step="10000" value="0" min="0" disabled inputmode="numeric"></div>
             <details class="details">
               <summary>Detaljer</summary>
+              <div class="row"><label for="omkostnadsbeloppAuto">Omkostnadsbelopp: aktiekapital 25 000 kr × ägarandel</label><input type="checkbox" id="omkostnadsbeloppAuto" checked></div>
               <div class="row"><label for="omkostnadsbelopp">Omkostnadsbelopp</label><input type="number" step="25000" id="omkostnadsbelopp" value="25000" min="0" inputmode="numeric"></div>
               <div class="row"><label for="savedDividends">Sparat utdelningsutrymme från tidigare</label><input type="number" id="savedDividends" step="10000" value="0" min="0" inputmode="numeric"></div>
               <div class="row"><label for="omkostnadsbeloppInterest">Ränta på omkostnadsbelopp</label><output id="omkostnadsbeloppInterest" data-unit="kr"></output></div>

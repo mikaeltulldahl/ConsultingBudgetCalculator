@@ -43,12 +43,12 @@ export const PERSON_FIELDS = [
   { id: 'useMaxGrossSalary', type: 'boolean', default: false },
   { id: 'grossSalaryMonth', type: 'number', default: 55000 },
   { id: 'salaryMonths', type: 'number', default: 12 },
-  { id: 'vacationDays', type: 'number', default: 25 },
   { id: 'useSemesterersattning', type: 'boolean', default: true },
   { id: 'usePension', type: 'boolean', default: true },
   { id: 'pensionPercent', type: 'number', default: 4.7 },
   { id: 'pensionMode', type: 'text', default: 'percent' },
   { id: 'pensionAmount', type: 'number', default: 0 },
+  { id: 'omkostnadsbeloppAuto', type: 'boolean', default: true }, // omkostnadsbelopp = aktiekapital × ägarandel
   { id: 'omkostnadsbelopp', type: 'number', default: 25000 },
   { id: 'savedDividends', type: 'number', default: 0 },
   { id: 'otherEmployer', type: 'text', default: '' },
@@ -56,6 +56,11 @@ export const PERSON_FIELDS = [
 ];
 
 const ID = /^[a-z0-9]{1,12}$/;
+
+// Minimum share capital of an aktiebolag. Omkostnadsbelopp defaults to this times the
+// person's share, so it is right however the shares are divided.
+export const SHARE_CAPITAL = 25000;
+export const autoOmkostnadsbelopp = (ownershipPercent) => SHARE_CAPITAL * (Number(ownershipPercent) || 0) / 100;
 
 export function defaultPerson(id = 'p1') {
   return { id, ...Object.fromEntries(PERSON_FIELDS.map((f) => [f.id, f.default])) };
@@ -77,7 +82,7 @@ function validValue(type, v) {
 
 const ASSIGNMENT_FIELDS = [
   ['name', 'text'], ['hourlyRate', 'number'], ['startDate', 'date'], ['endDate', 'date'],
-  ['workingRate', 'number'], ['billableHours', 'number'], ['manualAmount', 'number'], ['person', 'text'],
+  ['workingRate', 'number'], ['billableHours', 'number'], ['manualAmount', 'number'], ['vacationDays', 'number'], ['person', 'text'],
 ];
 
 // Returns { assignment, invalid }.
@@ -93,7 +98,9 @@ function validateAssignment(obj, id) {
   if (Array.isArray(obj.priceChanges)) {
     for (const c of obj.priceChanges.slice(0, MAX_PRICE_CHANGES)) {
       if (validValue('date', c?.from) && typeof c?.hourlyRate === 'number' && Number.isFinite(c.hourlyRate)) {
-        a.priceChanges.push({ from: c.from, hourlyRate: c.hourlyRate });
+        const vacationDays = validValue('number', c.vacationDays) ? c.vacationDays : null;
+        if (c.vacationDays !== undefined && vacationDays === null && c.vacationDays !== null) invalid++;
+        a.priceChanges.push({ from: c.from, hourlyRate: c.hourlyRate, vacationDays });
       } else {
         invalid++;
       }
@@ -224,12 +231,9 @@ export function parseDocument(input) {
   return { current: current.state, scenarios, invalid };
 }
 
-// Billable hours and invoiced amount for the state's assignments (each person's vacation
-// spread over the assignments that person works on).
+// Billable hours, invoiced amount and vacation days for the state's assignments.
 export function revenueForState(state) {
-  const num = (v) => (v === null || v === undefined ? NaN : v);
-  const vacation = (id) => num((state.people.find((p) => p.id === id) ?? state.people[0])?.vacationDays);
-  return assignmentRevenueByPerson(state.assignments ?? [], vacation);
+  return assignmentRevenueByPerson(state.assignments ?? []);
 }
 
 // True if the state is what a first-time visitor sees (nothing worth remembering).
@@ -247,7 +251,7 @@ export function isPristine(state) {
   if (state.people[0].id !== 'p1' || state.assignments?.length !== 1) return false;
   const a = state.assignments[0];
   const def = d.assignments[0];
-  for (const key of ['id', 'name', 'hourlyRate', 'startDate', 'endDate', 'workingRate', 'manualAmount']) {
+  for (const key of ['id', 'name', 'hourlyRate', 'startDate', 'endDate', 'workingRate', 'manualAmount', 'vacationDays']) {
     if (a[key] !== def[key]) return false;
   }
   if (a.priceChanges.length) return false;
@@ -259,10 +263,11 @@ export function isPristine(state) {
 export function toEngineInputs(state, kommunRates) {
   const num = (v) => (v === null || v === undefined ? NaN : v);
   const yearRates = kommunRates[state.year] ?? kommunRates[LAST_YEAR] ?? {};
+  const revenue = revenueForState(state);
   return {
     year: num(state.year),
     company: {
-      invoicedAmount: revenueForState(state).total,
+      invoicedAmount: revenue.total,
       otherRevenue: num(state.otherRevenue),
       otherCosts: num(state.otherCosts),
       maxDividend: state.maxDividend,
@@ -283,14 +288,14 @@ export function toEngineInputs(state, kommunRates) {
         grossSalaryMonth: num(p.grossSalaryMonth),
         salaryMonths: num(p.salaryMonths),
         useSemesterersattning: p.useSemesterersattning,
-        vacationDays: num(p.vacationDays),
+        vacationDays: revenue.vacationByPerson[p.id] ?? 0,
         usePension: p.usePension,
         pensionPercent: num(p.pensionPercent),
         pensionMode: p.pensionMode,
         pensionAmount: num(p.pensionAmount),
         otherSalaryYear: num(p.otherSalaryYear),
         savedDividends: num(p.savedDividends),
-        omkostnadsbelopp: num(p.omkostnadsbelopp),
+        omkostnadsbelopp: p.omkostnadsbeloppAuto ? autoOmkostnadsbelopp(p.ownership) : num(p.omkostnadsbelopp),
       };
     }),
   };

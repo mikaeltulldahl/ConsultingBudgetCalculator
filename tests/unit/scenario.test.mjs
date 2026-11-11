@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   defaultState, validateState, makeDocument, parseDocument, ScenarioFormatError,
-  toEngineInputs, toCsv, isPristine, APP_ID, defaultPerson,
+  toEngineInputs, toCsv, isPristine, APP_ID, defaultPerson, autoOmkostnadsbelopp, revenueForState,
 } from '../../js/scenario.js';
 import { calculate, calculateCompany } from '../../js/engine.js';
 import { defaultAssignment } from '../../js/assignments.js';
@@ -21,7 +21,7 @@ const withPerson = (state, extra) => ({ ...state, people: [{ ...state.people[0],
 
 test('document round trip keeps state and scenarios', () => {
   const two = { ...sample, people: [{ ...sample.people[0], ownership: 60 }, { ...defaultPerson('p2'), name: 'Anna', ownership: 40, employed: false, yearBorn: 1990, kommun: 'SOLNA' }] };
-  const scenarios = [{ name: 'Två', savedAt: null, state: two }, { name: '850 kr/h', savedAt: '2026-11-10T10:00:00.000Z', state: { ...sample, assignments: [{ ...defaultAssignment(), hourlyRate: 850, name: 'Kund A', priceChanges: [{ from: '2026-04-01', hourlyRate: 900 }] }, { ...defaultAssignment('a2', 2026, 'p1'), startDate: '2026-07-01' }] } }];
+  const scenarios = [{ name: 'Två', savedAt: null, state: two }, { name: '850 kr/h', savedAt: '2026-11-10T10:00:00.000Z', state: { ...sample, assignments: [{ ...defaultAssignment(), hourlyRate: 850, name: 'Kund A', priceChanges: [{ from: '2026-04-01', hourlyRate: 900, vacationDays: 3 }] }, { ...defaultAssignment('a2', 2026, 'p1'), startDate: '2026-07-01' }] } }];
   const json = JSON.stringify(makeDocument(sample, scenarios));
   const parsed = parseDocument(json);
   assert.deepEqual(parsed.current, sample);
@@ -78,13 +78,28 @@ test('toEngineInputs uses the stored kyrkoavgift and computes hours from dates w
   assert.equal(inputs.company.invoicedAmount, 700 * Math.round((251 - 25) * 8));
 });
 
-test('each person\'s vacation is spread over their own assignments', () => {
+test("vacation applies to each person's own assignments", () => {
   const state = {
     ...sample,
-    people: [{ ...sample.people[0], vacationDays: 25 }, { ...defaultPerson('p2'), vacationDays: 0, ownership: 0 }],
-    assignments: [defaultAssignment('a1', 2026, 'p1'), defaultAssignment('a2', 2026, 'p2')],
+    people: [sample.people[0], { ...defaultPerson('p2'), ownership: 0 }],
+    assignments: [defaultAssignment('a1', 2026, 'p1'), { ...defaultAssignment('a2', 2026, 'p2'), vacationDays: 0 }],
   };
-  assert.equal(toEngineInputs(state, kommunRates).company.invoicedAmount, 700 * Math.round((251 - 25) * 8) + 700 * 251 * 8);
+  const inputs = toEngineInputs(state, kommunRates);
+  assert.equal(inputs.company.invoicedAmount, 700 * Math.round((251 - 25) * 8) + 700 * 251 * 8);
+  assert.deepEqual(inputs.people.map((p) => p.vacationDays), [25, 0]);
+});
+
+test('vacation days per period: entered days are used, the rest is shared by the other periods', () => {
+  const a = { ...defaultAssignment(), hourlyRate: 800, vacationDays: 5, priceChanges: [{ from: '2026-07-01', hourlyRate: 1000, vacationDays: null }] };
+  const state = { ...sample, assignments: [a] };
+  const r = revenueForState(state);
+  assert.equal(r.vacationByPerson.p1, 25);
+  const [first, second] = r.assignments[0].segments;
+  assert.equal(first.vacationDays, 5);
+  assert.ok(Math.abs(second.vacationDays - 20) < 1e-9);
+  // Entering the days in both periods gives their sum, also to the salary calculation.
+  a.priceChanges[0].vacationDays = 30;
+  assert.equal(toEngineInputs(state, kommunRates).people[0].vacationDays, 35);
 });
 
 test('empty fields become NaN, unknown kommun gives no rates', () => {
@@ -130,7 +145,6 @@ test('version 1 files (one assignment as separate fields) are converted', () => 
   assert.equal(invalid, 0);
   assert.deepEqual(current.assignments, [{ ...defaultAssignment(), hourlyRate: 850, startDate: '2026-02-01', endDate: '2026-11-30',
     workingRate: 80, billableHours: 1200, manualAmount: 1000000 }]);
-  assert.equal(current.people[0].vacationDays, 20);
   assert.equal(scenarios[0].state.assignments[0].hourlyRate, 700);
   assert.ok(!('hourlyRate' in current));
   // A version 1 file gives the same invoiced amount as before.
@@ -149,7 +163,7 @@ test('version 2 files (one person at the top level) become person 1 with all the
   const { current, invalid } = parseDocument(v2);
   assert.equal(invalid, 0);
   assert.deepEqual(current.people, [{ ...defaultPerson(), yearBorn: 1985, kommun: 'STOCKHOLM', churchMember: true, forsamling: 'X',
-    kyrkoavgift: 1.1, grossSalaryMonth: 60000, vacationDays: 30, otherEmployer: 'Kund C', otherSalaryYear: 100000,
+    kyrkoavgift: 1.1, grossSalaryMonth: 60000, otherEmployer: 'Kund C', otherSalaryYear: 100000,
     omkostnadsbelopp: 50000, pensionMode: 'amount', pensionAmount: 50000 }]);
   assert.equal(current.year, 2025);
   assert.equal(current.otherCosts, 5000);
@@ -171,3 +185,13 @@ test('assignment and person ids are kept unique', () => {
   assert.deepEqual(state.people.map((p) => p.id), ['p1', 'p2']);
 });
 
+
+test('omkostnadsbelopp follows the ownership until a value is entered', () => {
+  assert.equal(autoOmkostnadsbelopp(100), 25000);
+  assert.equal(autoOmkostnadsbelopp(40), 10000);
+  const state = defaultState();
+  state.people = [{ ...defaultPerson('p1'), ownership: 60 }, { ...defaultPerson('p2'), ownership: 40, omkostnadsbelopp: 99, omkostnadsbeloppAuto: false }];
+  const [a, b] = toEngineInputs(state, fixtureData).people;
+  assert.equal(a.omkostnadsbelopp, 15000);
+  assert.equal(b.omkostnadsbelopp, 99);
+});
