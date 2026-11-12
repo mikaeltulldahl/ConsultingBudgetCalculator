@@ -249,7 +249,7 @@ export const EXPLANATIONS = {
   },
   salaryBasedLimit: {
     what: 'Utdelningsutrymme som beror på lönerna i bolaget (lönebaserat utrymme).',
-    formula: 'Till och med 2025: din andel av 50 % av lönesumman, om du äger minst 4 % och löneuttagskravet är uppfyllt. Från 2026: 50 % av din andel av lönesumman över 8 inkomstbasbelopp, men högst 50 gånger lönen (din eller din makes). Makar i samma bolag räknar utrymmet gemensamt med ett avdrag på 8 inkomstbasbelopp och delar det per aktie. Lönesumman är föregående års löner; kalkylatorn använder årets.',
+    formula: 'Till och med 2025: din andel av 50 % av lönesumman, om du äger minst 4 % och löneuttagskravet är uppfyllt. Från 2026: (din ägarandel × lönesumman − 8 inkomstbasbelopp) × 50 %. Avdraget på 8 inkomstbasbelopp görs i sin helhet för varje ägare, det delas inte upp efter andel. Högst 50 gånger lönen (din eller din makes). Makar i samma bolag räknar utrymmet gemensamt med ett avdrag på 8 inkomstbasbelopp och delar det per aktie. Lönesumman är föregående års löner; kalkylatorn använder årets.',
     source: ['Inkomstskattelagen 57 kap. 16 §', `${IL}#K57P16`],
   },
   dividendsLimitForenklingsregeln: {
