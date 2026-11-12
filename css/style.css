@@ -278,6 +278,7 @@ h1, h2, h3 { line-height: 1.25; }
 .map .node.person rect { fill: var(--person-soft); stroke: var(--person); }
 .map .node.other rect { fill: var(--surface-2); stroke: var(--muted); stroke-dasharray: 4 4; }
 .map .node.bolag rect { fill: var(--bolag-soft); stroke: var(--bolag); }
+.map .node.holding rect { fill: var(--bolag-soft); stroke: var(--bolag); stroke-dasharray: 5 3; }
 .map .node.source rect { fill: var(--source-soft); stroke: var(--source); }
 .map .node.selected rect { stroke-width: 3.5; }
 .map .edge path { fill: none; stroke: var(--edge); stroke-width: 2; }
@@ -313,6 +314,7 @@ h1, h2, h3 { line-height: 1.25; }
 .flow-list .t-person { border-left: 5px solid var(--person); }
 .flow-list .t-person.other { border-left-color: var(--muted); border-style: dashed; }
 .flow-list .t-bolag { border-left: 5px solid var(--bolag); }
+.flow-list .t-holding { border-left: 5px dashed var(--bolag); }
 .flow-list .t-source { border-left: 5px solid var(--source); }
 .flow-list .t-edge { border-style: dashed; margin-left: 18px; font-size: 14px; }
 .flow-list .t-edge::before { content: "↓ "; color: var(--muted); }

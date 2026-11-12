@@ -1338,6 +1338,8 @@ function renderStructure() {
         grossSalaryYear: r.grossSalaryYear,
         pension: r.pension,
         grossDividends: r.grossDividends,
+        dividendReceived: r.dividendReceived,
+        keptInHolding: r.keptInHolding,
         netSumMonth: r.netSumMonth,
         otherEmployer: personOtherEmployer(p),
         otherSalaryYear: p.otherSalaryYear || 0,

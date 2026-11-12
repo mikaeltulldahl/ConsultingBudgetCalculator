@@ -11,8 +11,8 @@ const fmt = (v) => (Number.isFinite(v) ? Math.round(v).toLocaleString('sv-SE') :
 const fmtShare = (v) => (Number.isFinite(v) ? v.toLocaleString('sv-SE', { maximumFractionDigits: 2 }) : '–');
 
 // v.assignments: [{ id, name, rates: [hourly rates], amount, manual }]
-// v.people: [{ id, name, employed, owner, ownership, grossSalaryYear, pension, grossDividends,
-//              netSumMonth, otherEmployer (or null), otherSalaryYear }]
+// v.people: [{ id, name, employed, owner, ownership, viaHolding, grossSalaryYear, pension, grossDividends,
+//              dividendReceived, keptInHolding, netSumMonth, otherEmployer (or null), otherSalaryYear }]
 // v.otherOwners: { share (%), grossDividends } for owners not in the calculation, or null
 export function buildStructure(v) {
   const n = v.assignments.length;
@@ -24,6 +24,9 @@ export function buildStructure(v) {
   const peopleTop = (rows - rightRows) / 2;
   const middle = (rows - 1) / 2; // the company sits in the middle
   const several = v.people.length > 1 || Boolean(v.otherOwners);
+  // Owners with a holding company get a box between the company and themselves.
+  const holdings = v.people.filter((p) => p.owner && p.viaHolding);
+  const personCol = holdings.length ? 3 : 2;
   const rateText = (rates) => {
     if (!rates.length) return 'timpris saknas';
     const lo = Math.min(...rates);
@@ -36,20 +39,26 @@ export function buildStructure(v) {
     return several && p.owner ? `${share} · ${net}` : (p.viaHolding ? `via holding · ${net}` : net);
   };
   const structure = {
-    columns: ['Inkomstkällor', 'Bolag', several ? 'Personer' : 'Person'],
+    columns: ['Inkomstkällor', 'Bolag', ...(holdings.length ? ['Holding'] : []), several ? 'Personer' : 'Person'],
     nodes: [
       ...v.assignments.map((a, i) => ({ id: `uppdrag-${a.id}`, type: 'source', name: a.name, sub: rateText(a.rates), col: 0, row: leftTop + i })),
       { id: 'bolag', type: 'bolag', name: 'Ditt aktiebolag', sub: `resultat ${fmt(v.profitAfterTax)}`, col: 1, row: middle },
       ...others.map((p, i) => ({ id: `annan-${p.id}`, type: 'source', name: p.otherEmployer, sub: `lön ${fmt(p.otherSalaryYear)}/år`, col: 0, row: leftTop + n + i })),
-      ...v.people.map((p, i) => ({ id: `person-${p.id}`, type: 'person', name: p.name, sub: personSub(p), col: 2, row: peopleTop + i })),
-      ...(v.otherOwners ? [{ id: 'ovriga', goto: 'bolag', type: 'person other', name: 'Övriga ägare', sub: `${fmtShare(v.otherOwners.share)} % · ingår inte`, col: 2, row: peopleTop + v.people.length }] : []),
+      ...v.people.map((p, i) => ({ id: `person-${p.id}`, type: 'person', name: p.name, sub: personSub(p), col: personCol, row: peopleTop + i })),
+      // A little below the person's row, so that the salary arrows pass above it.
+      ...v.people.flatMap((p, i) => (p.owner && p.viaHolding ? [{ id: `holding-${p.id}`, goto: `utdelning-${p.id}`, type: 'holding', name: 'Holding', sub: `kvar ${fmt(p.keptInHolding)}`, col: 2, row: peopleTop + i + 0.37 }] : [])),
+      ...(v.otherOwners ? [{ id: 'ovriga', goto: 'bolag', type: 'person other', name: 'Övriga ägare', sub: `${fmtShare(v.otherOwners.share)} % · ingår inte`, col: personCol, row: peopleTop + v.people.length }] : []),
     ],
     edges: [
       ...v.assignments.map((a) => ({ goto: `faktura-${a.id}`, from: `uppdrag-${a.id}`, to: 'bolag', label: `${fmt(a.amount)}`, title: 'Fakturerat', manual: a.manual })),
       ...v.people.flatMap((p) => [
         { goto: `lon-${p.id}`, person: p.id, from: 'bolag', to: `person-${p.id}`, label: `lön ${fmt(p.grossSalaryYear)}`, title: 'Lön', offset: -0.42 },
         ...(p.employed ? [{ goto: `pension-${p.id}`, person: p.id, from: 'bolag', to: `person-${p.id}`, label: `pension ${fmt(p.pension)}`, title: 'Pension', offset: 0 }] : []),
-        ...(p.owner ? [{ goto: `utdelning-${p.id}`, person: p.id, from: 'bolag', to: `person-${p.id}`, label: `utdelning ${fmt(p.grossDividends)}${p.viaHolding ? ' via holding' : ''}`, title: 'Utdelning', offset: 0.42 }] : []),
+        ...(p.owner && p.viaHolding ? [
+          { goto: `utdelning-${p.id}`, person: p.id, from: 'bolag', to: `holding-${p.id}`, label: `utdelning ${fmt(p.dividendReceived)}`, title: 'Utdelning till holding', offset: 0 },
+          { goto: `utdelning-${p.id}`, person: p.id, from: `holding-${p.id}`, to: `person-${p.id}`, label: `utdelning ${fmt(p.grossDividends)}`, title: 'Utdelning', offset: 0 },
+        ] : []),
+        ...(p.owner && !p.viaHolding ? [{ goto: `utdelning-${p.id}`, person: p.id, from: 'bolag', to: `person-${p.id}`, label: `utdelning ${fmt(p.grossDividends)}`, title: 'Utdelning', offset: 0.42 }] : []),
         ...(p.otherEmployer ? [{ goto: `annan-${p.id}`, person: p.id, from: `annan-${p.id}`, to: `person-${p.id}`, label: `lön ${fmt(p.otherSalaryYear)}`, title: 'Annan lön', enterFromBelow: true }] : []),
       ]),
       ...(v.otherOwners ? [{ goto: 'bolag', from: 'bolag', to: 'ovriga', label: `utdelning ${fmt(v.otherOwners.grossDividends)}`, title: 'Utdelning', offset: 0 }] : []),
@@ -151,7 +160,10 @@ export function renderFlowList(structure, selected) {
     const edges = structure.edges.filter((ed) => ed.to === p.id);
     const fromCompany = edges.filter((ed) => ed.from === 'bolag');
     const other = edges.find((ed) => ed.title === 'Annan lön');
-    return `${fromCompany.length ? `<div class="flow-trio" style="grid-template-columns: repeat(${fromCompany.length}, minmax(0, 1fr))">${fromCompany.map(e).join('')}</div>` : ''}${other ? n(other.from) + e(other) : ''}${n(p.id)}`;
+    const fromHolding = edges.find((ed) => ed.from.startsWith('holding-'));
+    const toHolding = fromHolding && structure.edges.find((ed) => ed.to === fromHolding.from);
+    const holding = fromHolding ? e(toHolding) + n(fromHolding.from) + e(fromHolding) : '';
+    return `${fromCompany.length ? `<div class="flow-trio" style="grid-template-columns: repeat(${fromCompany.length}, minmax(0, 1fr))">${fromCompany.map(e).join('')}</div>` : ''}${holding}${other ? n(other.from) + e(other) : ''}${n(p.id)}`;
   }).join('');
   return `<div class="flow-list">${assignmentRows}${n('bolag')}${people}</div>`;
 }
