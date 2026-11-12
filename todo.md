@@ -25,7 +25,7 @@ with price changes, several owners/employees, saved data and import/export).
 - [x] Salary modes: egen lön, brytpunkt, högsta netto, lägsta lön som delar ut hela vinsten, högsta lön.
 - [ ] 3:12 gaps from docs/research-multi-company-multi-year.md (section 4): löneunderlag and lönekrav use last
       year's wages, dividend above the limit (taxed as tjänst), owned at 1 January, förenklingsregeln in
-      one company only (up to 2025), salaryBasedLimit shown although the lönekrav is not met.
+      one company only (up to 2025).
 - [ ] More salary modes: lowest salary for full lönebaserat utrymme (after the 3:12 research), salary that
       uses a given dividend.
 - [ ] Fetch constants from external sources so they need no yearly update (3:12, tax rates).

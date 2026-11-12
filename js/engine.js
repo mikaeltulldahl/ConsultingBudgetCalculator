@@ -362,10 +362,11 @@ export function dividendLimit({
     // salary (löneuttagskravet). Skatteverket, SKV 292 (utgåva 34), p. 11:
     // https://skatteverket.se/download/18.1522bf3f19aea8075ba4f3e/1768831040199/skatteregler-for-delagare-i-famansforetag-skv292-utgava34.pdf
     const canUseSalaryBase = ownership >= 0.04 && (familySalary >= 9.60 * prevIBB || familySalary >= (6 * prevIBB + 0.05 * totalSalary));
-    r.salaryBasedLimit = ownership * 0.5 * totalSalary;
+    // Zero when the owner cannot use it, so that the figure shown is the one that counts.
+    r.salaryBasedLimit = canUseSalaryBase ? Math.min(ownership * 0.5 * totalSalary, 50 * familySalary) : 0;
     r.forenklingsregeln = ownership * 2.75 * prevIBB;
     r.omkostnadsbeloppInterest = p.klyvningsranta * omkostnadsbelopp;
-    r.huvudregeln = r.omkostnadsbeloppInterest + canUseSalaryBase * Math.min(r.salaryBasedLimit, 50 * familySalary);
+    r.huvudregeln = r.omkostnadsbeloppInterest + r.salaryBasedLimit;
     // Sparat utdelningsutrymme från föregående år räknas upp med statslåneräntan + 3 procentenheter.
     r.limit = Math.floor(Math.max(r.forenklingsregeln, r.huvudregeln) + savedDividends * (1 + p.savedRoomUplift));
   } else {
