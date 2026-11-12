@@ -159,6 +159,12 @@
             <div class="row"><label for="dividendBase">Resultat efter skatt <button type="button" class="from" data-goto="bolag">från bolaget</button></label><output id="dividendBase" data-mirror="profitAfterTax" data-unit="kr"></output></div>
             <div class="row"><label for="maxDividend">Välj maximal utdelning</label><input type="checkbox" id="maxDividend" checked></div>
             <div class="row"><label for="grossDividends"><span data-many="Utdelning från bolaget totalt">Årsutdelning brutto</span></label><input type="number" id="grossDividends" step="10000" value="0" min="0" disabled inputmode="numeric"></div>
+            <div class="row"><label for="viaHolding">Äger aktierna via eget holdingbolag</label><input type="checkbox" id="viaHolding"></div>
+            <div id="holdingRows" hidden>
+              <div class="row"><label for="dividendReceived">Utdelning till holdingbolaget (skattefri)</label><output id="dividendReceived" data-unit="kr"></output></div>
+              <div class="row"><label for="keptInHolding">Kvar i holdingbolaget</label><output id="keptInHolding" data-unit="kr"></output></div>
+              <p class="muted small">Räknar med att vinsten kan delas ut till holdingbolaget samma år. I praktiken bygger utdelningen på föregående års balansräkning, och holdingbolagets egna kostnader och intäkter ingår inte.</p>
+            </div>
             <details class="details">
               <summary>Detaljer</summary>
               <div class="row" id="spouseRow" hidden><label for="spouseOf">Gift med</label><select id="spouseOf"></select></div>

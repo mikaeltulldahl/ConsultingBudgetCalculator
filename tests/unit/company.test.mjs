@@ -206,3 +206,47 @@ test('group salary sweep: people who move together get the salary times their we
   assert.deepEqual(companyGroupSweep(inputs, [{ index: 1, weight: 1 }], fixtureData), companySalarySweep(inputs, 1, fixtureData));
   assert.equal(companyGroupSweep(inputs, [], fixtureData), null);
 });
+
+test('one owner through a holding company: same dividend to the person, the rest stays in the holding', () => {
+  const direct = calculateCompany(single(BASE_INPUT), fixtureData);
+  const viaInputs = single(BASE_INPUT);
+  viaInputs.people[0].viaHolding = true;
+  const via = calculateCompany(viaInputs, fixtureData);
+  assert.equal(via.people[0].dividendsLimit, direct.people[0].dividendsLimit);
+  assert.equal(via.people[0].grossDividends, direct.people[0].grossDividends);
+  assert.equal(via.people[0].netSumMonth, direct.people[0].netSumMonth);
+  assert.equal(via.company.totalTax, direct.company.totalTax);
+  assert.equal(via.company.profitAfterDividends, direct.company.profitAfterDividends);
+  // All profit after tax goes up to the holding; what the owner cannot take out waits there.
+  assert.equal(via.company.dividendFromCompany, via.company.profitAfterTax);
+  assert.ok(Math.abs(via.company.keptInHoldings - (via.company.profitAfterTax - via.people[0].grossDividends)) < 1e-6);
+});
+
+test('partners with a holding each get a full grundbelopp but no lönebaserat utrymme from a joint company (2026)', () => {
+  const make = (viaHolding) => twoOwners(2026, { ownershipPercent: 25, grossSalaryMonth: 50000, viaHolding }, { ownershipPercent: 25, grossSalaryMonth: 50000, viaHolding });
+  const direct = calculateCompany(make(false), fixtureData);
+  const held = calculateCompany(make(true), fixtureData);
+  assert.equal(held.people[0].grundbelopp, 4 * 80600);
+  assert.equal(direct.people[0].grundbelopp, 0.25 * 4 * 80600);
+  assert.equal(held.people[0].salaryBasedLimit, 0, 'a 25 % company is not a dotterföretag');
+  assert.ok(held.people[0].dividendsLimit > direct.people[0].dividendsLimit - direct.people[0].salaryBasedLimit);
+});
+
+test('a holding that owns more than half counts the subsidiary\'s wages in proportion to its share (2026)', () => {
+  const r = calculateCompany(twoOwners(2026, { ownershipPercent: 60, grossSalaryMonth: 90000, viaHolding: true }, { ownershipPercent: 40, grossSalaryMonth: 60000 }), fixtureData);
+  const total = r.company.grossSalaryYear;
+  const expected = Math.min(0.5 * Math.max(0, 0.6 * total - 8 * 80600), 50 * r.people[0].grossSalaryYear);
+  assert.ok(Math.abs(r.people[0].salaryBasedLimit - expected) < 1e-6);
+  // The direct owner still sets the cap on the company's dividend.
+  assert.equal(r.company.limitingOwner, 'p2');
+});
+
+test('money is conserved with holding companies', () => {
+  for (const year of [2025, 2026]) {
+    const r = calculateCompany(twoOwners(year, { grossSalaryMonth: 52000, ownershipPercent: 40, viaHolding: true }, { grossSalaryMonth: 31000, ownershipPercent: 30 }), fixtureData);
+    const c = r.company;
+    const paidToPeople = r.people.reduce((s, f) => s + f.grossSalaryYear + f.pension + f.grossDividends, 0) + c.otherOwnersDividends;
+    const toState = c.arbetsgivaravgift + c.slp + c.bolagsTax;
+    assert.ok(Math.abs(c.invoicedAmount + c.otherRevenue - c.otherCosts - c.insurance - paidToPeople - toState - c.profitAfterDividends) < 1e-6);
+  }
+});

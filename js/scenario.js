@@ -50,6 +50,7 @@ export const PERSON_FIELDS = [
   { id: 'pensionAmount', type: 'number', default: 0 },
   { id: 'omkostnadsbeloppAuto', type: 'boolean', default: true }, // omkostnadsbelopp = aktiekapital × ägarandel
   { id: 'omkostnadsbelopp', type: 'number', default: 25000 },
+  { id: 'viaHolding', type: 'boolean', default: false }, // owns the shares through an own holding company
   { id: 'spouseOf', type: 'text', default: '' }, // id of the person this one is married to (also in the company)
   { id: 'ownershipElsewhere', type: 'number', default: 0 }, // % of the shares in other fåmansföretag (from 2026)
   { id: 'savedDividends', type: 'number', default: 0 },
@@ -314,6 +315,7 @@ export function toEngineInputs(state, kommunRates) {
         savedDividends: num(p.savedDividends),
         omkostnadsbelopp: p.omkostnadsbeloppAuto ? autoOmkostnadsbelopp(p.ownership) : num(p.omkostnadsbelopp),
         spouseOf: p.spouseOf,
+        viaHolding: p.viaHolding,
         ownershipElsewherePercent: num(p.ownershipElsewhere),
       };
     }),

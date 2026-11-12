@@ -272,6 +272,20 @@ export const EXPLANATIONS = {
     formula: 'Anges av dig. Till och med 2025 räknas det upp med statslåneräntan + 3 procentenheter (4,96 % för 2025). Från 2026 räknas det inte upp.',
     source: ['Skatteverket: Belopp och procentsatser', SKV_BELOPP],
   },
+  viaHolding: {
+    what: 'Om personen äger sina aktier i bolaget via ett eget holdingbolag. Utdelningen går först till holdingbolaget, utan skatt, och holdingbolaget delar sedan ut till personen. Personens utdelning beskattas med 20 % upp till gränsbeloppet för aktierna i holdingbolaget. Resten kan ligga kvar i holdingbolaget.',
+    formula: 'Gränsbeloppet räknas för holdingbolaget: ett helt grundbelopp, och lönebaserat utrymme bara om holdingbolaget äger mer än hälften av bolaget (dotterföretag). Då räknas bolagets löner med i förhållande till ägarandelen, och lönen personen tar från bolaget räknas för taket på 50 gånger lönen. Utdelningen till holdingbolaget begränsas inte av gränsbeloppet. Övriga delägare som äger direkt sätter fortfarande taket.',
+    source: ['Inkomstskattelagen 57 kap. 17 § (löneunderlag) och 24 kap. 32 § (skattefri utdelning)', `${IL}#K57P17`],
+  },
+  dividendReceived: {
+    what: 'Utdelningen från bolaget till personens holdingbolag. Den är skattefri för holdingbolaget eftersom aktierna är näringsbetingade.',
+    formula: 'Bolagets utdelning × personens ägarandel.',
+    source: ['Inkomstskattelagen 24 kap. 32 §', `${IL}#K24P32`],
+  },
+  keptInHolding: {
+    what: 'Det som holdingbolaget fått i utdelning men inte kan ta ut till personen med 20 % skatt, eftersom det överstiger gränsbeloppet. Det ligger kvar i holdingbolaget utan ytterligare skatt.',
+    formula: 'Utdelning till holdingbolaget − utdelning till personen.',
+  },
   spouseOf: {
     what: 'Om personen är gift med en annan person i bolaget. Makar i samma bolag räknar det lönebaserade utrymmet gemensamt från 2026, och för löneuttagskravet och taket på 50 gånger lönen räknas den högsta lönen av de två. Sambor räknas som makar bara om de varit gifta med varandra eller har eller har haft barn tillsammans.',
     formula: 'Väljs av dig.',

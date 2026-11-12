@@ -32,7 +32,8 @@ export function buildStructure(v) {
   };
   const personSub = (p) => {
     const net = Number.isFinite(p.netSumMonth) ? `${fmt(p.netSumMonth)} kr/mån` : 'fyll i uppgifter';
-    return several && p.owner ? `${fmtShare(p.ownership)} % · ${net}` : net;
+    const share = p.viaHolding ? `${fmtShare(p.ownership)} % via holding` : `${fmtShare(p.ownership)} %`;
+    return several && p.owner ? `${share} · ${net}` : (p.viaHolding ? `via holding · ${net}` : net);
   };
   const structure = {
     columns: ['Inkomstkällor', 'Bolag', several ? 'Personer' : 'Person'],
@@ -48,7 +49,7 @@ export function buildStructure(v) {
       ...v.people.flatMap((p) => [
         { goto: `lon-${p.id}`, person: p.id, from: 'bolag', to: `person-${p.id}`, label: `lön ${fmt(p.grossSalaryYear)}`, title: 'Lön', offset: -0.42 },
         ...(p.employed ? [{ goto: `pension-${p.id}`, person: p.id, from: 'bolag', to: `person-${p.id}`, label: `pension ${fmt(p.pension)}`, title: 'Pension', offset: 0 }] : []),
-        ...(p.owner ? [{ goto: `utdelning-${p.id}`, person: p.id, from: 'bolag', to: `person-${p.id}`, label: `utdelning ${fmt(p.grossDividends)}`, title: 'Utdelning', offset: 0.42 }] : []),
+        ...(p.owner ? [{ goto: `utdelning-${p.id}`, person: p.id, from: 'bolag', to: `person-${p.id}`, label: `utdelning ${fmt(p.grossDividends)}${p.viaHolding ? ' via holding' : ''}`, title: 'Utdelning', offset: 0.42 }] : []),
         ...(p.otherEmployer ? [{ goto: `annan-${p.id}`, person: p.id, from: `annan-${p.id}`, to: `person-${p.id}`, label: `lön ${fmt(p.otherSalaryYear)}`, title: 'Annan lön', enterFromBelow: true }] : []),
       ]),
       ...(v.otherOwners ? [{ goto: 'bolag', from: 'bolag', to: 'ovriga', label: `utdelning ${fmt(v.otherOwners.grossDividends)}`, title: 'Utdelning', offset: 0 }] : []),

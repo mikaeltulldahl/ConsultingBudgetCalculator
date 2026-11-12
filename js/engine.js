@@ -493,7 +493,7 @@ export function calculateCompany({ year, company: c, people }, data) {
     maxDividend: c.maxDividend,
     grossSalaryYear: NaN, pension: NaN, insurance: NaN, slp: NaN, arbetsgivaravgift: NaN,
     totalCost: NaN, profitBeforeTax: NaN, bolagsTax: NaN, profitAfterTax: NaN,
-    ownershipSum: NaN, otherOwnersShare: NaN, otherOwnersDividends: NaN, dividendCap: NaN, limitingOwner: null, grossDividends: NaN,
+    dividendFromCompany: NaN, keptInHoldings: NaN, ownershipSum: NaN, otherOwnersShare: NaN, otherOwnersDividends: NaN, dividendCap: NaN, limitingOwner: null, grossDividends: NaN,
     netDividends: NaN, profitAfterDividends: NaN, incomeTax: NaN, netSalaryYear: NaN, dividendTax: NaN,
     bolagsTaxOnDividends: NaN, bolagsTaxExclDividends: NaN, totalTax: NaN, totalTaxPercentage: NaN,
   };
@@ -508,6 +508,7 @@ export function calculateCompany({ year, company: c, people }, data) {
     f.employed = employed;
     f.ownership = Number.isFinite(person.ownershipPercent) ? person.ownershipPercent / 100 : NaN;
     f.spouseOf = person.spouseOf || '';
+    f.viaHolding = Boolean(person.viaHolding);
     f.ownershipElsewherePercent = person.ownershipElsewherePercent || 0;
     salary(f, p, data);
     if (!isNaN(f.grossSalaryYear)) employment(f, p, employed);
@@ -536,35 +537,64 @@ export function calculateCompany({ year, company: c, people }, data) {
   if (ownersReady) {
     co.dividendCap = Infinity;
     for (const f of owners) {
-      // A spouse in the company (either one may point at the other).
-      const spouse = ps.find((x) => x !== f && (x.id === f.spouseOf || (x.spouseOf && x.spouseOf === f.id)));
-      const d = dividendLimit({
-        year, ownSalary: f.grossSalaryYear, totalSalary: co.grossSalaryYear, ownership: f.ownership,
-        ownershipInOtherCompanies: (f.ownershipElsewherePercent || 0) / 100,
-        spouseOwnership: spouse ? spouse.ownership : 0, spouseSalary: spouse ? spouse.grossSalaryYear : 0,
-        omkostnadsbelopp: f.omkostnadsbelopp, savedDividends: f.savedDividends,
-      });
+      let d;
+      if (f.viaHolding) {
+        // The shares are held through the owner's own holding company, which owns this one.
+        // 3:12 is then about the holding's shares: the owner has all of them (one full
+        // grundbelopp). The löneunderlag of the holding includes the wages of a dotterföretag
+        // (more than half owned) in proportion to the holding's share, and the salary the
+        // owner takes from it counts for the 50 x cap (57 kap. 16-17 §§).
+        // https://lagen.nu/1999:1229#K57P17
+        const subsidiary = f.ownership > 0.5;
+        d = dividendLimit({
+          year, ownSalary: subsidiary ? f.grossSalaryYear : 0, totalSalary: subsidiary ? f.ownership * co.grossSalaryYear : 0,
+          ownership: 1, ownershipInOtherCompanies: (f.ownershipElsewherePercent || 0) / 100,
+          omkostnadsbelopp: f.omkostnadsbelopp, savedDividends: f.savedDividends,
+        });
+      } else {
+        // A spouse in the company (either one may point at the other).
+        const spouse = ps.find((x) => x !== f && (x.id === f.spouseOf || (x.spouseOf && x.spouseOf === f.id)));
+        d = dividendLimit({
+          year, ownSalary: f.grossSalaryYear, totalSalary: co.grossSalaryYear, ownership: f.ownership,
+          ownershipInOtherCompanies: (f.ownershipElsewherePercent || 0) / 100,
+          spouseOwnership: spouse ? spouse.ownership : 0, spouseSalary: spouse ? spouse.grossSalaryYear : 0,
+          omkostnadsbelopp: f.omkostnadsbelopp, savedDividends: f.savedDividends,
+        });
+      }
       f.salaryBasedLimit = d.salaryBasedLimit;
       f.dividendsLimitForenklingsregeln = d.forenklingsregeln;
       f.dividendsLimitHuvudregeln = d.huvudregeln;
       f.grundbelopp = d.grundbelopp;
       f.omkostnadsbeloppInterest = d.omkostnadsbeloppInterest;
       f.dividendsLimit = d.limit;
-      const cap = d.limit / f.ownership;
+      // Dividend to a holding company is not taxed and not limited by 3:12: only the owners
+      // who hold their shares directly set the cap on the company's dividend.
+      const cap = f.viaHolding ? Infinity : d.limit / f.ownership;
       if (cap < co.dividendCap) {
         co.dividendCap = cap;
         co.limitingOwner = f.id;
       }
     }
-    co.grossDividends = c.maxDividend
+    // What the company pays out in total, per share the same to everyone.
+    const paid = c.maxDividend
       ? Math.max(0, Math.min(co.dividendCap, co.profitAfterTax))
       : Math.min(c.grossDividends, co.dividendCap);
-    co.profitAfterDividends = co.profitAfterTax - co.grossDividends;
-    co.otherOwnersDividends = co.grossDividends * co.otherOwnersShare;
+    co.dividendFromCompany = paid;
+    co.otherOwnersDividends = paid * co.otherOwnersShare;
+    // A holding company receives its share tax-free and pays the owner only up to the
+    // owner's gränsbelopp; the rest stays in the holding company.
+    // https://lagen.nu/1999:1229#K24P32
+    for (const f of ps) {
+      f.dividendReceived = f.ownership > 0 ? paid * f.ownership : 0;
+      f.grossDividends = f.viaHolding && f.ownership > 0 ? Math.min(f.dividendsLimit, f.dividendReceived) : f.dividendReceived;
+      f.keptInHolding = f.dividendReceived - f.grossDividends;
+    }
+    co.keptInHoldings = sum('keptInHolding');
+    co.grossDividends = sum('grossDividends') + co.otherOwnersDividends; // paid out to people
+    co.profitAfterDividends = co.profitAfterTax - co.grossDividends; // left in the companies
   }
   for (const f of ps) {
     if (!ownersReady) break;
-    f.grossDividends = f.ownership > 0 ? co.grossDividends * f.ownership : 0;
     f.netDividends = f.grossDividends * (1 - RATES.dividendTax);
     f.limitsDividend = f.id === co.limitingOwner;
   }

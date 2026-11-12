@@ -436,6 +436,7 @@ function syncPersonCards() {
   document.querySelector('.part[data-part="utdelning"]').hidden = !(Number($('ownership').value) > 0);
   $('removePersonRow').hidden = !several;
   renderSpouseOptions(selectedPerson());
+  $('holdingRows').hidden = !$('viaHolding').checked;
   $('ownershipBadge').textContent = `Ägande ${(Number($('ownership').value) || 0).toLocaleString('sv-SE')} %`;
 }
 
@@ -603,7 +604,7 @@ const OUTPUTS = {
   burialSkatt: 0, publicServiceSkatt: 0, jobbskatteavdrag: 0, skattereduktionForvarvsinkomst: 0,
   incomeTax: 0, netSalaryYear: 0, netSemesterersattning: 0, netSalaryMonth: 0, incomeTaxPercentage: 1,
   pension: 0, insurance: 0, slp: 0, arbetsgivaravgift: 0, totalCost: 0, profitBeforeTax: 0,
-  profitAfterTax: 0, omkostnadsbeloppInterest: 0, salaryBasedLimit: 0, grundbelopp: 0,
+  profitAfterTax: 0, dividendReceived: 0, keptInHolding: 0, omkostnadsbeloppInterest: 0, salaryBasedLimit: 0, grundbelopp: 0,
   dividendsLimitForenklingsregeln: 0, dividendsLimitHuvudregeln: 0, dividendsLimit: 0,
   netDividends: 0, profitAfterDividends: 0, netSumMonth: 0, totalTax: 0, bolagsTaxExclDividends: 0,
   totalTaxPercentage: 1,
@@ -710,6 +711,7 @@ for (const id of ['yearBorn', 'grossSalaryMonth', 'salaryMonths', 'otherRevenue'
 }
 $('omkostnadsbeloppAuto').addEventListener('change', updateAll);
 $('spouseOf').addEventListener('change', updateAll);
+$('viaHolding').addEventListener('change', updateAll);
 $('ownershipElsewhere').addEventListener('input', updateAll);
 // Pension: % of salary or a fixed amount; the inputs follow the on/off setting.
 function syncPensionInputs() {
@@ -1330,6 +1332,7 @@ function renderStructure() {
         id: p.id,
         name: personName(p, i),
         employed: isEmployed(p),
+        viaHolding: p.viaHolding,
         owner: p.ownership > 0,
         ownership: p.ownership,
         grossSalaryYear: r.grossSalaryYear,
