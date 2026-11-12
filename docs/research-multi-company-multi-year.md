@@ -564,7 +564,7 @@ IY 2025 rules (source S5 unless noted). IBB 2024 = 76 200; ränta 10,96 %; index
 5. **Future years in a multi-year plan**: which assumptions for IBB, statslåneränta, tax
    tables and kommun rates beyond the last known year? (E.g. freeze the last known year and
    say so, or let the user set a yearly growth.)
-6. **Holding timing**: model the one-year delay of dividends through the holding, or assume
+6. **Holding timing** (partly answered, 2026-11-12: Bolagsverket says a dividend on an extra stämma, "efterutdelning", can be at most the free equity in the most recently *adopted* balance sheet minus dividends already decided, https://bolagsverket.se/foretag/aktiebolag/drivaaktiebolag/vinstutdelning/beslutomvinstutdelningpaextrabolagsstamma.695.html. So a holding can pay out what was in its balance sheet at the last year-end; a dividend it receives this year can be passed on from the next annual stämma. In a steady state the yearly amounts are the same, with a lag, as with direct ownership (profit of year Y is paid out after the stämma in Y+1). The calculator shows a steady-state year. What is not verified: whether an interim balance sheet or anticipated dividend can shorten the lag the first year.): model the one-year delay of dividends through the holding, or assume
    same-year pass-through? This needs a check with an accountant (ABL rules on
    värdeöverföring, anteciperad utdelning, koncernbidrag at year-end).
 7. **Holding's own economy**: include the holding's costs, capital returns and their tax
