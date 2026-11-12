@@ -10,7 +10,7 @@ with price changes, several owners/employees, saved data and import/export).
       Needs Playwright installed to run (`npm run test:e2e`).
 - [x] 3:12 checked against Skatteverket's examples (tests/correctness/dividend-limit-official.test.mjs): 50 x cap,
       spouses (Gift med), 4 % rule and indexation of saved room up to 2025, shares in other companies.
-- [ ] Phone-width check of the new cards (person, owners, vacation per period).
+- [x] Phone-width check (375 px): no horizontal overflow on any card or quick calculator.
 
 ## Rules and model
 - [ ] Dividend rules for sambo and married people (e.g. spouse's shares, 3:12 attribution).
