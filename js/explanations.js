@@ -282,9 +282,21 @@ export const EXPLANATIONS = {
     formula: 'Bolagets utdelning × personens ägarandel.',
     source: ['Inkomstskattelagen 24 kap. 32 §', `${IL}#K24P32`],
   },
+  holdingCosts: {
+    what: 'Holdingbolagets egna kostnader per år, till exempel redovisning, bank och försäkring. De betalas innan holdingbolaget delar ut till dig och dras av mot holdingbolagets skattepliktiga intäkter.',
+    formula: 'Anges av dig.',
+  },
+  holdingIncome: {
+    what: 'Holdingbolagets andra intäkter än utdelningen från bolaget, till exempel ränta eller avkastning på fonder. De beskattas med bolagsskatt. Utdelning på näringsbetingade aktier är skattefri.',
+    formula: 'Anges av dig. Kalkylatorn räknar inte ut avkastning på det som ligger kvar i holdingbolaget.',
+  },
+  holdingTax: {
+    what: 'Bolagsskatt i holdingbolaget på dess övriga intäkter minus kostnader. En förlust ger ingen skatt tillbaka samma år, och räknas inte med som underskott till nästa år.',
+    formula: '20,6 % × max(0, övriga intäkter − kostnader).',
+  },
   keptInHolding: {
-    what: 'Det som holdingbolaget fått i utdelning men inte kan ta ut till personen med 20 % skatt, eftersom det överstiger gränsbeloppet. Det ligger kvar i holdingbolaget utan ytterligare skatt.',
-    formula: 'Utdelning till holdingbolaget − utdelning till personen.',
+    what: 'Det som ligger kvar i holdingbolaget efter kostnader, skatt och utdelning till dig. Du kan bara ta ut upp till gränsbeloppet med 20 % skatt; resten ligger kvar utan ytterligare skatt.',
+    formula: 'Utdelning till holdingbolaget + övriga intäkter − kostnader − bolagsskatt − utdelning till personen.',
   },
   spouseOf: {
     what: 'Om personen är gift med en annan person i bolaget. Makar i samma bolag räknar det lönebaserade utrymmet gemensamt från 2026, och för löneuttagskravet och taket på 50 gånger lönen räknas den högsta lönen av de två. Sambor räknas som makar bara om de varit gifta med varandra eller har eller har haft barn tillsammans.',

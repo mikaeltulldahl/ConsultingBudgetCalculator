@@ -250,3 +250,32 @@ test('money is conserved with holding companies', () => {
     assert.ok(Math.abs(c.invoicedAmount + c.otherRevenue - c.otherCosts - c.insurance - paidToPeople - toState - c.profitAfterDividends) < 1e-6);
   }
 });
+
+test('holding company costs and other income: tax at bolagsskatt, costs paid before the owner takes dividend', () => {
+  const make = (holding) => { const x = single({ ...BASE_INPUT, invoicedAmount: 2400000 }); x.year = 2026; x.people[0] = { ...x.people[0], viaHolding: true, ...holding }; return x; };
+  const base = calculateCompany(make({}), fixtureData).people[0];
+  const withIncome = calculateCompany(make({ holdingIncome: 100000, holdingCosts: 20000 }), fixtureData).people[0];
+  assert.ok(Math.abs(withIncome.holdingTax - 0.206 * 80000) < 1e-6);
+  assert.ok(Math.abs(withIncome.keptInHolding - (base.keptInHolding + 80000 - withIncome.holdingTax)) < 1e-6);
+  assert.equal(withIncome.grossDividends, base.grossDividends, 'the owner still takes the same within the limit');
+  // Costs but no income give no tax back, and are paid from the dividend.
+  const costs = calculateCompany(make({ holdingCosts: 15000 }), fixtureData).people[0];
+  assert.equal(costs.holdingTax, 0);
+  assert.ok(Math.abs(costs.keptInHolding - (base.keptInHolding - 15000)) < 1e-6);
+  // Without money the holding cannot pay its costs and the owner gets nothing.
+  const broke = calculateCompany(make({ holdingCosts: 1e9 }), fixtureData).people[0];
+  assert.equal(broke.grossDividends, 0);
+  assert.ok(broke.keptInHolding < 0);
+});
+
+test('money is conserved with holding costs and income', () => {
+  const r = calculateCompany(twoOwners(2026, { grossSalaryMonth: 52000, ownershipPercent: 40, viaHolding: true, holdingCosts: 12000, holdingIncome: 50000 }, { grossSalaryMonth: 31000, ownershipPercent: 30 }), fixtureData);
+  const c = r.company;
+  const paidToPeople = r.people.reduce((s, f) => s + f.grossSalaryYear + f.pension + f.grossDividends, 0) + c.otherOwnersDividends;
+  const toState = c.arbetsgivaravgift + c.slp + c.bolagsTax;
+  const left = c.invoicedAmount + c.otherRevenue - c.otherCosts - c.insurance - paidToPeople - toState;
+  // What is left of the profit, plus the holding's income, costs and tax.
+  assert.ok(Math.abs(left - c.retainedFromProfit) < 1e-6);
+  assert.ok(Math.abs(c.profitAfterDividends - (c.retainedFromProfit + 50000 - 12000 - c.holdingTax)) < 1e-6);
+  assert.ok(Math.abs(c.holdingTax - 0.206 * 38000) < 1e-6);
+});

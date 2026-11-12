@@ -493,7 +493,7 @@ export function calculateCompany({ year, company: c, people }, data) {
     maxDividend: c.maxDividend,
     grossSalaryYear: NaN, pension: NaN, insurance: NaN, slp: NaN, arbetsgivaravgift: NaN,
     totalCost: NaN, profitBeforeTax: NaN, bolagsTax: NaN, profitAfterTax: NaN,
-    dividendFromCompany: NaN, keptInHoldings: NaN, ownershipSum: NaN, otherOwnersShare: NaN, otherOwnersDividends: NaN, dividendCap: NaN, limitingOwner: null, grossDividends: NaN,
+    dividendFromCompany: NaN, keptInHoldings: NaN, holdingTax: NaN, retainedFromProfit: NaN, ownershipSum: NaN, otherOwnersShare: NaN, otherOwnersDividends: NaN, dividendCap: NaN, limitingOwner: null, grossDividends: NaN,
     netDividends: NaN, profitAfterDividends: NaN, incomeTax: NaN, netSalaryYear: NaN, dividendTax: NaN,
     bolagsTaxOnDividends: NaN, bolagsTaxExclDividends: NaN, totalTax: NaN, totalTaxPercentage: NaN,
   };
@@ -509,6 +509,8 @@ export function calculateCompany({ year, company: c, people }, data) {
     f.ownership = Number.isFinite(person.ownershipPercent) ? person.ownershipPercent / 100 : NaN;
     f.spouseOf = person.spouseOf || '';
     f.viaHolding = Boolean(person.viaHolding);
+    f.holdingCostsYear = person.holdingCosts || 0;
+    f.holdingIncomeYear = person.holdingIncome || 0;
     f.ownershipElsewherePercent = person.ownershipElsewherePercent || 0;
     salary(f, p, data);
     if (!isNaN(f.grossSalaryYear)) employment(f, p, employed);
@@ -584,14 +586,31 @@ export function calculateCompany({ year, company: c, people }, data) {
     // A holding company receives its share tax-free and pays the owner only up to the
     // owner's gränsbelopp; the rest stays in the holding company.
     // https://lagen.nu/1999:1229#K24P32
+    // The holding's own costs come first, and its other income (interest and the like) is taxed
+    // at bolagsskatt; a loss gives no tax back in the same year. The owner can only take out
+    // what the holding has.
     for (const f of ps) {
+      const holding = f.viaHolding && f.ownership > 0;
       f.dividendReceived = f.ownership > 0 ? paid * f.ownership : 0;
-      f.grossDividends = f.viaHolding && f.ownership > 0 ? Math.min(f.dividendsLimit, f.dividendReceived) : f.dividendReceived;
-      f.keptInHolding = f.dividendReceived - f.grossDividends;
+      f.holdingCosts = holding ? f.holdingCostsYear : 0;
+      f.holdingIncome = holding ? f.holdingIncomeYear : 0;
+      f.holdingTax = Math.max(0, f.holdingIncome - f.holdingCosts) * p.bolagsskatt;
+      if (holding) {
+        const available = f.dividendReceived + f.holdingIncome - f.holdingCosts - f.holdingTax;
+        f.grossDividends = Math.min(f.dividendsLimit, Math.max(0, available));
+        f.keptInHolding = available - f.grossDividends; // below 0: the holding cannot pay its costs
+      } else {
+        f.grossDividends = f.dividendReceived;
+        f.keptInHolding = 0;
+      }
     }
     co.keptInHoldings = sum('keptInHolding');
+    co.holdingTax = sum('holdingTax');
     co.grossDividends = sum('grossDividends') + co.otherOwnersDividends; // paid out to people
-    co.profitAfterDividends = co.profitAfterTax - co.grossDividends; // left in the companies
+    // Left in the companies: what the company has not paid out, and in the holdings what is
+    // there after their costs, income and tax.
+    co.retainedFromProfit = co.profitAfterTax - co.grossDividends;
+    co.profitAfterDividends = co.retainedFromProfit + sum('holdingIncome') - sum('holdingCosts') - co.holdingTax;
   }
   for (const f of ps) {
     if (!ownersReady) break;
@@ -604,18 +623,18 @@ export function calculateCompany({ year, company: c, people }, data) {
     const t = p.bolagsskatt;
     const taxed = co.profitBeforeTax > 0;
     co.bolagsTaxOnDividends = taxed ? co.grossDividends * t / (1 - t) : 0;
-    co.bolagsTaxExclDividends = taxed ? co.profitAfterDividends * t / (1 - t) : 0;
+    co.bolagsTaxExclDividends = taxed ? co.retainedFromProfit * t / (1 - t) : 0;
     co.netDividends = sum('netDividends');
     co.incomeTax = sum('incomeTax');
     co.netSalaryYear = sum('netSalaryYear');
     // Dividend tax for the people in the calculation (other owners' tax is not known).
     co.dividendTax = RATES.dividendTax * (co.grossDividends - co.otherOwnersDividends);
-    co.totalTax = co.incomeTax + co.slp + co.arbetsgivaravgift + co.bolagsTaxOnDividends + co.dividendTax;
+    co.totalTax = co.incomeTax + co.slp + co.arbetsgivaravgift + co.bolagsTaxOnDividends + co.dividendTax + co.holdingTax;
     co.totalTaxPercentage = 100 * co.totalTax / (co.invoicedAmount + co.otherRevenue);
     for (const f of ps) {
       f.bolagsTaxOnDividends = taxed ? f.grossDividends * t / (1 - t) : 0;
       f.dividendTax = RATES.dividendTax * f.grossDividends;
-      f.totalTax = f.incomeTax + f.slp + f.arbetsgivaravgift + f.bolagsTaxOnDividends + f.dividendTax;
+      f.totalTax = f.incomeTax + f.slp + f.arbetsgivaravgift + f.bolagsTaxOnDividends + f.dividendTax + f.holdingTax;
       f.netSumMonth = f.otherNetYear / 12 + (f.salaryMonths > 0
         ? f.netSalaryMonth + f.netDividends / f.salaryMonths
         : f.netDividends / 12);

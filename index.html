@@ -162,8 +162,12 @@
             <div class="row"><label for="viaHolding">Äger aktierna via eget holdingbolag</label><input type="checkbox" id="viaHolding"></div>
             <div id="holdingRows" hidden>
               <div class="row"><label for="dividendReceived">Utdelning till holdingbolaget (skattefri)</label><output id="dividendReceived" data-unit="kr"></output></div>
+              <div class="row"><label for="holdingCosts">Holdingbolagets kostnader per år</label><input type="number" id="holdingCosts" value="0" step="1000" min="0" inputmode="numeric"></div>
+              <div class="row"><label for="holdingIncome">Holdingbolagets övriga intäkter per år (t.ex. ränta)</label><input type="number" id="holdingIncome" value="0" step="1000" min="0" inputmode="numeric"></div>
+              <div class="row"><label for="holdingTax">Bolagsskatt i holdingbolaget</label><output id="holdingTax" data-unit="kr"></output></div>
               <div class="row"><label for="keptInHolding">Kvar i holdingbolaget</label><output id="keptInHolding" data-unit="kr"></output></div>
-              <p class="muted small">Räknar med att vinsten kan delas ut till holdingbolaget samma år. I praktiken bygger utdelningen på föregående års balansräkning, och holdingbolagets egna kostnader och intäkter ingår inte.</p>
+              <p class="status" id="holdingShortfall" hidden>Holdingbolaget har inte pengar nog för sina kostnader. Det behöver mer utdelning eller andra intäkter.</p>
+              <p class="muted small">Räknar med att vinsten kan delas ut till holdingbolaget samma år. I praktiken bygger utdelningen på föregående års balansräkning. Intäkter utöver utdelningen beskattas med 20,6 %; en förlust ger ingen skatt tillbaka.</p>
             </div>
             <details class="details">
               <summary>Detaljer</summary>

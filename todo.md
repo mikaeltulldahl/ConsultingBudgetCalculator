@@ -15,7 +15,8 @@ with price changes, several owners/employees, saved data and import/export).
 ## Rules and model
 - [ ] Dividend rules for sambo and married people (e.g. spouse's shares, 3:12 attribution).
 - [x] Holding company per owner (first version, see README and docs/research-multi-company-multi-year.md 2.3).
-- [ ] Holding follow-ups: the holding's own costs and income (20,6 %),
+- [x] Holding's own costs and other income (taxed at 20,6 %) added.
+- [ ] Holding follow-ups: carry a holding loss forward and interest on what stays in the holding,
       one-year delay of dividends through the holding, spouses and holdings, koncernbidrag.
 - [ ] Several companies and structures that need a second company (two operating companies, a holding owning two).
 - [ ] Multi-year analysis: the rules for trädabolag / karensbolag.
