@@ -642,6 +642,11 @@ function writeFields(r) {
   const limiting = people.findIndex((p) => p.id === co?.limitingOwner);
   const limitingName = limiting < 0 ? '' : personName(people[limiting], limiting);
   $('limitingNote').textContent = limiting < 0 ? '' : `${limitingName === 'Du' ? 'Ditt gränsbelopp' : `Gränsbeloppet för ${limitingName}`} begränsar bolagets utdelning: den får inte bli större än att varje ägare håller sig inom sitt gränsbelopp.`;
+  // A holding owner with room left over because someone who owns directly sets the cap.
+  if (limiting >= 0 && r?.viaHolding && r.dividendsLimit - r.dividendReceived > 1 && people[limiting].id !== selectedPersonId) {
+    const sv = (v) => `${Math.round(v).toLocaleString('sv-SE')} kr`;
+    $('limitingNote').textContent += ` Du hade kunnat ta ut ${sv(r.dividendsLimit)} via holdingbolaget, men utdelningen är lika stor per aktie och ${limitingName} äger direkt. Äger ${limitingName} också via ett holdingbolag kan ni båda ta ut hela utdelningsutrymmet.`;
+  }
   // Checked from what is typed, so the warning shows even before everything is filled in.
   const shares = ownershipShares();
   const pct = (v) => `${v.toLocaleString('sv-SE', { maximumFractionDigits: 2 })} %`;
