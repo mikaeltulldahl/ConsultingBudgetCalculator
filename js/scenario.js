@@ -29,6 +29,7 @@ export const FIELDS = [
   { id: 'otherCosts', type: 'number', default: 20000 },
   { id: 'maxDividend', type: 'boolean', default: true },
   { id: 'grossDividends', type: 'number', default: 0 }, // total for the company
+  { id: 'salarySplit', type: 'text', default: 'uppdrag' }, // how people with the same automatic salary mode share it, see SALARY_SPLITS
 ];
 
 export const PERSON_FIELDS = [
@@ -49,6 +50,8 @@ export const PERSON_FIELDS = [
   { id: 'pensionAmount', type: 'number', default: 0 },
   { id: 'omkostnadsbeloppAuto', type: 'boolean', default: true }, // omkostnadsbelopp = aktiekapital × ägarandel
   { id: 'omkostnadsbelopp', type: 'number', default: 25000 },
+  { id: 'spouseOf', type: 'text', default: '' }, // id of the person this one is married to (also in the company)
+  { id: 'ownershipElsewhere', type: 'number', default: 0 }, // % of the shares in other fåmansföretag (from 2026)
   { id: 'savedDividends', type: 'number', default: 0 },
   { id: 'otherEmployer', type: 'text', default: '' },
   { id: 'otherSalaryYear', type: 'number', default: 0 },
@@ -65,6 +68,9 @@ export const isEmployed = (p) => (p.salaryMode ?? 'manual') !== 'manual' || !(p.
 // How a person's monthly salary is chosen. 'manual' is typed in; 'brytpunkt' is worked out by
 // the engine; the others are found by trying salaries (see resolveSalaryModes in app.js).
 export const SALARY_MODES = ['manual', 'brytpunkt', 'maxNet', 'allDividend', 'breakEven'];
+// Several people with the same automatic mode: salaries in proportion to what each invoices
+// in their assignments, to their ownership, or equal.
+export const SALARY_SPLITS = ['uppdrag', 'andel', 'lika'];
 
 export const SHARE_CAPITAL = 25000;
 export const autoOmkostnadsbelopp = (ownershipPercent) => SHARE_CAPITAL * (Number(ownershipPercent) || 0) / 100;
@@ -155,7 +161,7 @@ export function validateState(obj) {
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return { state, invalid: 1 };
   for (const f of FIELDS) {
     if (!(f.id in obj)) continue;
-    if (validValue(f.type, obj[f.id])) state[f.id] = obj[f.id];
+    if (validValue(f.type, obj[f.id]) && !(f.id === 'salarySplit' && !SALARY_SPLITS.includes(obj[f.id]))) state[f.id] = obj[f.id];
     else invalid++;
   }
   // Versions 1 and 2 had one person, with the fields at the top level.
@@ -175,6 +181,10 @@ export function validateState(obj) {
       invalid += v.invalid;
       return v.assignment;
     });
+  }
+  // A spouse is another person in the company.
+  for (const p of state.people) {
+    if (p.spouseOf && (p.spouseOf === p.id || !personIds.includes(p.spouseOf))) p.spouseOf = '';
   }
   // Everyone works on an assignment of a person who exists.
   for (const a of state.assignments) {
@@ -303,6 +313,8 @@ export function toEngineInputs(state, kommunRates) {
         otherSalaryYear: num(p.otherSalaryYear),
         savedDividends: num(p.savedDividends),
         omkostnadsbelopp: p.omkostnadsbeloppAuto ? autoOmkostnadsbelopp(p.ownership) : num(p.omkostnadsbelopp),
+        spouseOf: p.spouseOf,
+        ownershipElsewherePercent: num(p.ownershipElsewhere),
       };
     }),
   };

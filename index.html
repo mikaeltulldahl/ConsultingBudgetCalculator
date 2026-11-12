@@ -85,6 +85,11 @@
             <div class="row"><label for="companySalary"><span data-many="Löner">Lön till dig</span> <button type="button" class="from" data-goto="lon">från Lön</button></label><output id="companySalary" data-mirror="co.grossSalaryYear" data-unit="kr"></output></div>
             <div class="row"><label for="companyPension"><span data-many="Tjänstepensioner">Tjänstepension till dig</span> <button type="button" class="from" data-goto="pension">från Pension</button></label><output id="companyPension" data-mirror="co.pension" data-unit="kr"></output></div>
             <div class="row"><label for="otherCosts">Övriga kostnader exkl. moms</label><input type="number" step="10000" min="0" id="otherCosts" value="20000" inputmode="numeric"></div>
+            <div class="row" id="salarySplitRow" hidden><label for="salarySplit">Fördela automatiska löner</label><select id="salarySplit">
+              <option value="uppdrag">efter fakturerat i uppdragen</option>
+              <option value="andel">efter ägarandel</option>
+              <option value="lika">lika</option>
+            </select></div>
             <details class="details">
               <summary>Detaljer</summary>
               <div class="row"><label for="arbetsgivaravgift">Arbetsgivaravgift</label><output id="arbetsgivaravgift" data-unit="kr"></output></div>
@@ -156,6 +161,8 @@
             <div class="row"><label for="grossDividends"><span data-many="Utdelning från bolaget totalt">Årsutdelning brutto</span></label><input type="number" id="grossDividends" step="10000" value="0" min="0" disabled inputmode="numeric"></div>
             <details class="details">
               <summary>Detaljer</summary>
+              <div class="row" id="spouseRow" hidden><label for="spouseOf">Gift med</label><select id="spouseOf"></select></div>
+              <div class="row" id="elsewhereRow"><label for="ownershipElsewhere">Ägande i andra fåmansföretag (%)</label><input type="number" id="ownershipElsewhere" value="0" min="0" step="any" inputmode="decimal"></div>
               <div class="row"><label for="omkostnadsbeloppAuto">Omkostnadsbelopp: aktiekapital 25 000 kr × ägarandel</label><input type="checkbox" id="omkostnadsbeloppAuto" checked></div>
               <div class="row"><label for="omkostnadsbelopp">Omkostnadsbelopp</label><input type="number" step="25000" id="omkostnadsbelopp" value="25000" min="0" inputmode="numeric"></div>
               <div class="row"><label for="savedDividends">Sparat utdelningsutrymme från tidigare</label><input type="number" id="savedDividends" step="10000" value="0" min="0" inputmode="numeric"></div>

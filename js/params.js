@@ -21,6 +21,9 @@ export const YEARS = {
     // https://www4.skatteverket.se/rattsligvagledning/edition/2024.7/2940.html
     jobbskatteavdrag: [0.3405, 1.703, 0.1280, 2.323, 0.20, 0.05, 30000, 0.03, 65],
     klyvningsranta: 0.0900,
+    // Sparat utdelningsutrymme från föregående år räknas upp med statslåneräntan + 3 procentenheter (till och med 2025).
+    // https://www.skatteverket.se/foretag/drivaforetag/foretagsformer/famansforetag/beloppochprocentsatser.4.34f3b0b713e2cf5455b7288.html
+    savedRoomUplift: 0.03,
     // Förhöjt grundavdrag from this age (age at the start of the year).
     forhojtGrundavdragAge: 65,
     skattereduktionForvarvsinkomst: false, // introduced 2021
@@ -34,6 +37,9 @@ export const YEARS = {
     publicServiceMax: 1329,
     jobbskatteavdrag: [0.3405, 1.703, 0.1280, 2.323, 0.20, 0.05, 30000, 0.03, 65],
     klyvningsranta: 0.0900,
+    // Sparat utdelningsutrymme från föregående år räknas upp med statslåneräntan + 3 procentenheter (till och med 2025).
+    // https://www.skatteverket.se/foretag/drivaforetag/foretagsformer/famansforetag/beloppochprocentsatser.4.34f3b0b713e2cf5455b7288.html
+    savedRoomUplift: 0.03,
     forhojtGrundavdragAge: 65,
     skattereduktionForvarvsinkomst: true,
     // Lag (2021:930) om tillfällig skattereduktion för arbetsinkomster, 2021-2022 only.
@@ -47,6 +53,9 @@ export const YEARS = {
     publicServiceMax: 1327,
     jobbskatteavdrag: [0.3874, 1.812, 0.1280, 2.432, 0.20, 0.05, 30000, 0.03, 65],
     klyvningsranta: 0.0923,
+    // Sparat utdelningsutrymme från föregående år räknas upp med statslåneräntan + 3 procentenheter (till och med 2025).
+    // https://www.skatteverket.se/foretag/drivaforetag/foretagsformer/famansforetag/beloppochprocentsatser.4.34f3b0b713e2cf5455b7288.html
+    savedRoomUplift: 0.0323,
     forhojtGrundavdragAge: 65,
     skattereduktionForvarvsinkomst: true,
     // Lag (2021:930) om tillfällig skattereduktion för arbetsinkomster, 2021-2022 only.
@@ -60,6 +69,9 @@ export const YEARS = {
     publicServiceMax: 1300,
     jobbskatteavdrag: [0.3874, 1.812, 0.1280, 2.432, 0.22, 0.07, 36000, 0.03, 65],
     klyvningsranta: 0.1094,
+    // Sparat utdelningsutrymme från föregående år räknas upp med statslåneräntan + 3 procentenheter (till och med 2025).
+    // https://www.skatteverket.se/foretag/drivaforetag/foretagsformer/famansforetag/beloppochprocentsatser.4.34f3b0b713e2cf5455b7288.html
+    savedRoomUplift: 0.0494,
     forhojtGrundavdragAge: 66,
     skattereduktionForvarvsinkomst: true,
     tillfalligSkattereduktionArbetsinkomster: false,
@@ -72,6 +84,9 @@ export const YEARS = {
     publicServiceMax: 1219,
     jobbskatteavdrag: [0.3874, 1.813, 0.1643, 2.608, 0, 0, 0, 0.03, 66],
     klyvningsranta: 0.1162,
+    // Sparat utdelningsutrymme från föregående år räknas upp med statslåneräntan + 3 procentenheter (till och med 2025).
+    // https://www.skatteverket.se/foretag/drivaforetag/foretagsformer/famansforetag/beloppochprocentsatser.4.34f3b0b713e2cf5455b7288.html
+    savedRoomUplift: 0.0562,
     forhojtGrundavdragAge: 66,
     skattereduktionForvarvsinkomst: true,
     tillfalligSkattereduktionArbetsinkomster: false,
@@ -86,6 +101,9 @@ export const YEARS = {
     // page 41: https://www.regeringen.se/contentassets/0229ac516d4241e5a7b3dbf8e2d6b5a3/berakningskonventioner-2025.pdf
     jobbskatteavdrag: [0.3874, 1.813, 0.199, 2.776, 0, 0, 0, 0, 66],
     klyvningsranta: 0.1096,
+    // Sparat utdelningsutrymme från föregående år räknas upp med statslåneräntan + 3 procentenheter (till och med 2025).
+    // https://www.skatteverket.se/foretag/drivaforetag/foretagsformer/famansforetag/beloppochprocentsatser.4.34f3b0b713e2cf5455b7288.html
+    savedRoomUplift: 0.0496,
     forhojtGrundavdragAge: 66,
     skattereduktionForvarvsinkomst: true,
     tillfalligSkattereduktionArbetsinkomster: false,
@@ -98,9 +116,10 @@ export const YEARS = {
     publicServiceMax: 1184,
     // page 42: https://www.regeringen.se/contentassets/1ed01e00001b42e5ad8d47433db63ece/berakningskonventioner_2026.pdf
     jobbskatteavdrag: [0.3874, 1.813, 0.251, 3.027, 0, 0, 0, 0, 66],
-    // From 2026 only applied to omkostnadsbelopp above 100 000 kr.
-    // https://revisionsbyran.se/statslanerantan-30-11-2025/
+    // From 2026 only applied to omkostnadsbelopp above 100 000 kr. 2,55 % + 9 procentenheter.
+    // https://www.skatteverket.se/foretag/drivaforetag/foretagsformer/famansforetag/beloppochprocentsatser.4.34f3b0b713e2cf5455b7288.html
     klyvningsranta: 0.1155,
+    savedRoomUplift: 0, // sparat utdelningsutrymme räknas inte upp från 2026
     forhojtGrundavdragAge: 66,
     skattereduktionForvarvsinkomst: true,
     tillfalligSkattereduktionArbetsinkomster: false,

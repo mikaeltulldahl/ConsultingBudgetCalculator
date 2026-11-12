@@ -4,6 +4,7 @@
 
 const IL = 'https://lagen.nu/1999:1229';
 const SKV_FAMANS = 'https://www.skatteverket.se/foretag/drivaforetag/foretagsformer/famansforetag/beloppochprocentsatser.4.34f3b0b713e2cf5455b7288.html';
+const SKV_BELOPP = 'https://www.skatteverket.se/foretag/drivaforetag/foretagsformer/famansforetag/beloppochprocentsatser.4.34f3b0b713e2cf5455b7288.html';
 const SKV_312_2026 = 'https://www.skatteverket.se/foretag/drivaforetag/foretagsformer/famansforetag/andradereglerinforinkomstdeklarationen2027.4.4a54dc8b19aa6175a152359.html';
 const SKV_STATLIG = 'https://www.skatteverket.se/privat/etjansterochblanketter/svarpavanligafragor/inkomstavtjanst/privattjansteinkomsterfaq/narskamanbetalastatliginkomstskattochhurhogarden.5.10010ec103545f243e8000166.html';
 const SKV_RAKNA = 'https://www7.skatteverket.se/portal/rakna-ut-skatt';
@@ -132,9 +133,13 @@ export const EXPLANATIONS = {
     what: 'Församlingen du tillhör. Bestämmer kyrkoavgiften.',
     formula: 'Kyrkoavgift hämtas från Skatteverkets öppna data.',
   },
+  salarySplit: {
+    what: 'Hur flera personer med samma automatiska lönesätt delar på lönen. Lönen som ger bäst resultat för bolaget som helhet söks, och fördelas sedan mellan personerna.',
+    formula: 'Efter fakturerat: lönen i proportion till vad varje person fakturerar i sina uppdrag. Efter ägarandel: i proportion till ägarandelen. Lika: lika lön. Personen med högst vikt får den sökta lönen, övriga den gånger sin relativa vikt.',
+  },
   salaryMode: {
     what: 'Hur månadslönen bestäms. Egen lön skriver du själv. De andra räknas fram åt dig och lönefältet visar resultatet.',
-    formula: 'Brytpunkt: lönen där statlig inkomstskatt börjar. Högsta netto: lönen som ger mest kvar efter skatt för alla i bolaget tillsammans, med maximal utdelning. Lägsta lön som delar ut hela vinsten: lägsta lönen där ingen vinst blir kvar i bolaget. Högsta lön: den högsta lönen bolaget har råd med utan förlust. För de tre sista provas löner i steg om 100 kr och övriga personers löner hålls fasta.',
+    formula: 'Brytpunkt: lönen där statlig inkomstskatt börjar. Högsta netto: lönen som ger mest kvar efter skatt för alla i bolaget tillsammans, med maximal utdelning. Lägsta lön som delar ut hela vinsten: lägsta lönen där ingen vinst blir kvar i bolaget. Högsta lön: den högsta lönen bolaget har råd med utan förlust. För de tre sista provas löner i steg om 100 kr. Väljer flera personer samma läge delar de på lönen enligt \'Fördela automatiska löner\'. Olika lägen räknas i tur och ordning, så den som kommer senare anpassar sig till de tidigare.',
     source: ['Skatteverket: När betalar man statlig inkomstskatt?', SKV_STATLIG],
   },
   grossSalaryMonth: { what: 'Din lön från bolaget per månad, före skatt.', formula: 'Anges av dig.' },
@@ -243,9 +248,9 @@ export const EXPLANATIONS = {
     source: ['Skatteverket: Belopp och procentsatser för fåmansföretag', SKV_FAMANS],
   },
   salaryBasedLimit: {
-    what: 'Utdelningsutrymme som beror på lönerna i bolaget.',
-    formula: 'Till och med 2025: 50 % av lönesumman, om löneuttagskravet är uppfyllt. Från 2026: 50 % av lönesumman över 8 inkomstbasbelopp.',
-    source: ['Skatteverket: Ändrade regler för fåmansföretag', SKV_312_2026],
+    what: 'Utdelningsutrymme som beror på lönerna i bolaget (lönebaserat utrymme).',
+    formula: 'Till och med 2025: din andel av 50 % av lönesumman, om du äger minst 4 % och löneuttagskravet är uppfyllt. Från 2026: 50 % av din andel av lönesumman över 8 inkomstbasbelopp, men högst 50 gånger lönen (din eller din makes). Makar i samma bolag räknar utrymmet gemensamt med ett avdrag på 8 inkomstbasbelopp och delar det per aktie. Lönesumman är föregående års löner; kalkylatorn använder årets.',
+    source: ['Inkomstskattelagen 57 kap. 16 §', `${IL}#K57P16`],
   },
   dividendsLimitForenklingsregeln: {
     what: 'Schablonbeloppet enligt förenklingsregeln (till och med 2025).',
@@ -259,12 +264,23 @@ export const EXPLANATIONS = {
   },
   grundbelopp: {
     what: 'Grundbelopp enligt 2026 års regler. Bolagets grundbelopp fördelas lika per aktie, så en ägare med 50 % får halva. En person får högst ett helt grundbelopp sammanlagt för alla bolag.',
-    formula: 'Ägarandel × 4 × föregående års inkomstbasbelopp.',
-    source: ['Skatteverket: Ändrade regler för fåmansföretag', SKV_312_2026],
+    formula: 'Ägarandel × 4 × föregående års inkomstbasbelopp. Äger du sammanlagt mer än 100 % i alla bolag minskas varje bolags del i proportion.',
+    source: ['Inkomstskattelagen 57 kap. 11 a §', `${IL}#K57P11a`],
   },
   savedDividends: {
-    what: 'Utdelningsutrymme som du inte använt tidigare år och som får sparas.',
-    formula: 'Anges av dig.',
+    what: 'Sparat utdelningsutrymme från föregående år: det du inte använde och som får sparas. Ange beloppet som det stod på förra årets K10 som sparat till nästa år.',
+    formula: 'Anges av dig. Till och med 2025 räknas det upp med statslåneräntan + 3 procentenheter (4,96 % för 2025). Från 2026 räknas det inte upp.',
+    source: ['Skatteverket: Belopp och procentsatser', SKV_BELOPP],
+  },
+  spouseOf: {
+    what: 'Om personen är gift med en annan person i bolaget. Makar i samma bolag räknar det lönebaserade utrymmet gemensamt från 2026, och för löneuttagskravet och taket på 50 gånger lönen räknas den högsta lönen av de två. Sambor räknas som makar bara om de varit gifta med varandra eller har eller har haft barn tillsammans.',
+    formula: 'Väljs av dig.',
+    source: ['Inkomstskattelagen 57 kap. 16 §', `${IL}#K57P16`],
+  },
+  ownershipElsewhere: {
+    what: 'Hur stor del av aktierna personen äger i andra fåmansföretag, sammanlagt. Från 2026 får en person högst ett helt grundbelopp för alla bolag tillsammans, så grundbeloppet här minskas om andelarna sammanlagt överstiger 100 %.',
+    formula: 'Grundbelopp här = ägarandel × 4 × inkomstbasbelopp / max(100 %, summan av alla andelar).',
+    source: ['Inkomstskattelagen 57 kap. 11 a §', `${IL}#K57P11a`],
   },
   dividendsLimit: {
     what: 'Gränsbeloppet: hur mycket utdelning du kan ta ut med 20 % skatt.',

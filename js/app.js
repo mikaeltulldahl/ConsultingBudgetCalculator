@@ -1,6 +1,6 @@
 // Page logic: reads the form, runs the engine and writes results and charts.
 // All tax maths lives in engine.js; this file only deals with the page.
-import { calculateCompany, companySalarySweep } from './engine.js';
+import { calculateCompany, companySalarySweep, companyGroupSweep } from './engine.js';
 import { defaultAssignment } from './assignments.js';
 import { EXPLANATIONS } from './explanations.js';
 import { buildStructure, renderMap, renderFlowList } from './structure.js';
@@ -364,6 +364,7 @@ function syncFormToPerson() {
 // Fills the form with a person. The stored församling is offered at once and the full
 // list is looked up in the background. Returns the lookup (a promise) or null.
 function writePersonToForm(p) {
+  renderSpouseOptions(p);
   for (const f of PERSON_FIELDS) {
     if (['kommun', 'forsamling', 'kyrkoavgift'].includes(f.id)) continue;
     const el = personEl(f.id);
@@ -396,6 +397,20 @@ function switchPerson(id) {
   writePersonToForm(selectedPerson());
 }
 
+// The people a person can be married to: everyone else in the company.
+function renderSpouseOptions(p) {
+  const select = $('spouseOf');
+  const others = people.map((x, k) => ({ x, k })).filter(({ x }) => x.id !== p.id);
+  const signature = `${p.id}|${others.map(({ x, k }) => `${x.id}:${personName(x, k)}`).join(',')}`;
+  if (select.dataset.signature !== signature) {
+    const current = select.dataset.signature?.startsWith(`${p.id}|`) ? select.value : p.spouseOf;
+    select.replaceChildren(new Option('Ingen', ''), ...others.map(({ x, k }) => new Option(personName(x, k), x.id)));
+    select.dataset.signature = signature;
+    select.value = others.some(({ x }) => x.id === current) ? current : '';
+  }
+  $('spouseRow').hidden = others.length === 0;
+}
+
 // Names in headings and lists, the cards a person has (Lön, and Pension if they have a salary,
 // Utdelning if owner), and labels that differ when there are several people.
 function syncPersonCards() {
@@ -420,6 +435,7 @@ function syncPersonCards() {
   document.querySelector('.part[data-part="pension"]').hidden = !employed;
   document.querySelector('.part[data-part="utdelning"]').hidden = !(Number($('ownership').value) > 0);
   $('removePersonRow').hidden = !several;
+  renderSpouseOptions(selectedPerson());
   $('ownershipBadge').textContent = `Ägande ${(Number($('ownership').value) || 0).toLocaleString('sv-SE')} %`;
 }
 
@@ -462,6 +478,7 @@ $('removePerson').addEventListener('click', async () => {
   const p = selectedPerson();
   if (people.length < 2 || !(await ask(`Ta bort ${personName({ ...p, name: $('personName').value }, i)}?`, 'Ta bort'))) return;
   people = people.filter((x) => x !== p);
+  for (const x of people) if (x.spouseOf === p.id) x.spouseOf = '';
   for (const a of assignments) if (a.person === p.id) a.person = people[0].id;
   selectedPersonId = people[0].id;
   writePersonToForm(people[0]);
@@ -509,8 +526,11 @@ function viewFor(result, i) {
 
 // Calculates a state; loads the förhöjt grundavdrag tables it needs first.
 // Salaries found by trying many: the highest total net for everyone, the lowest salary that
-// pays out all profit, the highest salary the company can afford. Each person in turn, with
-// the others as they are (earlier ones already settled). Returns a state where those people
+// pays out all profit, the highest salary the company can afford. These depend on the
+// company's total, so people who pick the same mode are solved together: one salary is
+// searched and shared between them (by what they invoice, by ownership, or equally, see
+// "Fördela automatiska löner"). Different modes are settled one after the other, in the
+// order of the people, each with the earlier ones fixed. Returns a state where those people
 // have the salary as a typed value.
 const SALARY_PICKS = {
   maxNet: (s) => s.maxSum.x,
@@ -520,17 +540,47 @@ const SALARY_PICKS = {
     return s.grossSalaryMonth[i < 0 ? s.grossSalaryMonth.length - 1 : i];
   },
 };
-function resolveSalaryModes(state) {
-  if (!state.people.some((p) => SALARY_PICKS[p.salaryMode])) return state;
-  const settled = structuredClone(state);
-  state.people.forEach((person, i) => {
-    const pick = SALARY_PICKS[person.salaryMode];
-    if (!pick) return;
-    const sweep = companySalarySweep(toEngineInputs(settled, kommunRates), i, engineData, 100);
-    if (!sweep || !sweep.grossSalaryMonth.length) return;
-    settled.people[i].grossSalaryMonth = pick(sweep);
-    settled.people[i].salaryMode = 'manual';
+
+// The people in each automatic mode, in order of first appearance.
+function salaryGroups(state) {
+  const groups = new Map();
+  state.people.forEach((p, index) => {
+    if (!SALARY_PICKS[p.salaryMode]) return;
+    if (!groups.has(p.salaryMode)) groups.set(p.salaryMode, []);
+    groups.get(p.salaryMode).push(index);
   });
+  return groups;
+}
+
+// Weights 0-1 for a group sharing one salary; the largest gets 1. Equal if nothing to go by.
+function splitWeights(state, indices) {
+  const invoiced = revenueForState(state).assignments;
+  const amountOf = (person) => state.assignments.reduce((sum, a, k) => (a.person === person.id ? sum + (invoiced[k]?.amount || 0) : sum), 0);
+  const raw = indices.map((i) => {
+    const person = state.people[i];
+    if (state.salarySplit === 'andel') return person.ownership || 0;
+    if (state.salarySplit === 'lika') return 1;
+    return amountOf(person);
+  });
+  const max = Math.max(...raw);
+  return raw.map((v) => (max > 0 ? v / max : 1));
+}
+
+function resolveSalaryModes(state) {
+  const groups = salaryGroups(state);
+  if (!groups.size) return state;
+  const settled = structuredClone(state);
+  for (const [mode, indices] of groups) {
+    const weights = splitWeights(state, indices);
+    const group = indices.map((index, k) => ({ index, weight: weights[k] }));
+    const sweep = companyGroupSweep(toEngineInputs(settled, kommunRates), group, engineData, 100);
+    if (!sweep || !sweep.grossSalaryMonth.length) continue;
+    const x = SALARY_PICKS[mode](sweep);
+    for (const { index, weight } of group) {
+      settled.people[index].grossSalaryMonth = Math.round(x * weight);
+      settled.people[index].salaryMode = 'manual';
+    }
+  }
   return settled;
 }
 
@@ -574,6 +624,7 @@ function writeFields(r) {
   syncPersonCards();
   setOutput('churchSkatt', churchMemberField.checked ? r?.churchSkatt : NaN);
   $('grossDividends').value = format(co?.grossDividends, 0);
+  $('salarySplitRow').hidden = ![...salaryGroups({ people }).values()].some((g) => g.length > 1);
   $('grossSalaryMonth').disabled = $('salaryMode').value !== 'manual';
   if ($('salaryMode').value !== 'manual') $('grossSalaryMonth').value = format(r?.grossSalaryMonth, 0);
   $('grossDividends').max = format(co?.dividendCap, 0);
@@ -622,6 +673,7 @@ function updateYearDependentFields() {
   const year = parseInt(yearField.value);
   $('dividendLimitsContainer').hidden = year >= 2026;
   $('grundbeloppContainer').hidden = year < 2026;
+  $('elsewhereRow').hidden = year < 2026;
 }
 
 let updateCounter = 0;
@@ -657,6 +709,8 @@ for (const id of ['yearBorn', 'grossSalaryMonth', 'salaryMonths', 'otherRevenue'
   $(id).addEventListener('input', updateAll);
 }
 $('omkostnadsbeloppAuto').addEventListener('change', updateAll);
+$('spouseOf').addEventListener('change', updateAll);
+$('ownershipElsewhere').addEventListener('input', updateAll);
 // Pension: % of salary or a fixed amount; the inputs follow the on/off setting.
 function syncPensionInputs() {
   const on = $('usePension').checked;

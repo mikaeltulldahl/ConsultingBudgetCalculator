@@ -1,7 +1,7 @@
 // A company with several people: owners and/or employees.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calculate, calculateCompany, companySalarySweep, dividendLimit, salarySweep } from '../../js/engine.js';
+import { calculate, calculateCompany, companySalarySweep, companyGroupSweep, dividendLimit, salarySweep } from '../../js/engine.js';
 import { fixtureData } from '../helpers/data.mjs';
 import { BASE_INPUT, generateCases } from '../helpers/cases.mjs';
 
@@ -172,4 +172,37 @@ test('salary sweep: the parts of the chart add up to the same total at every sal
   const totals = s.grossSalaryMonth.map((_, i) => s.netSalaryYear[i] + s.netDividends[i] + s.pension[i] + s.otherOwnersDividends[i]
     + s.profitAfterDividends[i] + s.totalTax[i] + s.bolagsTaxExclDividends[i]);
   for (const t of totals) assert.ok(Math.abs(t - totals[0]) <= 4, `${t} vs ${totals[0]}`);
+});
+
+test('spouses in the same company share one 8 inkomstbasbelopp deduction (2026)', () => {
+  const salary = { grossSalaryMonth: 40000, useSemesterersattning: false, vacationDays: 0 };
+  const apart = calculateCompany(twoOwners(2026, salary, salary), fixtureData);
+  const married = calculateCompany(twoOwners(2026, { ...salary, spouseOf: 'p2' }, salary), fixtureData);
+  const total = married.people[0].grossSalaryYear + married.people[1].grossSalaryYear;
+  const joint = 0.5 * (total - 8 * 80600);
+  // Each owner's half is not enough to pass 8 inkomstbasbelopp on its own, together it is.
+  assert.equal(apart.people[0].salaryBasedLimit, 0.5 * Math.max(0, 0.5 * total - 8 * 80600));
+  assert.ok(Math.abs(married.people[0].salaryBasedLimit - joint / 2) < 1e-6);
+  assert.ok(married.people[0].salaryBasedLimit > apart.people[0].salaryBasedLimit);
+  // The link works from either side.
+  const reverse = calculateCompany(twoOwners(2026, salary, { ...salary, spouseOf: 'p1' }), fixtureData);
+  assert.deepEqual(reverse.people.map((f) => f.dividendsLimit), married.people.map((f) => f.dividendsLimit));
+});
+
+test('shares in other companies reduce the grundbelopp here (2026)', () => {
+  const alone = calculateCompany(twoOwners(2026, { ownershipPercent: 100 }, { ownershipPercent: 0 }), fixtureData);
+  const elsewhere = calculateCompany(twoOwners(2026, { ownershipPercent: 100, ownershipElsewherePercent: 100 }, { ownershipPercent: 0 }), fixtureData);
+  assert.equal(elsewhere.people[0].grundbelopp, alone.people[0].grundbelopp / 2);
+});
+
+test('group salary sweep: people who move together get the salary times their weight', () => {
+  const inputs = twoOwners(2026, { grossSalaryMonth: 30000 }, { grossSalaryMonth: 30000 });
+  const equal = companyGroupSweep(inputs, [{ index: 0, weight: 1 }, { index: 1, weight: 1 }], fixtureData, 500);
+  const half = companyGroupSweep(inputs, [{ index: 0, weight: 1 }, { index: 1, weight: 0.5 }], fixtureData, 500);
+  assert.ok(equal.grossSalaryMonth.length > 10);
+  // Twice the people on the payroll hit the company's limit at a lower salary.
+  assert.ok(equal.grossSalaryMonth.at(-1) < half.grossSalaryMonth.at(-1));
+  // One person in the group is the same as the single sweep.
+  assert.deepEqual(companyGroupSweep(inputs, [{ index: 1, weight: 1 }], fixtureData), companySalarySweep(inputs, 1, fixtureData));
+  assert.equal(companyGroupSweep(inputs, [], fixtureData), null);
 });

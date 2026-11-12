@@ -8,7 +8,8 @@ with price changes, several owners/employees, saved data and import/export).
 - [ ] e2e: second owner (two person boxes, equal dividend per share, tightest limit noted,
       shares > 100 % warning), employee without shares, remove person, reload/export/import.
       Needs Playwright installed to run (`npm run test:e2e`).
-- [ ] Double check the business logic for several owners (limits per owner, who caps the total).
+- [x] 3:12 checked against Skatteverket's examples (tests/correctness/dividend-limit-official.test.mjs): 50 x cap,
+      spouses (Gift med), 4 % rule and indexation of saved room up to 2025, shares in other companies.
 - [ ] Phone-width check of the new cards (person, owners, vacation per period).
 
 ## Rules and model
@@ -18,8 +19,11 @@ with price changes, several owners/employees, saved data and import/export).
 - [ ] Fiscal year not starting 1 January.
 - [x] "Anställd i bolaget" removed: a person is employed when the salary and months are above 0.
 - [x] Salary modes: egen lön, brytpunkt, högsta netto, lägsta lön som delar ut hela vinsten, högsta lön.
+- [ ] 3:12 gaps from docs/research-multi-company-multi-year.md (section 4): löneunderlag and lönekrav use last
+      year's wages, dividend above the limit (taxed as tjänst), owned at 1 January, förenklingsregeln in
+      one company only (up to 2025), salaryBasedLimit shown although the lönekrav is not met.
 - [ ] More salary modes: lowest salary for full lönebaserat utrymme (after the 3:12 research), salary that
-      uses a given dividend, with several people solved together instead of one at a time.
+      uses a given dividend.
 - [ ] Fetch constants from external sources so they need no yearly update (3:12, tax rates).
 - [ ] Decimal library and central rounding (optional); TypeScript (optional).
 - [ ] Verify a few critical cases by hand against Skatteverket.

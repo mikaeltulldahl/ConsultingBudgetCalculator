@@ -343,29 +343,48 @@ function company(f, p) {
 // 3:12 gränsbelopp (utdelningsgräns) for one owner. Uses the previous year's
 // inkomstbasbelopp. ownership: share of the company (0-1). totalSalary: all salaries paid by
 // the company; ownSalary: the owner's own salary from the company.
-export function dividendLimit({ year, ownSalary, totalSalary = ownSalary, ownership = 1, ownershipInOtherCompanies = 0, omkostnadsbelopp, savedDividends = 0 }) {
+export function dividendLimit({
+  year, ownSalary, totalSalary = ownSalary, ownership = 1, ownershipInOtherCompanies = 0,
+  spouseOwnership = 0, spouseSalary = 0, omkostnadsbelopp, savedDividends = 0,
+}) {
   const p = getYearParams(year);
   const prevIBB = getInkomstbasbelopp(year - 1) || getInkomstbasbelopp(year);
   const r = {
     salaryBasedLimit: NaN, forenklingsregeln: NaN, huvudregeln: NaN, grundbelopp: NaN,
     omkostnadsbeloppInterest: NaN, limit: NaN,
   };
+  // The salary test and the 50 x cap look at the owner's and a närstående's salary. Of
+  // spouses the higher one counts (Skatteverket's example Amy and Gedion: the cap is 50 x
+  // Amy's salary, not the sum).
+  const familySalary = Math.max(ownSalary, spouseSalary);
   if (year <= 2025) {
-    const canUseSalaryBase = ownSalary >= 9.60 * prevIBB || ownSalary >= (6 * prevIBB + 0.05 * totalSalary);
+    // Up to 2025: the lönebaserat utrymme needs at least 4 % of the capital and a high enough
+    // salary (löneuttagskravet). Skatteverket, SKV 292 (utgåva 34), p. 11:
+    // https://skatteverket.se/download/18.1522bf3f19aea8075ba4f3e/1768831040199/skatteregler-for-delagare-i-famansforetag-skv292-utgava34.pdf
+    const canUseSalaryBase = ownership >= 0.04 && (familySalary >= 9.60 * prevIBB || familySalary >= (6 * prevIBB + 0.05 * totalSalary));
     r.salaryBasedLimit = ownership * 0.5 * totalSalary;
     r.forenklingsregeln = ownership * 2.75 * prevIBB;
     r.omkostnadsbeloppInterest = p.klyvningsranta * omkostnadsbelopp;
-    r.huvudregeln = r.omkostnadsbeloppInterest + canUseSalaryBase * Math.min(r.salaryBasedLimit, 50 * ownSalary);
-    r.limit = Math.floor(Math.max(r.forenklingsregeln, r.huvudregeln)) + savedDividends;
+    r.huvudregeln = r.omkostnadsbeloppInterest + canUseSalaryBase * Math.min(r.salaryBasedLimit, 50 * familySalary);
+    // Sparat utdelningsutrymme från föregående år räknas upp med statslåneräntan + 3 procentenheter.
+    r.limit = Math.floor(Math.max(r.forenklingsregeln, r.huvudregeln) + savedDividends * (1 + p.savedRoomUplift));
   } else {
-    // New 3:12 rules from 2026:
+    // New 3:12 rules from 2026 (inkomstskattelagen 57 kap., as changed by SFS 2025:1361):
+    // https://lagen.nu/1999:1229#K57P11  https://lagen.nu/1999:1229#K57P16
     // https://www.skatteverket.se/foretag/drivaforetag/foretagsformer/famansforetag/andradereglerinforinkomstdeklarationen2027.4.4a54dc8b19aa6175a152359.html
     const totalOwnership = ownership + ownershipInOtherCompanies;
-    // Grundbelopp: 4 inkomstbasbelopp per company, split equally per share. One person gets
-    // at most one grundbelopp in total; if their shares in all companies add up to more than
-    // 100 %, each company's part is scaled down in proportion.
+    // Grundbelopp (11 a §): 4 inkomstbasbelopp per company, split equally per share. One person
+    // gets at most one grundbelopp in total; if their shares in all companies add up to more
+    // than 100 %, each company's part is scaled down in proportion.
     r.grundbelopp = ownership * 4 * prevIBB / Math.max(1, totalOwnership);
-    r.salaryBasedLimit = 0.5 * Math.min(Math.max(0, ownership * totalSalary - 8 * prevIBB), 50 * ownSalary);
+    // Lönebaserat utrymme (16 §): 50 % of the owner's share of the löneunderlag above 8
+    // inkomstbasbelopp. Spouses who own shares in the same company compute it together, with
+    // one deduction, and split it per share. The result (not the amount before the 50 %) may
+    // not exceed 50 x the salary.
+    const spouseShare = ownership + spouseOwnership;
+    const jointBase = Math.max(0, spouseShare * totalSalary - 8 * prevIBB);
+    const ownPart = spouseShare > 0 ? ownership / spouseShare : 0;
+    r.salaryBasedLimit = Math.min(0.5 * jointBase * ownPart, 50 * familySalary);
     r.omkostnadsbeloppInterest = p.klyvningsranta * Math.max(0, omkostnadsbelopp - 100000);
     r.limit = Math.floor(r.omkostnadsbeloppInterest + r.grundbelopp + r.salaryBasedLimit) + savedDividends;
   }
@@ -488,6 +507,8 @@ export function calculateCompany({ year, company: c, people }, data) {
     f.id = person.id;
     f.employed = employed;
     f.ownership = Number.isFinite(person.ownershipPercent) ? person.ownershipPercent / 100 : NaN;
+    f.spouseOf = person.spouseOf || '';
+    f.ownershipElsewherePercent = person.ownershipElsewherePercent || 0;
     salary(f, p, data);
     if (!isNaN(f.grossSalaryYear)) employment(f, p, employed);
     return f;
@@ -515,8 +536,12 @@ export function calculateCompany({ year, company: c, people }, data) {
   if (ownersReady) {
     co.dividendCap = Infinity;
     for (const f of owners) {
+      // A spouse in the company (either one may point at the other).
+      const spouse = ps.find((x) => x !== f && (x.id === f.spouseOf || (x.spouseOf && x.spouseOf === f.id)));
       const d = dividendLimit({
         year, ownSalary: f.grossSalaryYear, totalSalary: co.grossSalaryYear, ownership: f.ownership,
+        ownershipInOtherCompanies: (f.ownershipElsewherePercent || 0) / 100,
+        spouseOwnership: spouse ? spouse.ownership : 0, spouseSalary: spouse ? spouse.grossSalaryYear : 0,
         omkostnadsbelopp: f.omkostnadsbelopp, savedDividends: f.savedDividends,
       });
       f.salaryBasedLimit = d.salaryBasedLimit;
@@ -571,11 +596,20 @@ export function calculateCompany({ year, company: c, people }, data) {
 
 // The salary sweep for one person in a company with several people: everything else fixed.
 export function companySalarySweep(inputs, index, data, step = 500) {
+  return companyGroupSweep(inputs, [{ index, weight: 1 }], data, step);
+}
+
+// The same for a group of people whose salaries move together: the person with weight 1 gets
+// the salary on the x axis and the others that times their weight (0-1). Everyone else
+// stays as they are.
+export function companyGroupSweep(inputs, group, data, step = 500) {
   const c = inputs.company;
-  const person = inputs.people[index];
-  if (!person || person.employed === false) return null;
+  const members = group.filter((m) => inputs.people[m.index] && inputs.people[m.index].employed !== false);
+  if (!members.length) return null;
+  const weightOf = new Map(members.map((m) => [m.index, m.weight]));
+  const first = inputs.people[members[0].index];
   const at = (gross) => {
-    const people = inputs.people.map((x, i) => (i === index ? { ...x, grossSalaryMonth: gross, useMaxGrossSalary: false } : x));
+    const people = inputs.people.map((x, i) => (weightOf.has(i) ? { ...x, grossSalaryMonth: gross * weightOf.get(i), useMaxGrossSalary: false } : x));
     const r = calculateCompany({ ...inputs, people }, data);
     return {
       // Everyone in the company, so that the parts add up to the same total at every salary.
@@ -586,8 +620,8 @@ export function companySalarySweep(inputs, index, data, step = 500) {
       totalTax: r.company.totalTax, totalTaxPercentage: r.company.totalTaxPercentage,
     };
   };
-  if (isNaN(at(person.grossSalaryMonth).totalTaxPercentage)) return null;
-  const pensionRate = person.usePension ? (person.pensionPercent ?? 100 * RATES.pensionPremium) / 100 : RATES.pensionPremium;
+  if (isNaN(at(first.grossSalaryMonth).totalTaxPercentage)) return null;
+  const pensionRate = first.usePension ? (first.pensionPercent ?? 100 * RATES.pensionPremium) / 100 : RATES.pensionPremium;
   const totalRevenue = c.invoicedAmount + c.otherRevenue - c.otherCosts;
   return sweep(at, totalRevenue, pensionRate, step);
 }
