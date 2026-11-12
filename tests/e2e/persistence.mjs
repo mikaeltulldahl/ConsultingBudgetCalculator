@@ -376,6 +376,113 @@ try {
     await settle(page);
   });
 
+  await step('two owners with holding companies, automatic salaries and vacation per assignment', async () => {
+    const value = async (id) => Number(await page.getAttribute(`#${id}`, 'data-value'));
+    const dividendCard = async (person) => {
+      await goto(page, `person-${person}`);
+      await page.click('.part.active button.from[data-goto="utdelning"]');
+    };
+    // Vacation days live on the assignment: calculated until typed, and Lön shows the total.
+    await goto(page, 'uppdrag-a1');
+    assert.match(await page.getAttribute('#vacationDays-a1', 'placeholder'), /25.*beräknat/);
+    const hoursBefore = Number(await page.inputValue('#billableHours-a1') || (await page.getAttribute('#billableHours-a1', 'placeholder')).split(' ')[0]);
+    await page.fill('#vacationDays-a1', '10');
+    await page.dispatchEvent('#vacationDays-a1', 'input');
+    await settle(page);
+    const hoursAfter = Number((await page.getAttribute('#billableHours-a1', 'placeholder')).split(' ')[0]);
+    assert.ok(hoursAfter > hoursBefore, 'fewer vacation days give more hours');
+    await goto(page, 'lon');
+    assert.match(await page.textContent('#vacationTotal'), /^10 dagar$/);
+    await goto(page, 'uppdrag-a1');
+    await page.fill('#vacationDays-a1', '');
+    await page.dispatchEvent('#vacationDays-a1', 'input');
+    // Enough income for two salaries and a profit.
+    await page.fill('#hourlyRate-a1', '1500');
+    await page.dispatchEvent('#hourlyRate-a1', 'input');
+    // Two owners, 50 % each.
+    await page.click('#addPerson');
+    await settle(page);
+    await page.fill('#personName', 'Anna');
+    await page.fill('#yearBorn', '1985');
+    await page.dispatchEvent('#yearBorn', 'input');
+    await page.fill('#ownership', '50');
+    await page.dispatchEvent('#ownership', 'input');
+    await goto(page, 'person-p1');
+    await page.fill('#ownership', '50');
+    await page.dispatchEvent('#ownership', 'input');
+    await settle(page);
+    // Without holding companies each owner gets half a grundbelopp.
+    await dividendCard('p1');
+    await settle(page);
+    const half = await value('grundbelopp');
+    await page.check('#viaHolding');
+    await settle(page);
+    assert.equal(await value('grundbelopp'), 2 * half, 'a holding company gives a full grundbelopp');
+    assert.ok(await page.isVisible('#holdingRows'));
+    assert.equal(await page.locator('#structureMap g.node.holding').count(), 1);
+    assert.match(await page.textContent('#limitingNote'), /Anna äger direkt/, 'a direct owner sets the cap');
+    await dividendCard('p2');
+    await page.check('#viaHolding');
+    await settle(page);
+    assert.equal(await page.locator('#structureMap g.node.holding').count(), 2);
+    assert.equal(await value('grundbelopp'), 2 * half);
+    // Both with a holding: the company's dividend is no longer limited by 3:12.
+    if (!(await page.isChecked('#maxDividend'))) await page.check('#maxDividend');
+    await settle(page);
+    const received2 = await value('dividendReceived');
+    await dividendCard('p1');
+    const received1 = await value('dividendReceived');
+    await goto(page, 'bolag');
+    const profit = await value('profitAfterTax');
+    assert.ok(Math.abs(received1 + received2 - profit) <= 2, `all profit after tax is paid up to the holdings: ${received1} + ${received2} vs ${profit}`);
+    // Holding costs are paid before the owner takes dividend and are remembered.
+    await dividendCard('p2');
+    await page.fill('#holdingCosts', '12000');
+    await page.dispatchEvent('#holdingCosts', 'input');
+    await settle(page);
+    // Automatic salaries: both choose the highest net, shared equally.
+    for (const person of ['p1', 'p2']) {
+      await goto(page, `lon-${person}`);
+      await page.selectOption('#salaryMode', 'maxNet');
+    }
+    await goto(page, 'bolag');
+    assert.ok(await page.isVisible('#salarySplit'));
+    await page.selectOption('#salarySplit', 'lika');
+    await settle(page);
+    const salaryOf = async (person) => {
+      await goto(page, `lon-${person}`);
+      await page.waitForTimeout(700);
+      return page.inputValue('#grossSalaryMonth');
+    };
+    const [s1, s2] = [await salaryOf('p1'), await salaryOf('p2')];
+    assert.equal(s1, s2, 'equal split gives equal salaries');
+    assert.ok(Number(s1) > 0);
+    assert.ok(await page.isDisabled('#grossSalaryMonth'), 'the salary field shows the result');
+    // Remembered after reloading.
+    await page.reload({ waitUntil: 'networkidle' });
+    await settle(page);
+    assert.equal(await salaryOf('p2'), s1);
+    assert.equal(await page.inputValue('#salaryMode'), 'maxNet');
+    await dividendCard('p2');
+    assert.equal(await page.inputValue('#holdingCosts'), '12000');
+    assert.ok(await page.isChecked('#viaHolding'));
+    // Back to one person with everything typed in.
+    await goto(page, 'person-p2');
+    await page.evaluate(() => { window.autoAnswer = false; });
+    await page.click('#removePerson');
+    await page.click('#confirmOk');
+    await page.evaluate(() => { window.autoAnswer = true; });
+    await settle(page);
+    await dividendCard('p1');
+    await page.uncheck('#viaHolding');
+    await goto(page, 'lon-p1');
+    await page.selectOption('#salaryMode', 'manual');
+    await goto(page, 'person-p1');
+    await page.fill('#ownership', '100');
+    await page.dispatchEvent('#ownership', 'input');
+    await settle(page);
+  });
+
   await step('explanation popover opens with a source link', async () => {
     await goto(page, 'person');
     await page.click('#details-tax-summary, details:has(#grundavdrag) > summary');
@@ -390,6 +497,7 @@ try {
 
   await step('quick calculator matches Skatteverket and connects to the structure', async () => {
     await page.click('[data-mode="quick"]');
+    await page.click('[data-quick="privat"]'); // Fakturerat belopp is the one open at first
     await page.waitForTimeout(500);
     await page.selectOption('#qp-kommun', 'STOCKHOLM');
     await page.fill('#qp-income', '660000');

@@ -5,9 +5,7 @@ structure map, quick calculators, explanations, pension, other income, several a
 with price changes, several owners/employees, saved data and import/export).
 
 ## Checks
-- [ ] e2e: second owner (two person boxes, equal dividend per share, tightest limit noted,
-      shares > 100 % warning), employee without shares, remove person, reload/export/import.
-      Needs Playwright installed to run (`npm run test:e2e`).
+- [x] e2e runs (Playwright installed as a dev dependency) and covers owners, employee without shares, removing a person, holding companies, automatic salaries and vacation per assignment.
 - [x] 3:12 checked against Skatteverket's examples (tests/correctness/dividend-limit-official.test.mjs): 50 x cap,
       spouses (Gift med), 4 % rule and indexation of saved room up to 2025, shares in other companies.
 - [x] Phone-width check (375 px): no horizontal overflow on any card or quick calculator.

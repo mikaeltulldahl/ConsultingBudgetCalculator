@@ -80,10 +80,13 @@ Requires Node.js 22 or later.
 npm test
 ```
 
-Browser test of remembering data, export/import, CSV and scenarios (needs Playwright with
-Chromium and network access; not run in CI):
+Browser test of remembering data, export/import, CSV, scenarios, several owners, holding
+companies and automatic salaries (needs Playwright with Chromium and network access; not run
+in CI):
 
 ```bash
+npm install
+npx playwright install chromium
 npm run test:e2e
 ```
 
