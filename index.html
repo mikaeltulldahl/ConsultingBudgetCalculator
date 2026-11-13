@@ -159,6 +159,11 @@
             <p class="kind">Räknare: Utdelningsgräns (3:12)</p>
             <div class="row"><label for="dividendBase">Resultat efter skatt <button type="button" class="from" data-goto="bolag">från bolaget</button></label><output id="dividendBase" data-mirror="profitAfterTax" data-unit="kr"></output></div>
             <div class="row"><label for="maxDividend">Välj maximal utdelning</label><input type="checkbox" id="maxDividend" checked></div>
+            <div class="row"><label for="allowExcessDividend">Ta ut även utdelning över gränsbeloppet (beskattas som lön)</label><input type="checkbox" id="allowExcessDividend"></div>
+            <div id="excessRows" hidden>
+              <div class="row"><label for="dividendExcess">Utdelning över gränsbeloppet</label><output id="dividendExcess" data-unit="kr"></output></div>
+              <div class="row"><label for="excessTax">Skatt på den delen</label><output id="excessTax" data-unit="kr"></output></div>
+            </div>
             <div class="row"><label for="grossDividends"><span data-many="Utdelning från bolaget totalt">Årsutdelning brutto</span></label><input type="number" id="grossDividends" step="10000" value="0" min="0" disabled inputmode="numeric"></div>
             <div class="row"><label for="viaHolding">Äger aktierna via eget holdingbolag</label><input type="checkbox" id="viaHolding"></div>
             <div id="holdingRows" hidden>

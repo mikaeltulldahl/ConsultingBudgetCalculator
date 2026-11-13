@@ -28,6 +28,7 @@ export const FIELDS = [
   { id: 'otherRevenue', type: 'number', default: 0 },
   { id: 'otherCosts', type: 'number', default: 20000 },
   { id: 'maxDividend', type: 'boolean', default: true },
+  { id: 'allowExcessDividend', type: 'boolean', default: false }, // also take out dividend above the gränsbelopp (taxed as employment income)
   { id: 'grossDividends', type: 'number', default: 0 }, // total for the company
   { id: 'salarySplit', type: 'text', default: 'uppdrag' }, // how people with the same automatic salary mode share it, see SALARY_SPLITS
 ];
@@ -291,6 +292,7 @@ export function toEngineInputs(state, kommunRates) {
       otherRevenue: num(state.otherRevenue),
       otherCosts: num(state.otherCosts),
       maxDividend: state.maxDividend,
+      allowExcess: state.allowExcessDividend,
       grossDividends: num(state.grossDividends),
     },
     people: state.people.map((p) => {

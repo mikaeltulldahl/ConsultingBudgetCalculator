@@ -272,6 +272,19 @@ export const EXPLANATIONS = {
     formula: 'Anges av dig. Till och med 2025 räknas det upp med statslåneräntan + 3 procentenheter (4,96 % för 2025). Från 2026 räknas det inte upp.',
     source: ['Skatteverket: Belopp och procentsatser', SKV_BELOPP],
   },
+  allowExcessDividend: {
+    what: 'Tar ut utdelning även över gränsbeloppet. Den delen beskattas som inkomst av tjänst, alltså som lön men utan arbetsgivaravgift, i stället för med 20 %. Utan det här valet begränsar gränsbeloppet utdelningen.',
+    formula: 'Kommunal skatt, begravningsavgift och kyrkoavgift på hela beloppet och 20 % statlig skatt över skiktgränsen, ovanpå personens övriga inkomster. Upp till 90 inkomstbasbelopp; över det 30 %. Kalkylatorn ändrar inte grundavdrag eller jobbskatteavdrag för den delen och räknar inte med den särskilda regeln för makar (57 kap. 36 §).',
+    source: ['Inkomstskattelagen 57 kap. 20 a §', `${IL}#K57P20a`],
+  },
+  dividendExcess: {
+    what: 'Den del av personens utdelning som är större än gränsbeloppet och därför beskattas som inkomst av tjänst.',
+    formula: 'Utdelning − gränsbelopp, om den är positiv.',
+  },
+  excessTax: {
+    what: 'Skatt på utdelningen över gränsbeloppet, beräknad som skatt på inkomst av tjänst utan arbetsgivaravgift.',
+    formula: 'Se "Ta ut även utdelning över gränsbeloppet".',
+  },
   viaHolding: {
     what: 'Om personen äger sina aktier i bolaget via ett eget holdingbolag. Utdelningen går först till holdingbolaget, utan skatt, och holdingbolaget delar sedan ut till personen. Personens utdelning beskattas med 20 % upp till gränsbeloppet för aktierna i holdingbolaget. Resten kan ligga kvar i holdingbolaget.',
     formula: 'Gränsbeloppet räknas för holdingbolaget: ett helt grundbelopp, och lönebaserat utrymme bara om holdingbolaget äger mer än hälften av bolaget (dotterföretag). Då räknas bolagets löner med i förhållande till ägarandelen, och lönen personen tar från bolaget räknas för taket på 50 gånger lönen. Utdelningen till holdingbolaget begränsas inte av gränsbeloppet. Övriga delägare som äger direkt sätter fortfarande taket.',

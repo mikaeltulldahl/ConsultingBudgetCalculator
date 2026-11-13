@@ -572,13 +572,14 @@ export function calculateCompany({ year, company: c, people }, data) {
       f.dividendsLimit = d.limit;
       // Dividend to a holding company is not taxed and not limited by 3:12: only the owners
       // who hold their shares directly set the cap on the company's dividend.
-      const cap = f.viaHolding ? Infinity : d.limit / f.ownership;
+      const cap = f.viaHolding || c.allowExcess ? Infinity : d.limit / f.ownership;
       if (cap < co.dividendCap) {
         co.dividendCap = cap;
         co.limitingOwner = f.id;
       }
     }
     // What the company pays out in total, per share the same to everyone.
+    // With "ta ut över gränsbeloppet" nothing but the profit limits it.
     const paid = c.maxDividend
       ? Math.max(0, Math.min(co.dividendCap, co.profitAfterTax))
       : Math.min(c.grossDividends, co.dividendCap);
@@ -598,7 +599,7 @@ export function calculateCompany({ year, company: c, people }, data) {
       f.holdingTax = Math.max(0, f.holdingIncome - f.holdingCosts) * p.bolagsskatt;
       if (holding) {
         const available = f.dividendReceived + f.holdingIncome - f.holdingCosts - f.holdingTax;
-        f.grossDividends = Math.min(f.dividendsLimit, Math.max(0, available));
+        f.grossDividends = c.allowExcess ? Math.max(0, available) : Math.min(f.dividendsLimit, Math.max(0, available));
         f.keptInHolding = available - f.grossDividends; // below 0: the holding cannot pay its costs
       } else {
         f.grossDividends = f.dividendReceived;
@@ -615,7 +616,27 @@ export function calculateCompany({ year, company: c, people }, data) {
   }
   for (const f of ps) {
     if (!ownersReady) break;
-    f.netDividends = f.grossDividends * (1 - RATES.dividendTax);
+    // Dividend within the gränsbelopp is taxed at 20 %. What is above it (only if the user
+    // chose to take it out) is taxed as income from employment, without arbetsgivaravgift:
+    // kommunal, church and burial tax on all of it and statlig skatt above the skiktgräns, on top
+    // of the person's other income; up to 90 inkomstbasbelopp, above that 30 %. Grundavdrag and
+    // jobbskatteavdrag are not changed by it (Skatteverket SKV 292, 57 kap. 20 a § IL):
+    // https://lagen.nu/1999:1229#K57P20a
+    f.dividendExcess = c.allowExcess && f.ownership > 0 ? Math.max(0, f.grossDividends - f.dividendsLimit) : 0;
+    const worked = Math.min(f.dividendExcess, 90 * getInkomstbasbelopp(year));
+    const base = f.taxableIncome;
+    f.excessTax = f.dividendExcess > 0
+      ? Math.floor((f.kommunalSkattPercent + f.burialSkattPercent + f.churchSkattPercent) * worked) +
+        Math.floor(RATES.statligSkatt * (Math.max(0, base + worked - p.skiktgrans) - Math.max(0, base - p.skiktgrans))) +
+        0.3 * (f.dividendExcess - worked)
+      : 0;
+    if (f.dividendExcess > 0) {
+      f.dividendTax = RATES.dividendTax * (f.grossDividends - f.dividendExcess) + f.excessTax;
+      f.netDividends = f.grossDividends - f.dividendTax;
+    } else {
+      f.dividendTax = RATES.dividendTax * f.grossDividends;
+      f.netDividends = f.grossDividends * (1 - RATES.dividendTax);
+    }
     f.limitsDividend = f.id === co.limitingOwner;
   }
 
@@ -629,12 +650,11 @@ export function calculateCompany({ year, company: c, people }, data) {
     co.incomeTax = sum('incomeTax');
     co.netSalaryYear = sum('netSalaryYear');
     // Dividend tax for the people in the calculation (other owners' tax is not known).
-    co.dividendTax = RATES.dividendTax * (co.grossDividends - co.otherOwnersDividends);
+    co.dividendTax = sum('dividendTax');
     co.totalTax = co.incomeTax + co.slp + co.arbetsgivaravgift + co.bolagsTaxOnDividends + co.dividendTax + co.holdingTax;
     co.totalTaxPercentage = 100 * co.totalTax / (co.invoicedAmount + co.otherRevenue);
     for (const f of ps) {
       f.bolagsTaxOnDividends = taxed ? f.grossDividends * t / (1 - t) : 0;
-      f.dividendTax = RATES.dividendTax * f.grossDividends;
       f.totalTax = f.incomeTax + f.slp + f.arbetsgivaravgift + f.bolagsTaxOnDividends + f.dividendTax + f.holdingTax;
       f.netSumMonth = f.otherNetYear / 12 + (f.salaryMonths > 0
         ? f.netSalaryMonth + f.netDividends / f.salaryMonths

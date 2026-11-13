@@ -279,3 +279,30 @@ test('money is conserved with holding costs and income', () => {
   assert.ok(Math.abs(c.profitAfterDividends - (c.retainedFromProfit + 50000 - 12000 - c.holdingTax)) < 1e-6);
   assert.ok(Math.abs(c.holdingTax - 0.206 * 38000) < 1e-6);
 });
+
+test('dividend above the gränsbelopp is taxed as employment income (2026)', () => {
+  const make = (allowExcess) => {
+    const x = single({ ...BASE_INPUT, invoicedAmount: 2400000 });
+    x.year = 2026;
+    x.company = { ...x.company, allowExcess };
+    return x;
+  };
+  const within = calculateCompany(make(false), fixtureData);
+  const all = calculateCompany(make(true), fixtureData);
+  const f = all.people[0];
+  assert.equal(within.people[0].dividendExcess, 0);
+  // Everything after company tax is paid out; what is above the limit is taxed as work income.
+  assert.ok(Math.abs(all.company.grossDividends - all.company.profitAfterTax) < 1e-6);
+  assert.ok(Math.abs(f.dividendExcess - (f.grossDividends - f.dividendsLimit)) < 1e-6);
+  assert.ok(f.dividendExcess > 0);
+  // Marginal rate: kommunal + begravning on all, and 20 % statlig tax on the part above the skiktgräns.
+  const rate = f.excessTax / f.dividendExcess;
+  assert.ok(rate > 0.3 && rate < 0.3055 + 0.0007 + 0.2 + 1e-3, `rate ${rate}`);
+  assert.ok(Math.abs(f.dividendTax - (0.2 * f.dividendsLimit + f.excessTax)) < 1e-6);
+  assert.ok(Math.abs(f.netDividends - (f.grossDividends - f.dividendTax)) < 1e-6);
+  // The same salary: more net than with the cap, less than if everything were taxed at 20 %.
+  assert.ok(f.netDividends > within.people[0].netDividends);
+  assert.ok(f.netDividends < 0.8 * f.grossDividends);
+  // Company: nothing left, the tax is in the total.
+  assert.ok(all.company.totalTax > within.company.totalTax);
+});

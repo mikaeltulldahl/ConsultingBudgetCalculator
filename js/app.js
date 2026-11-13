@@ -604,7 +604,7 @@ const OUTPUTS = {
   burialSkatt: 0, publicServiceSkatt: 0, jobbskatteavdrag: 0, skattereduktionForvarvsinkomst: 0,
   incomeTax: 0, netSalaryYear: 0, netSemesterersattning: 0, netSalaryMonth: 0, incomeTaxPercentage: 1,
   pension: 0, insurance: 0, slp: 0, arbetsgivaravgift: 0, totalCost: 0, profitBeforeTax: 0,
-  profitAfterTax: 0, dividendReceived: 0, keptInHolding: 0, holdingTax: 0, omkostnadsbeloppInterest: 0, salaryBasedLimit: 0, grundbelopp: 0,
+  profitAfterTax: 0, dividendReceived: 0, keptInHolding: 0, holdingTax: 0, dividendExcess: 0, excessTax: 0, omkostnadsbeloppInterest: 0, salaryBasedLimit: 0, grundbelopp: 0,
   dividendsLimitForenklingsregeln: 0, dividendsLimitHuvudregeln: 0, dividendsLimit: 0,
   netDividends: 0, profitAfterDividends: 0, netSumMonth: 0, totalTax: 0, bolagsTaxExclDividends: 0,
   totalTaxPercentage: 1,
@@ -622,6 +622,7 @@ function writeFields(r) {
   }
   $('pensionCapWarning').hidden = !(r?.pensionNonDeductible > 0);
   $('holdingShortfall').hidden = !(r?.keptInHolding < -0.5);
+  $('excessRows').hidden = !$('allowExcessDividend').checked;
   syncOther();
   syncPersonCards();
   setOutput('churchSkatt', churchMemberField.checked ? r?.churchSkatt : NaN);
@@ -766,6 +767,7 @@ for (const id of ['useSemesterersattning', 'usePension']) {
   $(id).addEventListener('change', updateAll);
 }
 $('salaryMode').addEventListener('change', updateAll);
+$('allowExcessDividend').addEventListener('change', updateAll);
 $('maxDividend').addEventListener('change', function () {
   $('grossDividends').disabled = this.checked;
   updateAll();

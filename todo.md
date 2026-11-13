@@ -21,9 +21,9 @@ with price changes, several owners/employees, saved data and import/export).
 - [ ] Fiscal year not starting 1 January.
 - [x] "Anställd i bolaget" removed: a person is employed when the salary and months are above 0.
 - [x] Salary modes: egen lön, brytpunkt, högsta netto, lägsta lön som delar ut hela vinsten, högsta lön.
+- [x] Dividend above the gränsbelopp (taxed as employment income): optional, approximate (no change to grundavdrag/jobbskatteavdrag, no 57 kap. 36 § for spouses).
 - [ ] 3:12 gaps from docs/research-multi-company-multi-year.md (section 4): löneunderlag and lönekrav use last
-      year's wages, dividend above the limit (taxed as tjänst), owned at 1 January, förenklingsregeln in
-      one company only (up to 2025).
+      year's wages, owned at 1 January, förenklingsregeln in one company only (up to 2025).
 - [ ] More salary modes: lowest salary for full lönebaserat utrymme (after the 3:12 research), salary that
       uses a given dividend.
 - [ ] Fetch constants from external sources so they need no yearly update (3:12, tax rates).
